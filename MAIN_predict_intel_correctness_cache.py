@@ -20,8 +20,7 @@ from scipy.optimize import curve_fit
 
 
 
-# DATAROOT = "/store/store1/data/clarity_CPC2_data/" 
-DATAROOT = "~/exp/data/clarity_CPC2_data/" 
+DATAROOT = "/store/store1/data/clarity_CPC2_data/" 
 df_listener = pd.read_json(DATAROOT + "clarity_data/metadata/listeners.json")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -270,6 +269,8 @@ def train_model(model,train_data,optimizer,criterion,N):
         #print(wavs_data.shape)
         feats_l,feats_r = compute_feats(wavs_data,44100) 
         
+        # print(f"feats_l:\n{feats_l}")
+        # print(f"feats_r:\n{feats_r}")
     
         optimizer.zero_grad()
         output_l,_ = model(feats_l.float())
@@ -280,7 +281,7 @@ def train_model(model,train_data,optimizer,criterion,N):
 
         loss.backward()
         optimizer.step()
-        loss_list.append(loss.item())
+        loss_list.append(loss)
         running_loss += loss.item()
     #print("Average Training loss: %s"%(sum(loss_list)/len(loss_list)))
     
@@ -302,6 +303,75 @@ def save_model(model,opt,epoch,args,val_loss):
     m_name = "%s-%s"%(args.model,args.seed)
     torch.save(model.state_dict(),"%s/%s_%s_%s_model.pt"%(p,m_name,epoch,val_loss))
     torch.save(opt.state_dict(),"%s/%s_%s_%s_opt.pt"%(p,m_name,epoch,val_loss))
+
+
+def get_feats(model,data,N):
+    feats_l_all = []
+    feats_r_all = []
+    model.eval()
+    name_list = data["signal"]
+    correctness_list = data["correctness"]
+    listener_list = data["listener"]
+    scene_list = data["scene"]
+    subset_list = data["subset"]
+
+    #haspi_list = test_data["haspi"]
+    #print(name_list)
+    # running_loss = 0.0
+    # loss_list = []
+    test_dict = {}
+    for sub,name,corr,scene,lis in  zip(subset_list,name_list,correctness_list,scene_list,listener_list):
+        test_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis}
+
+    dynamic_items = [
+        {"func": lambda l: format_correctness(l),
+        "takes": "correctness",
+        "provides": "formatted_correctness"},
+        {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
+        "takes": ["signal","subset"],
+        "provides": "wav"},
+        #{"func": lambda l: audio_pipeline("%s/clarity_data/HA_outputs/train/%s_HL-output.wav"%(DATAROOT,l),44100),
+        #"takes": "signal",
+        #"provides": "wav"},
+        #{"func": lambda l: audio_pipeline("%s/clarity_data/scenes//%s_target_anechoic.wav"%(DATAROOT,l),44100),
+        #"takes": "scene",
+        #"provides": "clean_wav"},
+    ]
+    test_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
+    #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
+    test_set.set_output_keys(["wav", "formatted_correctness"])
+
+    my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
+    print("starting validation...")
+    for batch in tqdm(my_dataloader):
+        batch = batch.to(device)
+        wavs,_ = batch
+        # correctness =correctness.data
+        wavs_data = wavs.data
+        #print("wavs:%s\n correctness:%s\naudiogram:%s"%(wavs.data.shape,correctness,audiogram))
+        # target_scores = correctness
+        #feats = wavs_data
+        feats_l,feats_r = compute_feats(wavs_data,44100) 
+        #print(feats.shape)
+       
+        feats_l,_ = model.feat_extract(feats_l.float()).permute(0,2,1)
+        feats_r,_ = model.feat_extract(feats_r.float()).permute(0,2,1)
+    
+        # output = max(output_l,output_r)
+        # loss = criterion(output,target_scores)
+        #for x1,y1 in zip(output.detach().cpu().numpy(),target_scores.cpu().detach().numpy()):
+        #    print("P: %s | T: %s"%(x1,y1))
+        feats_l_all.append(feats_l.detach().cpu().tolist())
+        feats_r_all.append(feats_r.detach().cpu().tolist())
+
+        # loss_list.append(loss.item())
+        # print statistics
+        # running_loss += loss.item()
+    #print("Average MSE loss: %s"%(sum(loss_list)/len(loss_list)))
+
+    return feats_l_all, feats_r_all
+
+
 
 
 
@@ -353,6 +423,8 @@ def main(args):
         print(args.in_json_file.split("/")[-1].split(".")[-2],args.N)
         exit()
 
+    print(f"args.in_json_file: {args.in_json_file}")
+
     # Load the intelligibility data
     data = pd.read_json(args.in_json_file)
     data["subset"] = "CEC1"
@@ -360,6 +432,10 @@ def main(args):
     data2["subset"] = "CEC2"
     data = pd.concat([data,data2])
     data["predicted"] = np.nan  # Add column to store intel predictions
+
+    feats_l, feats_r = get_feats(model, data, N)
+    data["feats_l"] = feats_l
+    data["feats_r"] = feats_r
 
     # Split into train and val sets
     train_data,val_data = train_test_split(data,test_size=0.1)
@@ -392,7 +468,7 @@ def main(args):
             
             save_model(model,optimizer,epoch,args,val_loss)
             torch.cuda.empty_cache()
-            print("Epoch: %s | Training Loss: %s | Validation Loss: %s"%(epoch,training_loss,val_loss))
+            print("Epoch: %s | Training Loss: %s | Validation Loss: %s"%(epoch,training_loss.item(),val_loss))
             print("=====================================")    
     print(model_dir)
     model_files = os.listdir(model_dir)
