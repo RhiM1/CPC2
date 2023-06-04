@@ -16,14 +16,14 @@ import os
 import datetime
 import torchaudio.transforms as T
 from scipy.optimize import curve_fit
+import wandb
 
+DATAROOT = "/store/store1/data/clarity_CPC2_data/" 
+# DATAROOT = "~/exp/data/clarity_CPC2_data/" 
+df_listener = pd.read_json(DATAROOT + "clarity_data/metadata/listeners.json")
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-
-
-DATAROOT = "data/" 
-df_listener = pd.read_json("data/clarity_data/metadata/listeners.json")
-
-resampler = T.Resample(32000, 16000).to("cuda:0")
+resampler = T.Resample(32000, 16000).to(device)
 
 def compute_feats(wavs,fs):
         """Feature computation pipeline"""
@@ -74,9 +74,15 @@ def validate_model(model,test_data,optimizer,criterion,N):
     running_loss = 0.0
     loss_list = []
     test_dict = {}
-    for sub,name,corr,scene,lis in  zip(subset_list,name_list,correctness_list,scene_list,listener_list):
-        test_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis}
-
+    
+    for sub,name,corr,scene,lis in zip(subset_list,name_list,correctness_list,scene_list,listener_list):
+        # Bodge job correction - one name is in both CEC1 and CEC2 subsets, leading to a mismatch in the length
+        # of dataset and predictions
+        if name in test_dict:
+            test_dict[name + "_" + sub] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis}
+        else:
+            test_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis}
+    
     dynamic_items = [
         {"func": lambda l: format_correctness(l),
         "takes": "correctness",
@@ -98,7 +104,7 @@ def validate_model(model,test_data,optimizer,criterion,N):
     my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
     print("starting validation...")
     for batch in tqdm(my_dataloader):
-        batch = batch.to("cuda:0")
+        batch = batch.to(device)
         wavs,correctness = batch
         correctness =correctness.data
         wavs_data = wavs.data
@@ -160,7 +166,7 @@ def test_model(model,test_data,optimizer,criterion,N):
     my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
     print("starting testing...")
     for batch in tqdm(my_dataloader):
-        batch = batch.to("cuda:0")
+        batch = batch.to(device)
         wavs,correctness = batch
         correctness =correctness.data
         wavs_data = wavs.data
@@ -258,7 +264,7 @@ def train_model(model,train_data,optimizer,criterion,N):
     print("starting training...")
     
     for batch in tqdm(my_dataloader, total=len(my_dataloader)):
-        batch = batch.to("cuda:0")
+        batch = batch.to(device)
         wavs,correctness = batch
         correctness =correctness.data
         wavs_data = wavs.data
@@ -278,7 +284,7 @@ def train_model(model,train_data,optimizer,criterion,N):
 
         loss.backward()
         optimizer.step()
-        loss_list.append(loss)
+        loss_list.append(loss.item())
         running_loss += loss.item()
     #print("Average Training loss: %s"%(sum(loss_list)/len(loss_list)))
     
@@ -305,31 +311,32 @@ def save_model(model,opt,epoch,args,val_loss):
 
 def main(args):
     #set up the torch objects
+    args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("creating model: %s"%args.model)
     torch.manual_seed(args.seed)
     N = args.N
     if args.model == "XLSREncoder":
         from models.ni_predictors import XLSRMetricPredictorEncoder
-        model = XLSRMetricPredictorEncoder().to("cuda:0")
+        model = XLSRMetricPredictorEncoder().to(args.device)
     elif args.model == "XLSRFull":
         from models.ni_predictors import XLSRMetricPredictorFull
-        model = XLSRMetricPredictorFull().to("cuda:0")
+        model = XLSRMetricPredictorFull().to(args.device)
     elif args.model == "XLSRCombo":
         from models.ni_predictors import XLSRMetricPredictorCombo
-        model = XLSRMetricPredictorCombo().to("cuda:0")
+        model = XLSRMetricPredictorCombo().to(args.device)
     elif args.model == "HuBERTEncoder":
         from models.ni_predictors import HuBERTMetricPredictorEncoder
-        model = HuBERTMetricPredictorEncoder().to("cuda:0")
+        model = HuBERTMetricPredictorEncoder().to(args.device)
     elif args.model == "HuBERTFull":
         from models.ni_predictors import HuBERTMetricPredictorFull
-        model = HuBERTMetricPredictorFull().to("cuda:0")
+        model = HuBERTMetricPredictorFull().to(args.device)
     elif args.model == "Spec":  
         from models.ni_predictors import SpecMetricPredictor
-        model = SpecMetricPredictor().to("cuda:0")
+        model = SpecMetricPredictor().to(args.device)
     else:
         print("Model not recognised")
         exit(1)
-    model = model.to("cuda:0")
+    model = model.to(args.device)
     #torchinfo.summary(model,(1,16000*8))
     #set up the model directory
     today = datetime.date.today()
@@ -337,8 +344,14 @@ def main(args):
 
     if "indep" in args.in_json_file:
         model_dir = "save/CPC2_train%s_%s_%s_%s_indep"%(args.N,args.model,date,args.seed)
+        if not args.skip_wandb:
+            wandb_name = "%s_%s_%s_%s_indep"%(args.N,args.model,date,args.seed)
+            run = wandb.init(project=args.wandb_project, reinit = True, name = wandb_name)
     else:
         model_dir = "save/CPC2_train%s_%s_%s_%s"%(args.N,args.model,date,args.seed)
+        if not args.skip_wandb:
+            wandb_name = "%s_%s_%s_%s"%(args.N,args.model,date,args.seed)
+            run = wandb.init(project=args.wandb_project, reinit = True, name = wandb_name)
     args.model_dir = model_dir
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
@@ -386,10 +399,17 @@ def main(args):
             model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args.N)
 
             _,val_loss = validate_model(model,val_data,optimizer,criterion,args.N)
+
+            if not args.skip_wandb:
+                
+                wandb.log({
+                    "dev_loss": val_loss,
+                    "train_loss": training_loss
+                })
             
             save_model(model,optimizer,epoch,args,val_loss)
             torch.cuda.empty_cache()
-            print("Epoch: %s | Training Loss: %s | Validation Loss: %s"%(epoch,training_loss.item(),val_loss))
+            print("Epoch: %s | Training Loss: %s | Validation Loss: %s"%(epoch,training_loss,val_loss))
             print("=====================================")    
     print(model_dir)
     model_files = os.listdir(model_dir)
@@ -438,6 +458,10 @@ def main(args):
     print("Test Loss: %s"%test_loss)
     print("=====================================")
 
+    
+    if not args.skip_wandb:
+        run.finish()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -466,6 +490,15 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--do_train", help="do training" , default=True,type=bool
+    )
+    parser.add_argument(
+        "--cache_feats", help="do training" , default=False,type=bool
+    )
+    parser.add_argument(
+        "--skip_wandb", help="skip logging via WandB" , default=False, type=bool
+    )
+    parser.add_argument(
+        "--wandb_project", help="WandB project name", default = "CPC2"
     )
     args = parser.parse_args()
     main(args)
