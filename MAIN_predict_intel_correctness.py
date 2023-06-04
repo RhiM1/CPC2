@@ -491,14 +491,5 @@ if __name__ == "__main__":
     parser.add_argument(
         "--do_train", help="do training" , default=True,type=bool
     )
-    parser.add_argument(
-        "--cache_feats", help="do training" , default=False,type=bool
-    )
-    parser.add_argument(
-        "--skip_wandb", help="skip logging via WandB" , default=False, type=bool
-    )
-    parser.add_argument(
-        "--wandb_project", help="WandB project name", default = "CPC2"
-    )
     args = parser.parse_args()
     main(args)
