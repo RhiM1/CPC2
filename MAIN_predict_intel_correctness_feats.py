@@ -18,6 +18,13 @@ import torchaudio.transforms as T
 from scipy.optimize import curve_fit
 import wandb
 
+# from models.huBERT_wrapper import HuBERTWrapper_full,HuBERTWrapper_extractor
+# from models.wav2vec2_wrapper import Wav2Vec2Wrapper_no_helper,Wav2Vec2Wrapper_encoder_only
+# from models.llama_wrapper import LlamaWrapper
+# from models.ni_predictors import MetricPredictor, MetricPredictorCombo
+from models.ni_predictor_models import MetricPredictor, MetricPredictorCombo
+from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, XLSRCombo_feats, HuBERTEncoder_feats, HuBERTFull_feats
+
 DATAROOT = "/store/store1/data/clarity_CPC2_data/" 
 # DATAROOT = "~/exp/data/clarity_CPC2_data/" 
 df_listener = pd.read_json(DATAROOT + "clarity_data/metadata/listeners.json")
@@ -308,6 +315,74 @@ def save_model(model,opt,epoch,args,val_loss):
     torch.save(opt.state_dict(),"%s/%s_%s_%s_opt.pt"%(p,m_name,epoch,val_loss))
 
 
+def extract_feats(feat_extractor, data, N, combo = False):
+    feat_extractor.eval()
+    name_list = data["signal"]
+    correctness_list = data["correctness"]
+    listener_list = data["listener"]
+    scene_list = data["scene"]
+    subset_list = data["subset"]
+
+    test_dict = {}
+    
+    for sub,name,corr,scene,lis in zip(subset_list,name_list,correctness_list,scene_list,listener_list):
+        # Bodge job correction - one name is in both CEC1 and CEC2 subsets, leading to a mismatch in the length
+        # of dataset and predictions
+        if name in test_dict:
+            test_dict[name + "_" + sub] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis}
+        else:
+            test_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis}
+    
+    dynamic_items = [
+        {"func": lambda l: format_correctness(l),
+        "takes": "correctness",
+        "provides": "formatted_correctness"},
+        {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
+        "takes": ["signal","subset"],
+        "provides": "wav"},
+        #{"func": lambda l: audio_pipeline("%s/clarity_data/HA_outputs/train/%s_HL-output.wav"%(DATAROOT,l),44100),
+        #"takes": "signal",
+        #"provides": "wav"},
+        #{"func": lambda l: audio_pipeline("%s/clarity_data/scenes//%s_target_anechoic.wav"%(DATAROOT,l),44100),
+        #"takes": "scene",
+        #"provides": "clean_wav"},
+    ]
+    data_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
+    #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
+    data_set.set_output_keys(["wav", "formatted_correctness"])
+    feats_list_l = []
+    feats_list_r = []
+    correct_list = []
+
+    my_dataloader = DataLoader(data_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
+    print("Extracting features...")
+    for batch in tqdm(my_dataloader):
+        batch = batch.to(device)
+        wavs,correctness = batch
+        correctness =correctness.data
+        wavs_data = wavs.data
+        #print("wavs:%s\n correctness:%s\naudiogram:%s"%(wavs.data.shape,correctness,audiogram))
+        # target_scores = correctness
+        #feats = wavs_data
+        feats_l,feats_r = compute_feats(wavs_data,44100) 
+        #print(feats.shape)
+       
+        extracted_feats_l = feat_extractor(feats_l.float()).permute(0,2,1)
+        extracted_feats_r = feat_extractor(feats_r.float()).permute(0,2,1)
+        # print(f"extracted_feats_l.size()\n{extracted_feats_l.size()}")
+        # print(f"extracted_feats_l.size()\n{extracted_feats_l.size()}")
+
+        feats_list_l.append(extracted_feats_l.detach().cpu().numpy())
+        feats_list_r.append(extracted_feats_r.detach().cpu().numpy())
+        correct_list.append(correctness)
+
+    data['feats_l'] = feats_list_l
+    data['feats_r'] = feats_list_r
+
+
+    return data
+
+
 
 def main(args):
     #set up the torch objects
@@ -316,26 +391,42 @@ def main(args):
     torch.manual_seed(args.seed)
     N = args.N
     if args.model == "XLSREncoder":
-        from models.ni_predictors import XLSRMetricPredictorEncoder
-        model = XLSRMetricPredictorEncoder().to(args.device)
+        feat_extractor = XLSREncoder_feats()
+        model = MetricPredictor()
+        # from models.ni_predictors import XLSRMetricPredictorEncoder
+        # model = XLSRMetricPredictorEncoder().to(args.device)
     elif args.model == "XLSRFull":
-        from models.ni_predictors import XLSRMetricPredictorFull
-        model = XLSRMetricPredictorFull().to(args.device)
+        feat_extractor = XLSRFull_feats()
+        model = MetricPredictor()
+        # from models.ni_predictors import XLSRMetricPredictorFull
+        # model = XLSRMetricPredictorFull().to(args.device)
     elif args.model == "XLSRCombo":
-        from models.ni_predictors import XLSRMetricPredictorCombo
-        model = XLSRMetricPredictorCombo().to(args.device)
+        ## Tricky one! Check fat extractor
+        feat_extractor = XLSRCombo_feats()
+        model = MetricPredictorCombo()
+        # from models.ni_predictors import XLSRMetricPredictorCombo
+        # model = XLSRMetricPredictorCombo().to(args.device)
     elif args.model == "HuBERTEncoder":
-        from models.ni_predictors import HuBERTMetricPredictorEncoder
-        model = HuBERTMetricPredictorEncoder().to(args.device)
+        feat_extractor = HuBERTEncoder_feats()
+        model = MetricPredictor()
+        # from models.ni_predictors import HuBERTMetricPredictorEncoder
+        # model = HuBERTMetricPredictorEncoder().to(args.device)
     elif args.model == "HuBERTFull":
-        from models.ni_predictors import HuBERTMetricPredictorFull
-        model = HuBERTMetricPredictorFull().to(args.device)
+        feat_extractor = HuBERTFull_feats()
+        model = MetricPredictor()
+        # from models.ni_predictors import HuBERTMetricPredictorFull
+        # model = HuBERTMetricPredictorFull().to(args.device)
     elif args.model == "Spec":  
-        from models.ni_predictors import SpecMetricPredictor
-        model = SpecMetricPredictor().to(args.device)
+        feat_extractor = Spec_feats()
+        model = MetricPredictor()
+        # from models.ni_predictors import SpecMetricPredictor
+        # model = SpecMetricPredictor().to(args.device)
     else:
         print("Model not recognised")
         exit(1)
+
+    feat_extractor.eval()
+    feat_extractor.requires_grad_(False)
     model = model.to(args.device)
     #torchinfo.summary(model,(1,16000*8))
     #set up the model directory
@@ -370,6 +461,19 @@ def main(args):
     data2["subset"] = "CEC2"
     data = pd.concat([data,data2])
     data["predicted"] = np.nan  # Add column to store intel predictions
+
+    feat_extractor.to(args.device)
+    data, tensor_data = extract_feats(feat_extractor, data, N, combo = True if args.model == "XLSRCombo" else False)
+    feat_extractor.to('cpu')
+
+    print(data[:50])
+
+    print(tensor_data)
+
+    for i in range(20):
+        print(i, tensor_data[i])
+
+    
 
     # Split into train and val sets
     train_data,val_data = train_test_split(data,test_size=0.1)
