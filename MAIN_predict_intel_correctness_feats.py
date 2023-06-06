@@ -57,6 +57,12 @@ def format_correctness(y):
     y = y/100
     return y
 
+def format_feats(y):
+
+    y = torch.from_numpy(y).to(torch.float)
+    return y[0]
+
+
 
 def get_mean(scores):
     out_list = []
@@ -67,7 +73,7 @@ def get_mean(scores):
         out_list.append(el)
     return torch.Tensor(out_list).unsqueeze(0)
 
-def validate_model(model,test_data,optimizer,criterion,N):
+def validate_model(model,test_data,optimizer,criterion,N,combo):
     out_list = []
     model.eval()
     name_list = test_data["signal"]
@@ -75,6 +81,14 @@ def validate_model(model,test_data,optimizer,criterion,N):
     listener_list = test_data["listener"]
     scene_list = test_data["scene"]
     subset_list = test_data["subset"]
+    if combo:
+        feats_full_l_list = test_data['feats_full_l']
+        feats_full_r_list = test_data['feats_full_r']
+        feats_extract_l_list = test_data['feats_extract_l']
+        feats_extract_r_list = test_data['feats_extract_r']
+    else:
+        feats_l_list = test_data["feats_l"]
+        feats_r_list = test_data["feats_r"]
 
     #haspi_list = test_data["haspi"]
     #print(name_list)
@@ -82,121 +96,205 @@ def validate_model(model,test_data,optimizer,criterion,N):
     loss_list = []
     test_dict = {}
     
-    for sub,name,corr,scene,lis in zip(subset_list,name_list,correctness_list,scene_list,listener_list):
-        # Bodge job correction - one name is in both CEC1 and CEC2 subsets, leading to a mismatch in the length
-        # of dataset and predictions
-        if name in test_dict:
-            test_dict[name + "_" + sub] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis}
-        else:
-            test_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis}
-    
-    dynamic_items = [
-        {"func": lambda l: format_correctness(l),
-        "takes": "correctness",
-        "provides": "formatted_correctness"},
-        {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
-        "takes": ["signal","subset"],
-        "provides": "wav"},
-        #{"func": lambda l: audio_pipeline("%s/clarity_data/HA_outputs/train/%s_HL-output.wav"%(DATAROOT,l),44100),
-        #"takes": "signal",
-        #"provides": "wav"},
-        #{"func": lambda l: audio_pipeline("%s/clarity_data/scenes//%s_target_anechoic.wav"%(DATAROOT,l),44100),
-        #"takes": "scene",
-        #"provides": "clean_wav"},
-    ]
-    test_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
-    #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
-    test_set.set_output_keys(["wav", "formatted_correctness"])
+    train_dict = {}
+    if combo:
+        for sub,name,corr,scene,lis, f_full_l, f_full_r, f_extract_l, f_extract_r in  zip(subset_list,name_list,correctness_list,scene_list,listener_list, feats_full_l_list, feats_full_r_list, feats_extract_l_list, feats_extract_r_list):
+            
+            if name in test_dict:
+                test_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_full_l":f_full_l, "feats_full_r": f_full_r, "feats_extract_l": f_extract_l, "feats_extract_r": f_extract_r}
+            else:
+                test_dict[name + "_" + sub] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_full_l":f_full_l, "feats_full_r": f_full_r, "feats_extract_l": f_extract_l, "feats_extract_r": f_extract_r}
+
+        dynamic_items = [
+            {"func": lambda l: format_correctness(l),
+            "takes": "correctness",
+            "provides": "formatted_correctness"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_full_l",
+            "provides": "formatted_feats_full_l"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_full_r",
+            "provides": "formatted_feats_full_r"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_extract_l",
+            "provides": "formatted_feats_extract_l"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_extract_r",
+            "provides": "formatted_feats_extract_r"},
+            # {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
+            # "takes": ["signal","subset"],
+            # "provides": "wav"},
+        ]
+        
+        test_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
+        #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
+        test_set.set_output_keys(["formatted_correctness", "formatted_feats_full_l", "formatted_feats_full_r", "formatted_feats_extract_l", "formatted_feats_extract_r"])
+    else:
+        for sub,name,corr,scene,lis, f_l, f_r in  zip(subset_list, name_list,correctness_list,scene_list,listener_list, feats_l_list, feats_r_list):
+            # Bodge job correction - one name is in both CEC1 and CEC2 subsets, leading to a mismatch in the length
+            # of dataset and predictions
+            if name in test_dict:
+                test_dict[name + "_" + sub] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_l":f_l, "feats_r": f_r}
+            else:
+                test_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_l":f_l, "feats_r": f_r}
+        
+        dynamic_items = [
+            {"func": lambda l: format_correctness(l),
+            "takes": "correctness",
+            "provides": "formatted_correctness"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_l",
+            "provides": "formatted_feats_l"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_r",
+            "provides": "formatted_feats_r"},
+            # {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
+            # "takes": ["signal","subset"],
+            # "provides": "wav"},
+        ]
+        test_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
+        test_set.set_output_keys(["formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
 
     my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
     print("starting validation...")
     for batch in tqdm(my_dataloader):
-        batch = batch.to(device)
-        wavs,correctness = batch
-        correctness =correctness.data
-        wavs_data = wavs.data
-        #print("wavs:%s\n correctness:%s\naudiogram:%s"%(wavs.data.shape,correctness,audiogram))
-        target_scores = correctness
-        #feats = wavs_data
-        feats_l,feats_r = compute_feats(wavs_data,44100) 
-        #print(feats.shape)
        
-        output_l,_ = model(feats_l.float())
-        output_r,_ = model(feats_r.float())
-    
+        batch = batch.to(device)
+        if combo:
+            correctness, feats_full_l, feats_full_r, feats_extract_l, feats_extract_r = batch
+            feats_full_l = feats_full_l.data
+            feats_full_r = feats_full_r.data
+            feats_extract_l = feats_extract_l.data
+            feats_extract_r = feats_extract_r.data
+        else:
+            correctness, feats_l, feats_r = batch
+            feats_l = feats_l.data
+            feats_r = feats_r.data
+            
+        correctness = correctness.data
+        target_scores = correctness
+        
+        if combo:
+            output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
+            output_r,_ = model(feats_full_r.float(), feats_extract_r.float())
+        else:
+            output_l,_ = model(feats_l.float())
+            output_r,_ = model(feats_r.float())
+            
         output = max(output_l,output_r)
         loss = criterion(output,target_scores)
-        #for x1,y1 in zip(output.detach().cpu().numpy(),target_scores.cpu().detach().numpy()):
-        #    print("P: %s | T: %s"%(x1,y1))
+
         out_list.append(output.detach().cpu().numpy()[0][0]*100)
 
         loss_list.append(loss.item())
         # print statistics
         running_loss += loss.item()
-    #print("Average MSE loss: %s"%(sum(loss_list)/len(loss_list)))
-
     return out_list,sum(loss_list)/len(loss_list)
 
-def test_model(model,test_data,optimizer,criterion,N):
+def test_model(model,test_data,optimizer,criterion,N,combo):
     out_list = []
     model.eval()
     name_list = test_data["signal"]
     correctness_list = test_data["correctness"]
     listener_list = test_data["listener"]
     scene_list = test_data["scene"]
+    if combo:
+        feats_full_l_list = test_data['feats_full_l']
+        feats_full_r_list = test_data['feats_full_r']
+        feats_extract_l_list = test_data['feats_extract_l']
+        feats_extract_r_list = test_data['feats_extract_r']
+    else:
+        feats_l_list = test_data["feats_l"]
+        feats_r_list = test_data["feats_r"]
     #haspi_list = test_data["haspi"]
     #print(name_list)
     running_loss = 0.0
     loss_list = []
     test_dict = {}
-    for name,corr,scene,lis in  zip(name_list,correctness_list,scene_list,listener_list,):
-        test_dict[name] = {"signal": name,"correctness":corr,"scene": scene,"listener":lis}
+    if combo:
+        for name,corr,scene,lis, f_full_l, f_full_r, f_extract_l, f_extract_r in  zip(name_list,correctness_list,scene_list,listener_list, feats_full_l_list, feats_full_r_list, feats_extract_l_list, feats_extract_r_list):
+            test_dict[name] = {"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_full_l":f_full_l, "feats_full_r": f_full_r, "feats_extract_l": feats_extract_l_list, "feats_extract_r": feats_extract_r_list}
 
-    dynamic_items = [
-        {"func": lambda l: format_correctness(l),
-        "takes": "correctness",
-        "provides": "formatted_correctness"},
-        #{"func": lambda l: audio_pipeline("%s/clarity_data/HA_outputs/train/%s.wav"%(DATAROOT,l),32000),
-        #"takes": "signal",
-        #"provides": "wav"},
-        {"func": lambda l: audio_pipeline("%s/clarity_data/HA_outputs/test.%s/%s.wav"%(DATAROOT,N,l),44100),
-        "takes": "signal",
-        "provides": "wav"},
-        #{"func": lambda l: audio_pipeline("%s/clarity_data/scenes//%s_target_anechoic.wav"%(DATAROOT,l),44100),
-        #"takes": "scene",
-        #"provides": "clean_wav"},
-    ]
-    test_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
-    #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
-    test_set.set_output_keys(["wav", "formatted_correctness"])
+        dynamic_items = [
+            {"func": lambda l: format_correctness(l),
+            "takes": "correctness",
+            "provides": "formatted_correctness"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_full_l",
+            "provides": "formatted_feats_full_l"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_full_r",
+            "provides": "formatted_feats_full_r"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_extract_l",
+            "provides": "formatted_feats_extract_l"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_extract_r",
+            "provides": "formatted_feats_extract_r"},
+            # {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
+            # "takes": ["signal","subset"],
+            # "provides": "wav"},
+        ]
+        
+        train_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
+        #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
+        train_set.set_output_keys(["formatted_correctness", "formatted_feats_full_l", "formatted_feats_full_r", "formatted_feats_extract_l", "formatted_feats_extract_r"])
+    else:
+        for name,corr,scene,lis, f_l, f_r in  zip(name_list,correctness_list,scene_list,listener_list, feats_l_list, feats_r_list):
+            test_dict[name] = {"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_l":f_l, "feats_r": f_r}
+
+        dynamic_items = [
+            {"func": lambda l: format_correctness(l),
+            "takes": "correctness",
+            "provides": "formatted_correctness"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_l",
+            "provides": "formatted_feats_l"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_r",
+            "provides": "formatted_feats_r"},
+            # {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
+            # "takes": ["signal","subset"],
+            # "provides": "wav"},
+        ]
+        test_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
+        #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
+        test_set.set_output_keys(["formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
 
     my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
     print("starting testing...")
     for batch in tqdm(my_dataloader):
+
         batch = batch.to(device)
-        wavs,correctness = batch
+        if combo:
+            correctness, feats_full_l, feats_full_r, feats_extract_l, feats_extract_r = batch
+            feats_full_l = feats_full_l.data
+            feats_full_r = feats_full_r.data
+            feats_extract_l = feats_extract_l.data
+            feats_extract_r = feats_extract_r.data
+        else:
+            correctness, feats_l, feats_r = batch
+            feats_l = feats_l.data
+            feats_r = feats_r.data
+
         correctness =correctness.data
-        wavs_data = wavs.data
-        #print("wavs:%s\n correctness:%s\naudiogram:%s"%(wavs.data.shape,correctness,audiogram))
         target_scores = correctness
-        #feats = wavs_data
-        feats_l,feats_r = compute_feats(wavs_data,44100) 
-        #print(feats.shape)
-       
-        output_l,_ = model(feats_l.float())
-        output_r,_ = model(feats_r.float())
-      
+        
+        if combo:
+            output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
+            output_r,_ = model(feats_full_r.float(), feats_extract_r.float())
+        else:
+            output_l,_ = model(feats_l.float())
+            output_r,_ = model(feats_r.float())
+
         output = max(output_l,output_r)
         loss = criterion(output,target_scores)
 
-        #for x1,y1 in zip(output.detach().cpu().numpy(),target_scores.cpu().detach().numpy()):
-        #    print("P: %s | T: %s"%(x1,y1))
         out_list.append(output.detach().cpu().numpy()[0][0]*100)
 
         loss_list.append(loss.item())
         # print statistics
         running_loss += loss.item()
-    #print("Average MSE loss: %s"%(sum(loss_list)/len(loss_list)))
 
     return out_list,sum(loss_list)/len(loss_list)
 
@@ -223,7 +321,7 @@ def format_audiogram(audiogram):
 
 
 
-def train_model(model,train_data,optimizer,criterion,N):
+def train_model(model,train_data,optimizer,criterion,N,combo=False):
     model.train()
     name_list = train_data["signal"]
     correctness_list = train_data["correctness"]
@@ -231,60 +329,99 @@ def train_model(model,train_data,optimizer,criterion,N):
     scene_list = train_data["scene"]
     listener_list = train_data["listener"]
     subset_list = train_data["subset"]
-    #print(name_list)
-    #columns_titles = ["signal",'scene', 'listener', 'system', 'mbstoi', 'correctness', 'predicted']
-    #train_data = train_data.reindex(columns_titles)
-    #train_data = train_data.to_dict()
+    if combo:
+        feats_full_l_list = train_data['feats_full_l']
+        feats_full_r_list = train_data['feats_full_r']
+        feats_extract_l_list = train_data['feats_extract_l']
+        feats_extract_r_list = train_data['feats_extract_r']
+    else:
+        feats_l_list = train_data["feats_l"]
+        feats_r_list = train_data["feats_r"]
+        
     running_loss = 0.0
     loss_list = []
    
     train_dict = {}
-    for sub,name,corr,scene,lis in  zip(subset_list,name_list,correctness_list,scene_list,listener_list):
-        train_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis}
+    if combo:
+        for sub,name,corr,scene,lis, f_full_l, f_full_r, f_extract_l, f_extract_r in  zip(subset_list,name_list,correctness_list,scene_list,listener_list, feats_full_l_list, feats_full_r_list, feats_extract_l_list, feats_extract_r_list):
+            train_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_full_l":f_full_l, "feats_full_r": f_full_r, "feats_extract_l": f_extract_l, "feats_extract_r": f_extract_r}
 
+        dynamic_items = [
+            {"func": lambda l: format_correctness(l),
+            "takes": "correctness",
+            "provides": "formatted_correctness"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_full_l",
+            "provides": "formatted_feats_full_l"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_full_r",
+            "provides": "formatted_feats_full_r"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_extract_l",
+            "provides": "formatted_feats_extract_l"},
+            {"func": lambda l: format_feats(l),
+            "takes": "feats_extract_r",
+            "provides": "formatted_feats_extract_r"},
+            # {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
+            # "takes": ["signal","subset"],
+            # "provides": "wav"},
+        ]
+        
+        train_set = sb.dataio.dataset.DynamicItemDataset(train_dict,dynamic_items)
+        #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
+        train_set.set_output_keys(["formatted_correctness", "formatted_feats_full_l", "formatted_feats_full_r", "formatted_feats_extract_l", "formatted_feats_extract_r"])
+    else:
+        for sub,name,corr,scene,lis, f_l, f_r in  zip(subset_list,name_list,correctness_list,scene_list,listener_list, feats_l_list, feats_r_list):
+            train_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_l":f_l, "feats_r": f_r}
 
+            dynamic_items = [
+                {"func": lambda l: format_correctness(l),
+                "takes": "correctness",
+                "provides": "formatted_correctness"},
+                {"func": lambda l: format_feats(l),
+                "takes": "feats_l",
+                "provides": "formatted_feats_l"},
+                {"func": lambda l: format_feats(l),
+                "takes": "feats_r",
+                "provides": "formatted_feats_r"},
+                # {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
+                # "takes": ["signal","subset"],
+                # "provides": "wav"},
+            ]
 
-
-
-    dynamic_items = [
-        {"func": lambda l: format_correctness(l),
-        "takes": "correctness",
-        "provides": "formatted_correctness"},
-        #{"func": lambda l: audio_pipeline("%s/clarity_data/HA_outputs/train/%s.wav"%(DATAROOT,l),32000),
-        #"takes": "signal",
-        #"provides": "wav"},
-        {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
-        "takes": ["signal","subset"],
-        "provides": "wav"},
-        #{"func": lambda l: audio_pipeline("%s/clarity_data/scenes//%s_target_anechoic.wav"%(DATAROOT,l),44100),
-        #"takes": "scene",
-        #"provides": "clean_wav"},
-        #{"func": lambda l: convert_audiogram(l),
-        #"takes": "listener",
-        #"provides": "audiogram_np"}
-    ]
-    train_set = sb.dataio.dataset.DynamicItemDataset(train_dict,dynamic_items)
-    #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
-    train_set.set_output_keys(["wav", "formatted_correctness"])
+        train_set = sb.dataio.dataset.DynamicItemDataset(train_dict,dynamic_items)
+        #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
+        train_set.set_output_keys(["formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
 
     my_dataloader = DataLoader(train_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
     print("starting training...")
     
     for batch in tqdm(my_dataloader, total=len(my_dataloader)):
         batch = batch.to(device)
-        wavs,correctness = batch
-        correctness =correctness.data
-        wavs_data = wavs.data
+        if combo:
+            correctness, feats_full_l, feats_full_r, feats_extract_l, feats_extract_r = batch
+            feats_full_l = feats_full_l.data
+            feats_full_r = feats_full_r.data
+            feats_extract_l = feats_extract_l.data
+            feats_extract_r = feats_extract_r.data
+        else:
+            correctness, feats_l, feats_r = batch
+            feats_l = feats_l.data
+            feats_r = feats_r.data
         #print("wavs:%s\n correctness:%s\n"%(wavs.data.shape,correctness))
+        correctness =correctness.data
         target_scores = correctness
         
-        #print(wavs_data.shape)
-        feats_l,feats_r = compute_feats(wavs_data,44100) 
-        
+        # #print(wavs_data.shape)
+        # feats_l,feats_r = compute_feats(wavs_data,44100) 
     
         optimizer.zero_grad()
-        output_l,_ = model(feats_l.float())
-        output_r,_ = model(feats_r.float())
+        if combo:
+            output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
+            output_r,_ = model(feats_full_r.float(), feats_extract_r.float())
+        else:
+            output_l,_ = model(feats_l.float())
+            output_r,_ = model(feats_r.float())
         loss_l = criterion(output_l,target_scores)
         loss_r = criterion(output_r,target_scores)
         loss = loss_l + loss_r
@@ -293,16 +430,18 @@ def train_model(model,train_data,optimizer,criterion,N):
         optimizer.step()
         loss_list.append(loss.item())
         running_loss += loss.item()
+        
+        
     #print("Average Training loss: %s"%(sum(loss_list)/len(loss_list)))
     
     return model,optimizer,criterion,sum(loss_list)/len(loss_list)
 
 
-def convert_audiogram(listener):
-    audiogram_l =  format_audiogram(np.array(df_listener[listener]["audiogram_levels_l"]))
-    audiogram_r =  format_audiogram(np.array(df_listener[listener]["audiogram_levels_r"]))
-    audiogram = [audiogram_l,audiogram_r]
-    return audiogram
+# def convert_audiogram(listener):
+#     audiogram_l =  format_audiogram(np.array(df_listener[listener]["audiogram_levels_l"]))
+#     audiogram_r =  format_audiogram(np.array(df_listener[listener]["audiogram_levels_r"]))
+#     audiogram = [audiogram_l,audiogram_r]
+#     return audiogram
 
 
 
@@ -350,9 +489,16 @@ def extract_feats(feat_extractor, data, N, combo = False):
     data_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
     #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
     data_set.set_output_keys(["wav", "formatted_correctness"])
-    feats_list_l = []
-    feats_list_r = []
-    correct_list = []
+
+    if combo:
+        feats_list_full_l = []
+        feats_list_extract_l = []
+        feats_list_full_r = []
+        feats_list_extract_r = []
+    else:
+        feats_list_l = []
+        feats_list_r = []
+        correct_list = []
 
     my_dataloader = DataLoader(data_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
     print("Extracting features...")
@@ -367,17 +513,34 @@ def extract_feats(feat_extractor, data, N, combo = False):
         feats_l,feats_r = compute_feats(wavs_data,44100) 
         #print(feats.shape)
        
-        extracted_feats_l = feat_extractor(feats_l.float()).permute(0,2,1)
-        extracted_feats_r = feat_extractor(feats_r.float()).permute(0,2,1)
-        # print(f"extracted_feats_l.size()\n{extracted_feats_l.size()}")
-        # print(f"extracted_feats_l.size()\n{extracted_feats_l.size()}")
+        if combo:
+            extracted_feats_full_l, extracted_feats_extract_l = feat_extractor(feats_l.float())
+            extracted_feats_full_r, extracted_feats_extract_r = feat_extractor(feats_r.float())
 
-        feats_list_l.append(extracted_feats_l.detach().cpu().numpy())
-        feats_list_r.append(extracted_feats_r.detach().cpu().numpy())
-        correct_list.append(correctness)
+            feats_list_full_l.append(extracted_feats_full_l.detach().cpu().numpy())
+            feats_list_full_r.append(extracted_feats_full_r.detach().cpu().numpy())
+            feats_list_extract_l.append(extracted_feats_extract_l.detach().cpu().numpy())
+            feats_list_extract_r.append(extracted_feats_extract_r.detach().cpu().numpy())
 
-    data['feats_l'] = feats_list_l
-    data['feats_r'] = feats_list_r
+        else:
+
+            extracted_feats_l = feat_extractor(feats_l.float())
+            extracted_feats_r = feat_extractor(feats_r.float())
+            # print(f"extracted_feats_l.size()\n{extracted_feats_l.size()}")
+            # print(f"extracted_feats_l.size()\n{extracted_feats_l.size()}")
+
+            feats_list_l.append(extracted_feats_l.detach().cpu().numpy())
+            feats_list_r.append(extracted_feats_r.detach().cpu().numpy())
+            correct_list.append(correctness)
+
+    if combo:
+        data['feats_full_l'] = feats_list_full_l
+        data['feats_full_r'] = feats_list_full_r
+        data['feats_extract_l'] = feats_list_extract_l
+        data['feats_extract_r'] = feats_list_extract_r
+    else:
+        data['feats_l'] = feats_list_l
+        data['feats_r'] = feats_list_r
 
 
     return data
@@ -390,35 +553,37 @@ def main(args):
     print("creating model: %s"%args.model)
     torch.manual_seed(args.seed)
     N = args.N
+    combo = False
     if args.model == "XLSREncoder":
         feat_extractor = XLSREncoder_feats()
-        model = MetricPredictor()
+        model = MetricPredictor(dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU, att_pool_dim = 512)
         # from models.ni_predictors import XLSRMetricPredictorEncoder
         # model = XLSRMetricPredictorEncoder().to(args.device)
     elif args.model == "XLSRFull":
         feat_extractor = XLSRFull_feats()
-        model = MetricPredictor()
+        model = MetricPredictor(dim_extractor=1024, hidden_size=1024//2, activation=nn.LeakyReLU, att_pool_dim=1024)
         # from models.ni_predictors import XLSRMetricPredictorFull
         # model = XLSRMetricPredictorFull().to(args.device)
     elif args.model == "XLSRCombo":
         ## Tricky one! Check fat extractor
+        combo = True
         feat_extractor = XLSRCombo_feats()
-        model = MetricPredictorCombo()
+        model = MetricPredictorCombo(dim_extractor=1024, hidden_size=1024//2, activation=nn.LeakyReLU)
         # from models.ni_predictors import XLSRMetricPredictorCombo
         # model = XLSRMetricPredictorCombo().to(args.device)
     elif args.model == "HuBERTEncoder":
         feat_extractor = HuBERTEncoder_feats()
-        model = MetricPredictor()
+        model = MetricPredictor(dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU, att_pool_dim=512)
         # from models.ni_predictors import HuBERTMetricPredictorEncoder
         # model = HuBERTMetricPredictorEncoder().to(args.device)
     elif args.model == "HuBERTFull":
         feat_extractor = HuBERTFull_feats()
-        model = MetricPredictor()
+        model = MetricPredictor(dim_extractor=768, hidden_size=768//2, activation=nn.LeakyReLU, att_pool_dim=768)
         # from models.ni_predictors import HuBERTMetricPredictorFull
         # model = HuBERTMetricPredictorFull().to(args.device)
     elif args.model == "Spec":  
         feat_extractor = Spec_feats()
-        model = MetricPredictor()
+        model = MetricPredictor(dim_extractor=257, hidden_size=257//2, activation=nn.LeakyReLU, att_pool_dim = 256)
         # from models.ni_predictors import SpecMetricPredictor
         # model = SpecMetricPredictor().to(args.device)
     else:
@@ -430,7 +595,7 @@ def main(args):
     model = model.to(args.device)
     #torchinfo.summary(model,(1,16000*8))
     #set up the model directory
-    today = datetime.date.today()
+    today = datetime.datetime.today()
     date = today.strftime("%H-%M-%d-%b-%Y")
 
     if "indep" in args.in_json_file:
@@ -463,16 +628,10 @@ def main(args):
     data["predicted"] = np.nan  # Add column to store intel predictions
 
     feat_extractor.to(args.device)
-    data, tensor_data = extract_feats(feat_extractor, data, N, combo = True if args.model == "XLSRCombo" else False)
+    data = extract_feats(feat_extractor, data, N, combo)
     feat_extractor.to('cpu')
 
     print(data[:50])
-
-    print(tensor_data)
-
-    for i in range(20):
-        print(i, tensor_data[i])
-
     
 
     # Split into train and val sets
@@ -500,9 +659,9 @@ def main(args):
         for epoch in range(args.n_epochs):
 
 
-            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args.N)
+            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args.N,combo)
 
-            _,val_loss = validate_model(model,val_data,optimizer,criterion,args.N)
+            _,val_loss = validate_model(model,val_data,optimizer,criterion,args.N,combo)
 
             if not args.skip_wandb:
                 
@@ -526,7 +685,7 @@ def main(args):
     model.load_state_dict(torch.load("%s/%s"%(model_dir,model_file)))
     
     # get validation predictions
-    val_predictions,_ = validate_model(model,val_data,optimizer,criterion,args.N)
+    val_predictions,_ = validate_model(model,val_data,optimizer,criterion,args.N,combo)
     
     #normalise the predictions
     val_gt = val_data["correctness"].to_numpy()/100
@@ -555,7 +714,7 @@ def main(args):
 
     else:
         print("Testing model on train+val set")
-        predictions,test_loss = validate_model(model,data,optimizer,criterion,args.N)
+        predictions,test_loss = validate_model(model,data,optimizer,criterion,args.N,combo)
     
         data["predicted"] = predictions
         data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file, index=False)

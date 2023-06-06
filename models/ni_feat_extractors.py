@@ -15,9 +15,7 @@ from speechbrain.processing.features import spectral_magnitude,STFT
 
 class Spec_feats(nn.Module):
 
-    def __init__(
-        self, dim_extractor=257, hidden_size=257//2, activation=nn.LeakyReLU,
-    ):
+    def __init__(self):
         super().__init__()
 
         self.stft = STFT(hop_length=16,win_length=32,sample_rate=16000,n_fft=512,window_fn=torch.hamming_window)
@@ -33,9 +31,7 @@ class Spec_feats(nn.Module):
 
 class XLSRCombo_feats(nn.Module):
 
-    def __init__(
-        self, dim_extractor=1024, hidden_size=1024//2, activation=nn.LeakyReLU,
-    ):
+    def __init__(self):
         super().__init__()
 
         self.feat_extract = Wav2Vec2Wrapper_no_helper()
@@ -51,9 +47,7 @@ class XLSRCombo_feats(nn.Module):
 
 class XLSRFull_feats(nn.Module):
 
-    def __init__(
-        self, dim_extractor=1024, hidden_size=1024//2, activation=nn.LeakyReLU,
-    ):
+    def __init__(self):
         super().__init__()
 
         self.feat_extract = Wav2Vec2Wrapper_no_helper()
@@ -65,23 +59,22 @@ class XLSRFull_feats(nn.Module):
 
 class XLSREncoder_feats(nn.Module):
 
-    def __init__(
-        self, dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU,
-    ):
+    def __init__(self):
         super().__init__()
 
         self.feat_extract = Wav2Vec2Wrapper_encoder_only()
+        self.i = 0
 
     def forward(self, x):
 
-        return self.feat_extract(x).permute(0,2,1)
+        x = self.feat_extract(x).permute(0,2,1)
+
+        return x
 
         
 class HuBERTFull_feats(nn.Module):
 
-    def __init__(
-        self, dim_extractor=768, hidden_size=768//2, activation=nn.LeakyReLU,
-    ):
+    def __init__(self):
         super().__init__()
 
         self.feat_extract = HuBERTWrapper_full()
@@ -92,9 +85,7 @@ class HuBERTFull_feats(nn.Module):
 
 class HuBERTEncoder_feats(nn.Module):
 
-    def __init__(
-        self, dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU,
-    ):
+    def __init__(self):
         super().__init__()
 
         self.feat_extract = HuBERTWrapper_extractor()

@@ -31,7 +31,7 @@ class MetricPredictor(nn.Module):
     """
 
     def __init__(
-        self, dim_extractor=257, hidden_size=257//2, activation=nn.LeakyReLU,
+        self, dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU, att_pool_dim=512
     ):
         super().__init__()
 
@@ -46,8 +46,7 @@ class MetricPredictor(nn.Module):
             batch_first=True,
         )
         
-        
-        self.attenPool = PoolAttFF(dim_extractor-1)
+        self.attenPool = PoolAttFF(att_pool_dim)
         
         self.sigmoid = nn.Sigmoid()
 
