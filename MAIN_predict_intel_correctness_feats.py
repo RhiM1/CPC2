@@ -599,14 +599,14 @@ def main(args):
     date = today.strftime("%H-%M-%d-%b-%Y")
 
     if "indep" in args.in_json_file:
-        model_dir = "save/CPC2_train%s_%s_%s_%s_indep"%(args.N,args.model,date,args.seed)
+        model_dir = "save/CPC2_train%s_%s_feats_%s_%s_indep"%(args.N,args.model,date,args.seed)
         if not args.skip_wandb:
-            wandb_name = "%s_%s_%s_%s_indep"%(args.N,args.model,date,args.seed)
+            wandb_name = "%s_%s_feats_%s_%s_indep"%(args.N,args.model,date,args.seed)
             run = wandb.init(project=args.wandb_project, reinit = True, name = wandb_name)
     else:
-        model_dir = "save/CPC2_train%s_%s_%s_%s"%(args.N,args.model,date,args.seed)
+        model_dir = "save/CPC2_train%s_%s_feats_%s_%s"%(args.N,args.model,date,args.seed)
         if not args.skip_wandb:
-            wandb_name = "%s_%s_%s_%s"%(args.N,args.model,date,args.seed)
+            wandb_name = "%s_%s_feats_%s_%s"%(args.N,args.model,date,args.seed)
             run = wandb.init(project=args.wandb_project, reinit = True, name = wandb_name)
     args.model_dir = model_dir
     if not os.path.exists(model_dir):
