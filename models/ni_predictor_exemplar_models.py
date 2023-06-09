@@ -1,14 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch import Tensor, nn
-try: #look in two places for the HuBERT wrapper
-    from models.huBERT_wrapper import HuBERTWrapper_full,HuBERTWrapper_extractor
-    from models.wav2vec2_wrapper import Wav2Vec2Wrapper_no_helper,Wav2Vec2Wrapper_encoder_only
-    from models.llama_wrapper import LlamaWrapper
-except:
-    from huBERT_wrapper import HuBERTWrapper_full,HuBERTWrapper_extractor
-    from wav2vec2_wrapper import Wav2Vec2Wrapper_no_helper,Wav2Vec2Wrapper_encoder_only
-    from llama_wrapper import LlamaWrapper
+from torch import nn
 from speechbrain.processing.features import spectral_magnitude,STFT
 
 from models.ni_predictors import PoolAttFF
@@ -71,62 +63,50 @@ class minerva(base_model):
         if config['dropout'] > 0:
             self.do = nn.Dropout(p = config['dropout'])
         self.set_exemplars(ex_features, ex_targets, ex_IDX)
-        self.initialise_exemplars()
+        # self.initialise_exemplars()
 
-    def set_exemplars(self, ex_features, ex_classes, ex_IDX):
+    def set_exemplars(self, padded_ex_features_l, padded_ex_features_r, ex_targets, ex_IDX):
         
-        self.ex_classes = nn.Parameter(ex_classes, requires_grad = False)
-        print(f"ex_classes init: \n{self.ex_classes}")
-        if ex_features is None:
-            self.ex_features = None
+        if ex_targets is None:
+            self.ex_targets = None
         else:
-            self.ex_features = nn.Parameter(ex_features, requires_grad = False)
-            print(f"ex_features init: \n{self.ex_features}")
+            self.ex_targets = nn.Parameter(ex_targets, requires_grad = False)
+            print(f"ex_targets size:: \n{self.ex_targets.size()}")
+            if self.config['train_ex_class']:
+                self.add_ex_targets = nn.Parameter(torch.zeros_like(self.ex_targets))
+                print(f"add_ex_targets size:: \n{self.add_ex_targets.size()}")
+
+
+        if padded_ex_features_l is None:
+            self.ex_features_l = None
+        else:
+            ex_features_l, len_ex_features_l = self.unpack_exemplars(padded_ex_features_l)
+            self.ex_features_l = nn.Parameter(ex_features_l, requires_grad = False)
+            self.len_ex_features_l = nn.Parameter(len_ex_features_l, requires_grad = False)
+            print(f"ex_features size:: \n{self.ex_features_l.size()}")
+            if self.config['train_ex_features']:
+                self.add_ex_feats_l = nn.Parameter(torch.zeros_like(self.ex_features_l.data))
+                print(f"add_ex_feats size:: \n{self.add_ex_feats_l.size()}")
+
+        if padded_ex_features_r is None:
+            self.ex_features_r = None
+        else:
+            ex_features_r, len_ex_features_r = self.unpack_exemplars(padded_ex_features_r)
+            self.ex_features_r = nn.Parameter(ex_features_r, requires_grad = False)
+            self.len_ex_features_r = nn.Parameter(len_ex_features_r, requires_grad = False)
+            print(f"ex_features size:: \n{self.ex_features_r.size()}")
+            if self.config['train_ex_features']:
+                self.add_ex_feats_r = nn.Parameter(torch.zeros_like(self.ex_features_r.data))
+                print(f"add_ex_feats size:: \n{self.add_ex_feats_r.size()}")
+
         if ex_IDX is None:
             self.ex_IDX = None
         else:
             self.ex_IDX = nn.Parameter(ex_IDX, requires_grad = False)
-            print(f"ex_IDX init: \n{self.ex_IDX}")
+            print(f"ex_IDX size: \n{self.ex_IDX.size()}")
 
 
-    def initialise_exemplars(self):
-
-        if self.config['class_dim'] is None:
-            self.class_reps = torch.nn.Parameter(
-                nn.functional.one_hot(torch.arange(self.config['num_labels'])).type(torch.float),
-                requires_grad = self.config['train_class_reps']
-            )
-            if self.config['train_ex_class']:
-                self.add_ex_class_reps = torch.nn.Parameter(
-                    torch.zeros(len(self.ex_classes), self.config['num_labels'], dtype = torch.float)
-                )
-        else:
-            self.class_reps = torch.nn.Parameter(
-                torch.rand(self.config['num_labels'], self.config['class_dim'], dtype = torch.float) * 2 - 1,
-                requires_grad = self.config['train_class_reps']
-            )
-            if self.config['train_ex_class']:
-                self.add_ex_class_reps = torch.nn.Parameter(
-                    torch.zeros(len(self.ex_classes), self.config['class_dim'], dtype = torch.float)
-                )
-
-        # print(f"class_reps init: \n{self.class_reps}")
-        # if self.config['train_ex_class']:
-        #     print(f"add_ex_class_reps init: \n{self.add_ex_class_reps}")
-        if self.config['train_ex_feats']:
-            self.add_feats = nn.Parameter(
-                torch.zeros(len(self.ex_classes), self.config['feat_dim'], dtype = torch.float)
-            )
-        
-        print()
-        if self.ex_features is not None:
-            print("ex_features.size:", self.ex_features.size())
-        print("ex_classes.size:", self.ex_classes.size())
-        print("class_reps.size:", self.class_reps.size())
-        print()
-
-
-    def forward(self, features, ex_features = None, p_factor = None):
+    def forward(self, features, ex_features = None, ex_targets = None, p_factor = None):
         
         # features has dim (batch_size, input_dim)
         # ex_features has dim (ex_batch_size, input_dim)
@@ -134,29 +114,24 @@ class minerva(base_model):
         # ex_reps has dim (num_classes, phone_dim)
         # print(f"features.size: {features.size()}, ex_features.size: {self.ex_features.size()}")
 
-        if ex_features is None:
-            ex_features = self.ex_features
-
         if p_factor is None:
             p_factor = self.config['p_factor']
 
+        if ex_features is None:
+            ex_features = self.ex_features
+        if self.config['train_ex_feats']:
+            ex_features += self.add_ex_feats
         if self.config['use_g']:
             features = self.g(features)
             ex_features = self.g(ex_features)
-
-        if self.config['train_ex_feats']:
-            ex_features += self.add_feats
-
         if self.config['dropout'] > 0:
             features = self.do(features)
             ex_features = self.do(ex_features)
 
-        ex_class_reps = torch.matmul(
-            torch.nn.functional.normalize(self.ex_classes, p = 1, dim = -1),
-            self.class_reps
-        )
+        if ex_targets is None:
+            ex_targets = self.ex_targets
         if self.config['train_ex_class']:
-            ex_class_reps += self.add_ex_class_reps
+            ex_targets += self.add_ex_feats
 
         # s has dim (batch_size, ex_batch_size)
         s = torch.matmul(
@@ -169,9 +144,23 @@ class minerva(base_model):
         a = nn.functional.normalize(a, dim = 1, p = 1)
 
         # echo has dim (batch_size, phone_dim)
-        echo = torch.matmul(a, ex_class_reps)
+        echo = torch.matmul(a, ex_targets)
 
         return echo
+    
+    def unpack_exemplars(self, padded_ex_feats):
+
+        ex_feats = padded_ex_feats.data
+        len_ex_feats = padded_ex_feats.lengths
+        len_ex_feats = (len_ex_feats * ex_feats.size(1)).to(torch.int)
+        
+        return ex_feats, len_ex_feats
+    
+    def pack_exemplars(self, ex_feats, len_ex_feats):
+
+        packed_ex_feats = torch.nn.utils.rnn.pack_padded_sequence(ex_feats, len_ex_feats, batch_first=True)
+
+        return packed_ex_feats
 
     
     def activation(self, s, p_factor = None):
@@ -200,8 +189,8 @@ class ExemplarMetricPredictor(nn.Module):
     """
 
     def __init__(
-        self, dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU, att_pool_dim=512
-    ):
+        self, minerva_config, dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU, att_pool_dim=512, 
+        ):
         super().__init__()
 
         self.activation = activation(negative_slope=0.3)
@@ -217,15 +206,17 @@ class ExemplarMetricPredictor(nn.Module):
         
         self.attenPool = PoolAttFF(att_pool_dim)
 
-
+        self.minerva = minerva(config = minerva_config)
         
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         
         out,_ = self.blstm(x)
+        print(f"out size: {out.size()}")
         #out = out_feats
         out = self.attenPool(out)
+        out = self.minerva(out)
         out = self.sigmoid(out)
         #print("----- LEAVING THE MODEL -----")
 
@@ -249,7 +240,7 @@ class ExemplarMetricPredictorCombo(nn.Module):
     """
 
     def __init__(
-        self, dim_extractor=1024, hidden_size=1024//2, activation=nn.LeakyReLU,
+        self, minerva_config, dim_extractor=1024, hidden_size=1024//2, activation=nn.LeakyReLU,
     ):
         super().__init__()
 
@@ -273,6 +264,8 @@ class ExemplarMetricPredictorCombo(nn.Module):
             batch_first=True,
         )
         self.attenPool = PoolAttFF(dim_extractor)
+
+        self.minerva = minerva(config = minerva_config)
         
         self.sigmoid = nn.Sigmoid()
 
@@ -284,6 +277,7 @@ class ExemplarMetricPredictorCombo(nn.Module):
         #print(out_full.shape,out_extract.shape)
         out = torch.cat((out_full,out_extract),dim=2)
         out = self.attenPool(out)
+        out = self.minerva(out)
         out = self.sigmoid(out)
         #print("----- LEAVING THE MODEL -----")
 

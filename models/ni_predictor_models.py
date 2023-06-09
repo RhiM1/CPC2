@@ -53,6 +53,9 @@ class MetricPredictor(nn.Module):
     def forward(self, x):
         
         out,_ = self.blstm(x)
+        print(f"out:\n{out}")
+        out = out.data
+        print(f"out.size: {out.size()}")
         #out = out_feats
         out = self.attenPool(out)
         out = self.sigmoid(out)
