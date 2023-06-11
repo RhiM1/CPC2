@@ -401,12 +401,15 @@ def train_model(model,train_data,optimizer,criterion,N,combo=False,ex_data=None)
             feats_extract_r = feats_extract_r.data
         else:
             correctness, feats_l, feats_r = batch
+            print(f"main feats_l.size: {feats_l.data.size()}")
+            print(f"lengths: {(feats_l.lengths * feats_l.data.size(1)).to(torch.int64)}")
             feats_l = torch.nn.utils.rnn.pack_padded_sequence(
                 feats_l.data, 
                 (feats_l.lengths * feats_l.data.size(1)).to(torch.int64), 
                 batch_first=True,
                 enforce_sorted = False
             )
+            print(f"main 2 feats_l.size: {feats_l.data.size()}")
             feats_r = torch.nn.utils.rnn.pack_padded_sequence(
                 feats_r.data, 
                 (feats_r.lengths * feats_r.data.size(1)).to(torch.int64), 
@@ -623,6 +626,18 @@ def main(args, config):
             print(f"batch_id: {batch_id}")
             ex_targets, ex_feats_l, ex_feats_r = batch
             correctness = correctness.data
+            ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                ex_feats_l.data, 
+                (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                ex_feats_r.data, 
+                (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
             # correctness = correctness.data
             # feats_l = feats_l.data
             # feats_r = feats_r.data

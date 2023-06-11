@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from speechbrain.processing.features import spectral_magnitude,STFT
+import os
 
 from models.ni_predictors import PoolAttFF
 
@@ -21,10 +22,16 @@ class base_model(nn.Module):
             print("Must provide either save location or config file for loading model")
         else:
             self.config = config
+        self.ex_feats = None
+        self.ex_targets = None
 
     def save_pretrained(self, output_dir):    
         torch.save(self.config, output_dir + "/config.json")
         torch.save(self.state_dict, output_dir + "/model.mod")
+        if self.ex_feats is not None:
+            torch.save(self.ex_feats.to('cpu'), output_dir + "/ex_feats.pt")
+        if self.ex_targets is not None:
+            torch.save(self.ex_targets.to('cpu'), output_dir + "/ex_targets.pt")
              
 
     def load_pretrained(self, load_dir):
@@ -32,6 +39,10 @@ class base_model(nn.Module):
         self.config = torch.load(load_dir + "/config.json")
         state_dict = torch.load(load_dir + "/model.mod")
         self.load_state_dict(state_dict)
+        if os.path.exists(load_dir + "/ex_feats.pt"):
+            self.ex_feats = torch.load(load_dir + "/ex_feats.pt")
+        if os.path.exists(load_dir + "/ex_targets.pt"):
+            self.ex_targets = torch.load(load_dir + "/ex_targets.pt")
         
 
 class minerva(base_model):
@@ -40,7 +51,8 @@ class minerva(base_model):
     def __init__(
         self, 
         ex_targets = None,
-        ex_features = None,
+        ex_features_l = None,
+        ex_features_r = None,
         ex_IDX = None,
         config = None,
         load_dir = None
@@ -62,7 +74,19 @@ class minerva(base_model):
 
         if config['dropout'] > 0:
             self.do = nn.Dropout(p = config['dropout'])
-        self.set_exemplars(ex_features, ex_targets, ex_IDX)
+
+
+        self.ex_features_l = ex_features_l
+        self.ex_features_r = ex_features_r
+        self.ex_targets = ex_targets
+        self.ex_idx = ex_IDX
+        if self.config['train_ex_features']:
+            self.add_ex_feats_l = nn.Parameter(torch.zeros_like(self.ex_features_l.data))
+            self.add_ex_feats_r = nn.Parameter(torch.zeros_like(self.ex_features_r.data))
+        if self.config['train_ex_class'] and self.ex_targets is not None:
+            self.add_ex_targets = nn.Parameter(torch.zeros_like(self.ex_targets))
+        
+        # self.set_exemplars(ex_features, ex_targets, ex_IDX)
         # self.initialise_exemplars()
 
     def set_exemplars(self, padded_ex_features_l, padded_ex_features_r, ex_targets, ex_IDX):
@@ -106,7 +130,7 @@ class minerva(base_model):
             print(f"ex_IDX size: \n{self.ex_IDX.size()}")
 
 
-    def forward(self, features, ex_features = None, ex_targets = None, p_factor = None):
+    def forward(self, features_l, fatures_r, ex_features_l = None, ex_features_r = None, ex_targets = None, p_factor = None):
         
         # features has dim (batch_size, input_dim)
         # ex_features has dim (ex_batch_size, input_dim)
@@ -117,36 +141,50 @@ class minerva(base_model):
         if p_factor is None:
             p_factor = self.config['p_factor']
 
-        if ex_features is None:
-            ex_features = self.ex_features
+        if ex_features_l is None:
+            ex_features_l = self.ex_features_l
+        if ex_features_r is None:
+            ex_features_r = self.ex_features_r
         if self.config['train_ex_feats']:
-            ex_features += self.add_ex_feats
+            ex_features_l += self.add_ex_feats_l
+            ex_features_r += self.add_ex_feats_r
         if self.config['use_g']:
-            features = self.g(features)
-            ex_features = self.g(ex_features)
+            features_l = self.g(features_l)
+            features_r = self.g(features_r)
+            ex_features_l = self.g(ex_features_l)
+            ex_features_r = self.g(ex_features_r)
         if self.config['dropout'] > 0:
-            features = self.do(features)
-            ex_features = self.do(ex_features)
+            features_l = self.do(features_l)
+            features_r = self.do(features_r)
+            ex_features_l = self.do(ex_features_l)
+            ex_features_r = self.do(ex_features_r)
 
         if ex_targets is None:
             ex_targets = self.ex_targets
         if self.config['train_ex_class']:
-            ex_targets += self.add_ex_feats
+            ex_targets += self.add_ex_targets
 
         # s has dim (batch_size, ex_batch_size)
-        s = torch.matmul(
-            nn.functional.normalize(features, dim = 1), 
-            torch.t(nn.functional.normalize(ex_features, dim = 1))
+        s_l = torch.matmul(
+            nn.functional.normalize(features_l, dim = 1), 
+            torch.t(nn.functional.normalize(ex_features_l, dim = 1))
+        )
+        s_r = torch.matmul(
+            nn.functional.normalize(features_r, dim = 1), 
+            torch.t(nn.functional.normalize(ex_features_r, dim = 1))
         )
 
         # a has dim (batch_size, ex_batch_size)
-        a = self.activation(s, p_factor)
-        a = nn.functional.normalize(a, dim = 1, p = 1)
+        a_l = self.activation(s_l, p_factor)
+        a_l = nn.functional.normalize(a_l, dim = 1, p = 1)
+        a_r = self.activation(s_r, p_factor)
+        a_r = nn.functional.normalize(a_r, dim = 1, p = 1)
 
         # echo has dim (batch_size, phone_dim)
-        echo = torch.matmul(a, ex_targets)
+        echo_l = torch.matmul(a_l, ex_targets)
+        echo_r = torch.matmul(a_r, ex_targets)
 
-        return echo
+        return echo_l, echo_r
     
     def unpack_exemplars(self, padded_ex_feats):
 
