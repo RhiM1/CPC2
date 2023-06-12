@@ -273,7 +273,6 @@ def validate_model(model,test_data,optimizer,criterion,N,combo):
     print("starting validation...")
     for batch in tqdm(my_dataloader):
        
-        batch = batch.to(device)
         if combo:
             correctness, feats_full_l, feats_full_r, feats_extract_l, feats_extract_r = batch
             feats_full_l = feats_full_l.data
@@ -282,11 +281,24 @@ def validate_model(model,test_data,optimizer,criterion,N,combo):
             feats_extract_r = feats_extract_r.data
         else:
             correctness, feats_l, feats_r = batch
-            feats_l = feats_l.data
-            feats_r = feats_r.data
+
+            feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_l.data, 
+                (feats_l.lengths * feats_l.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            # print(f"main 2 feats_l.size: {feats_l.data.size()}")
+            feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_r.data, 
+                (feats_r.lengths * feats_r.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            feats_l = feats_l.to(device)
+            feats_r = feats_r.to(device)
             
-        correctness = correctness.data
-        target_scores = correctness
+        target_scores = correctness.data.to(device)
         
         if combo:
             output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
@@ -320,7 +332,6 @@ def test_model(model,test_data,optimizer,criterion,N,combo):
     print("starting testing...")
     for batch in tqdm(my_dataloader):
 
-        batch = batch.to(device)
         if combo:
             correctness, feats_full_l, feats_full_r, feats_extract_l, feats_extract_r = batch
             feats_full_l = feats_full_l.data
@@ -329,11 +340,24 @@ def test_model(model,test_data,optimizer,criterion,N,combo):
             feats_extract_r = feats_extract_r.data
         else:
             correctness, feats_l, feats_r = batch
-            feats_l = feats_l.data
-            feats_r = feats_r.data
 
-        correctness =correctness.data
-        target_scores = correctness
+            feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_l.data, 
+                (feats_l.lengths * feats_l.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            # print(f"main 2 feats_l.size: {feats_l.data.size()}")
+            feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_r.data, 
+                (feats_r.lengths * feats_r.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            feats_l = feats_l.to(device)
+            feats_r = feats_r.to(device)
+
+        target_scores = correctness.data.to(device)
         
         if combo:
             output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
@@ -752,7 +776,7 @@ def main(args, config):
         predictions,test_loss = validate_model(model,data,optimizer,criterion,args.N,combo)
     
         data["predicted"] = predictions
-        data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file, index=False)
+        data[["scene", "listener", "system", "predicted"]].to_csv("save/" + args.exp_id + args.out_csv_file, index=False)
     print("Test Loss: %s"%test_loss)
     print("=====================================")
 
