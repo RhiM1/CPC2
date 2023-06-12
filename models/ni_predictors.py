@@ -15,7 +15,7 @@ class PoolAttFF(torch.nn.Module):
     '''
     PoolAttFF: Attention-Pooling module with additonal feed-forward network.
     '''         
-    def __init__(self, dim_head_in):
+    def __init__(self, dim_head_in, out_dim = 1):
         super().__init__()
         
         self.linear1 = nn.Linear(dim_head_in, 2*dim_head_in)
@@ -29,20 +29,12 @@ class PoolAttFF(torch.nn.Module):
     def forward(self, x: Tensor):
 
         att = self.linear2(self.dropout(self.activation(self.linear1(x))))
-        print(f"att size 1: {att.size()}")
         att = att.transpose(2,1)
-        print(f"att size 2: {att.size()}")
         att = F.softmax(att, dim=2)
-        print(f"att size 3: {att.size()}")
-        print(f"x:\n{x}")
-        print(f"att:\n{att}")
         x = torch.bmm(att, x) 
-        print(f"x size 4: {x.size()}")
         x = x.squeeze(1)
-        print(f"x size 5: {x.size()}")
         
         x = self.linear3(x)
-        print(f"x size 5: {x.size()}")
         
         return x  
 

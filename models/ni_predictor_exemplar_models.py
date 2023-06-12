@@ -64,22 +64,32 @@ class minerva(base_model):
 
         print(f"config:\n{self.config}")
 
-        if config['use_g']:
-            self.g = nn.Linear(
-                in_features = self.config['input_dim'],
-                out_features = self.config['feat_dim'],
-                bias = False
-            )
-            print(f"g:\n{self.g}")
+        # if config['use_g']:
+        #     self.g = nn.Linear(
+        #         in_features = self.config['input_dim'],
+        #         out_features = self.config['feat_dim'],
+        #         bias = False
+        #     )
+        #     print(f"g:\n{self.g}")
+
+        self.g = nn.LSTM(
+            input_size = self.config['input_dim'],
+            hidden_size = self.config['feat_dim'],
+            num_layers=2,
+            dropout=0.1,
+            bidirectional=True,
+            batch_first=True,
+        )
+        
 
         if config['dropout'] > 0:
             self.do = nn.Dropout(p = config['dropout'])
-
 
         self.ex_features_l = ex_features_l
         self.ex_features_r = ex_features_r
         self.ex_targets = ex_targets
         self.ex_idx = ex_IDX
+        
         if self.config['train_ex_features']:
             self.add_ex_feats_l = nn.Parameter(torch.zeros_like(self.ex_features_l.data))
             self.add_ex_feats_r = nn.Parameter(torch.zeros_like(self.ex_features_r.data))
@@ -89,7 +99,7 @@ class minerva(base_model):
         # self.set_exemplars(ex_features, ex_targets, ex_IDX)
         # self.initialise_exemplars()
 
-    def set_exemplars(self, padded_ex_features_l, padded_ex_features_r, ex_targets, ex_IDX):
+    def set_exemplars(self, ex_features_l, ex_features_r, ex_targets, ex_IDX):
         
         if ex_targets is None:
             self.ex_targets = None
@@ -101,10 +111,10 @@ class minerva(base_model):
                 print(f"add_ex_targets size:: \n{self.add_ex_targets.size()}")
 
 
-        if padded_ex_features_l is None:
+        if ex_features_l is None:
             self.ex_features_l = None
         else:
-            ex_features_l, len_ex_features_l = self.unpack_exemplars(padded_ex_features_l)
+            ex_features_l, len_ex_features_l = self.unpack_exemplars(ex_features_l)
             self.ex_features_l = nn.Parameter(ex_features_l, requires_grad = False)
             self.len_ex_features_l = nn.Parameter(len_ex_features_l, requires_grad = False)
             print(f"ex_features size:: \n{self.ex_features_l.size()}")
@@ -112,10 +122,10 @@ class minerva(base_model):
                 self.add_ex_feats_l = nn.Parameter(torch.zeros_like(self.ex_features_l.data))
                 print(f"add_ex_feats size:: \n{self.add_ex_feats_l.size()}")
 
-        if padded_ex_features_r is None:
+        if ex_features_r is None:
             self.ex_features_r = None
         else:
-            ex_features_r, len_ex_features_r = self.unpack_exemplars(padded_ex_features_r)
+            ex_features_r, len_ex_features_r = self.unpack_exemplars(ex_features_r)
             self.ex_features_r = nn.Parameter(ex_features_r, requires_grad = False)
             self.len_ex_features_r = nn.Parameter(len_ex_features_r, requires_grad = False)
             print(f"ex_features size:: \n{self.ex_features_r.size()}")
@@ -148,11 +158,10 @@ class minerva(base_model):
         if self.config['train_ex_feats']:
             ex_features_l += self.add_ex_feats_l
             ex_features_r += self.add_ex_feats_r
-        if self.config['use_g']:
-            features_l = self.g(features_l)
-            features_r = self.g(features_r)
-            ex_features_l = self.g(ex_features_l)
-            ex_features_r = self.g(ex_features_r)
+        features_l = self.g(features_l)
+        features_r = self.g(features_r)
+        ex_features_l = self.g(ex_features_l)
+        ex_features_r = self.g(ex_features_r)
         if self.config['dropout'] > 0:
             features_l = self.do(features_l)
             features_r = self.do(features_r)

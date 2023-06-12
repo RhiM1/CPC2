@@ -55,11 +55,8 @@ class MetricPredictor(nn.Module):
         out,_ = self.blstm(x)
         # out = out.data
         out, out_len = nn.utils.rnn.pad_packed_sequence(out, batch_first = True)
-        print(f"out.size: {out.size()}")
-        print(f"out lens: {out_len}")
         #out = out_feats
         out = self.attenPool(out)
-        print(f"attPool out.size: {out.size()}")
         out = self.sigmoid(out)
         #print("----- LEAVING THE MODEL -----")
 

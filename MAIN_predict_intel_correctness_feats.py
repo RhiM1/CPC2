@@ -388,7 +388,7 @@ def train_model(model,train_data,optimizer,criterion,N,combo=False,ex_data=None)
     else:
         train_set = get_dynamic_dataset(train_data)
 
-    my_dataloader = DataLoader(train_set,2,collate_fn=sb.dataio.batch.PaddedBatch)
+    my_dataloader = DataLoader(train_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
     print("starting training...")
     
     for batch in tqdm(my_dataloader, total=len(my_dataloader)):
@@ -401,15 +401,15 @@ def train_model(model,train_data,optimizer,criterion,N,combo=False,ex_data=None)
             feats_extract_r = feats_extract_r.data
         else:
             correctness, feats_l, feats_r = batch
-            print(f"main feats_l.size: {feats_l.data.size()}")
-            print(f"lengths: {(feats_l.lengths * feats_l.data.size(1)).to(torch.int64)}")
+            # print(f"main feats_l.size: {feats_l.data.size()}")
+            # print(f"lengths: {(feats_l.lengths * feats_l.data.size(1)).to(torch.int64)}")
             feats_l = torch.nn.utils.rnn.pack_padded_sequence(
                 feats_l.data, 
                 (feats_l.lengths * feats_l.data.size(1)).to(torch.int64), 
                 batch_first=True,
                 enforce_sorted = False
             )
-            print(f"main 2 feats_l.size: {feats_l.data.size()}")
+            # print(f"main 2 feats_l.size: {feats_l.data.size()}")
             feats_r = torch.nn.utils.rnn.pack_padded_sequence(
                 feats_r.data, 
                 (feats_r.lengths * feats_r.data.size(1)).to(torch.int64), 
@@ -588,6 +588,10 @@ def main(args, config):
         print(args.in_json_file.split("/")[-1].split(".")[-2],args.N)
         exit()
 
+    # if args.model == "XLSREncoder" and os.path.exists("data/xlsrencoder_feats.csv"):
+    #     data = pd.read_csv("data/xlsrencoder_feats.csv")
+    # else:
+
     # Load the intelligibility data
     data = pd.read_json(args.in_json_file)
     data["subset"] = "CEC1"
@@ -599,6 +603,25 @@ def main(args, config):
     feat_extractor.to(args.device)
     data = extract_feats(feat_extractor, data, N, combo)
     feat_extractor.to('cpu')
+
+    # if args.model == "XLSREncoder" and not os.path.exists("data/xlsrencoder_feats.csv"):
+    #     csv_types = {
+    #         # "prompt": ,
+    #         # "scene": ,
+    #         "n_words": np.int64,
+    #         "hits": np.int64,
+    #         # "listener": ,
+    #         # "system": ,
+    #         "correctness": np.float32,
+    #         # "response": ,
+    #         "volume": np.float32,
+    #         # "signal": ,
+    #         # "subset": ,
+    #         "predicted": np.nan,
+    #         "feats_l": ,
+    #         "feats_r": 
+    #     }
+    #     data.to_csv("data/xlsrencoder_feats.csv", index = False)
 
     print(data[:50])
     
@@ -724,8 +747,6 @@ def main(args, config):
         test_data["predicted_fitted"] = predictions_fitted*100
 
         test_data[["scene", "listener", "system", "predicted","predicted_fitted"]].to_csv("save/" + args.exp_id + args.out_csv_file, index=False)
-
-
     else:
         print("Testing model on train+val set")
         predictions,test_loss = validate_model(model,data,optimizer,criterion,args.N,combo)
