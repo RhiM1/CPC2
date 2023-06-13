@@ -412,7 +412,7 @@ def train_model(model,train_data,optimizer,criterion,N,combo=False,ex_data=None)
     else:
         train_set = get_dynamic_dataset(train_data)
 
-    my_dataloader = DataLoader(train_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
+    my_dataloader = DataLoader(train_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch)
     print("starting training...")
     
     for batch in tqdm(my_dataloader, total=len(my_dataloader)):
@@ -805,6 +805,9 @@ if __name__ == "__main__":
         "--n_epochs", help="number of epochs", default=0, type=int
     )
     parser.add_argument(
+        "--batch_size", help="number of epochs", default=999, type=int
+    )
+    parser.add_argument(
         "--lr", help="learning rate", default=999, type=float
     )
     parser.add_argument(
@@ -863,6 +866,10 @@ if __name__ == "__main__":
         config["exp_id"] = args.exp_id
     else:
         args.exp_id = config["exp_id"]
+    if args.batch_size == 999:
+        args.batch_size = config["batch_size"]
+    else:
+        config["batch_size"] = args.batch_size
     config["device"] = args.device
 
     main(args, config)
