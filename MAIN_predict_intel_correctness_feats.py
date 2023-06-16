@@ -167,6 +167,44 @@ def extract_feats(feat_extractor, data, N, combo = False):
 
     return data
 
+def make_disjoint_train_set(
+    full_df: pd.DataFrame, test_df: pd.DataFrame
+) -> pd.DataFrame:
+    """Make a disjoint train set for given test samples."""
+    # make sure that the train and test sets are disjoint
+    # i.e. no signals, systems or listeners are shared
+    train_df = full_df[~full_df.signal.isin(test_df.signal)]
+    train_df = train_df[~train_df.system.isin(test_df.system)]
+    train_df = train_df[~train_df.listener.isin(test_df.listener)]
+    assert not set(train_df.signal).intersection(set(test_df.signal))
+    return train_df
+
+
+# def get_disjoint_val_set(CPC1set, CPC2set, base_test_prop = 0.05):
+
+
+#     unique_signals = CPC1set.signal.unique()
+#     print(f"unique_signals 1: \n{unique_signals}")
+#     unique_systems = CPC1set.system.unique()
+#     print(f"unique_systems 1: \n{unique_systems}")
+#     unique_listeners = CPC1set.listener.unique()
+#     print(f"unique_listeners 1: \n{unique_listeners}")
+
+
+#     unique_signals = CPC2set.signal.unique()
+#     print(f"unique_signals 2: \n{unique_signals}")
+#     unique_systems = CPC2set.system.unique()
+#     print(f"unique_systems 2: \n{unique_systems}")
+#     unique_listeners = CPC2set.listener.unique()
+#     print(f"unique_listeners 2: \n{unique_listeners}")
+
+
+
+#     # train_CPC2, val_data = train_test_split(CPC2set, test_size = base_test_prop)
+#     # for row in val_data.iterrows():
+
+
+
 
 def get_dynamic_dataset(data):
 
@@ -282,8 +320,21 @@ def validate_model(model,test_data,optimizer,criterion,N,combo):
             feats_extract_r = feats_extract_r.data
         else:
             correctness, feats_l, feats_r = batch
-            feats_l = feats_l.data
-            feats_r = feats_r.data
+            feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_l.data, 
+                (feats_l.lengths * feats_l.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            # print(f"main 2 feats_l.size: {feats_l.data.size()}")
+            feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_r.data, 
+                (feats_r.lengths * feats_r.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            feats_l = feats_l.to(device)
+            feats_r = feats_r.to(device)
             
         correctness = correctness.data
         target_scores = correctness
@@ -292,8 +343,10 @@ def validate_model(model,test_data,optimizer,criterion,N,combo):
             output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
             output_r,_ = model(feats_full_r.float(), feats_extract_r.float())
         else:
-            output_l,_ = model(feats_l.float())
-            output_r,_ = model(feats_r.float())
+            # output_l,_ = model(feats_l.float())
+            # output_r,_ = model(feats_r.float())
+            output_l,_ = model(feats_l)
+            output_r,_ = model(feats_r)
             
         output = max(output_l,output_r)
         loss = criterion(output,target_scores)
@@ -443,6 +496,7 @@ def train_model(model,train_data,optimizer,criterion,N,combo=False,ex_data=None)
         loss_list.append(loss.item())
         running_loss += loss.item()
         
+        break
         
     #print("Average Training loss: %s"%(sum(loss_list)/len(loss_list)))
     
@@ -597,7 +651,11 @@ def main(args, config):
     data["subset"] = "CEC1"
     data2 = pd.read_json(args.in_json_file.replace("CEC1","CEC2"))
     data2["subset"] = "CEC2"
-    data = pd.concat([data,data2])
+
+    # get_disjoint_val_set(data, data2)
+    # quit()
+
+    data = pd.concat([data, data2])
     data["predicted"] = np.nan  # Add column to store intel predictions
 
     feat_extractor.to(args.device)

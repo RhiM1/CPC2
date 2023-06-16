@@ -3,24 +3,17 @@ import fairseq
 import torch
 import torch.nn.functional as F
 import speechbrain as sb
-from transformers import HubertModel, HubertConfig
+import transformers
 
 
 class HuBERTWrapper_extractor(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # ckpt_path = "models/facebook/HuBERT/hubert_base_ls960.pt"
-        # models, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([ckpt_path])
-        # self.model = models[0].feature_extractor
-        # self.model.requires_grad_(False)
-
-        configuration = HubertConfig()
-        model = HubertModel(configuration)
-        self.model = model.feature_extractor
-        print(self.model)
-
-
+        ckpt_path = "models/facebook/HuBERT/hubert_base_ls960.pt"
+        models, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([ckpt_path])
+        self.model = models[0].feature_extractor
+        self.model.requires_grad_(False)
         
     def forward(self, data: Tensor):
         #print(self.model)
@@ -32,16 +25,12 @@ class HuBERTWrapper_full(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # ckpt_path = "models/facebook/HuBERT/hubert_base_ls960.pt"
+        ckpt_path = "models/facebook/HuBERT/hubert_base_ls960.pt"
 
-        # models = fairseq.checkpoint_utils.load_model_ensemble([ckpt_path])
-        # full_model = models[0][0]
-        # full_model.features_only =True
-        # self.model = full_model
-        
-        configuration = HubertConfig()
-        self.model = HubertModel(configuration)
-        print(self.model)
+        models = fairseq.checkpoint_utils.load_model_ensemble([ckpt_path])
+        full_model = models[0][0]
+        full_model.features_only =True
+        self.model = full_model
         
     
 
@@ -59,10 +48,7 @@ class HuBERTWrapper_full(nn.Module):
         """
         
         my_output =self.model(data)
-        # print(my_output)
-        # quit()
-        # return my_output
-        return my_output[0]
+        return my_output['x']
 
 
 
