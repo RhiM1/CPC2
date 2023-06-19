@@ -27,6 +27,24 @@ def plot_listener_boxplots(args, data):
 
     plt.show()
 
+def plot_scene_boxplots(args, data):
+    
+    # fig, axs = plt.subplots(3, 2, sharey = True)
+    # for CEC in args.CEC:
+    #     for N in args.N:
+    #         this_data = data.loc[(data['CEC'] == CEC) & (data['N'] == N)]
+    #         this_data.boxplot(column = "correctness", by = "listener", ax = axs[N - 1, CEC - 1], rot = 45)
+    #         axs[N - 1, CEC - 1].set(xlabel = "listener", ylabel = "correctness (%)", title = "")
+    #         axs
+            # axs[N - 1, CEC - 1].hist(data["correctness"], density = True)
+            # axs[N - 1, CEC - 1].set_title(f"N{N} CEC{CEC}")
+            # axs[N - 1, CEC - 1].set(xlabel = "correctness (%)", ylabel = "frequency density")
+            # axs[N - 1, CEC - 1].label_outer()
+            # print(f"N: {N}, CEC: {CEC}\n{datas[(CEC - 1) * 3 + N - 1]}\n")
+    data.boxplot(column = 'correctness', by = ['scene'], rot = 45)
+
+    plt.show()
+
 def compare_testCPC1_to_trainCPC2(args, datas, test_data):
 
     test_data = test_data[0]
@@ -135,7 +153,8 @@ def main(args):
     # plot_correctness_histogram(args, data)
     # plot_listener_boxplots(args, data)
 
-    get_listener_stats(args, data)
+    # get_listener_stats(args, data)
+    plot_scene_boxplots(args, data)
 
     # fig, axs = plt.subplots(nrows=2, ncols=2)
     # datas[0].boxplot(column = "correctness", by = "listener", ax = axs[0, 0])
@@ -153,10 +172,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         # "--json_dir", help="Directory of metadata json files" , default="/store/store1/data/clarity_CPC2_data/clarity_data/metadata/", type=str
+        # "--train_dir", help="Directory of metadata json files" , default="~/data/clarity_CPC2_data/clarity_data/metadata/", type=str
         "--train_dir", help="Directory of metadata json files" , default="/home/acp20rm/exp/data/clarity_CPC2_data/clarity_data/metadata/", type=str
     )
     parser.add_argument(
         # "--json_dir", help="Directory of metadata json files" , default="/store/store1/data/clarity_CPC2_data/clarity_data/metadata/", type=str
+        # "--cpc1_eval_dir", help="Directory of metadata json files" , default="~/data/clarity_CPC1_eval_data/metadata/", type=str
         "--cpc1_eval_dir", help="Directory of metadata json files" , default="/home/acp20rm/exp/data/clarity_CPC1_eval_data/metadata/", type=str
     )
     parser.add_argument(

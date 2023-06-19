@@ -41,6 +41,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--in_json_file", help="location of CEC1 metadata file", default = "/home/acp20rm/exp/data/clarity_CPC2_data/clarity_data/metadata/CEC1.train.1.json"
+        # "--in_json_file", help="location of CEC1 metadata file", default = "~/data/clarity_CPC2_data/clarity_data/metadata/CEC1.train.1.json"
     )
     args = parser.parse_args()
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
