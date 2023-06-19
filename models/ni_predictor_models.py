@@ -14,7 +14,7 @@ from speechbrain.processing.features import spectral_magnitude,STFT
 from models.ni_predictors import PoolAttFF
 
 
-class MetricPredictor(nn.Module):
+class MetricPredictorLSTM(nn.Module):
     """Metric estimator for enhancement training.
 
     Consists of:
@@ -63,7 +63,7 @@ class MetricPredictor(nn.Module):
         return out,_
 
 
-class MetricPredictorCombo(nn.Module):
+class MetricPredictorLSTMCombo(nn.Module):
     """Metric estimator for enhancement training.
 
     Consists of:
@@ -121,3 +121,37 @@ class MetricPredictorCombo(nn.Module):
         return out,_
 
 
+class MetricPredictorAttenPool(nn.Module):
+    """Metric estimator for enhancement training.
+
+    Consists of:
+     * four 2d conv layers
+     * channel averaging
+     * three linear layers
+
+    Arguments
+    ---------
+    kernel_size : tuple
+        The dimensions of the 2-d kernel used for convolution.
+    base_channels : int
+        Number of channels used in each conv layer.
+    """
+
+    def __init__(
+        self, att_pool_dim=512
+    ):
+        super().__init__()
+        
+        self.attenPool = PoolAttFF(att_pool_dim)
+        
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        
+        out, out_len = nn.utils.rnn.pad_packed_sequence(x, batch_first = True)
+        #out = out_feats
+        out = self.attenPool(out)
+        out = self.sigmoid(out)
+        #print("----- LEAVING THE MODEL -----")
+
+        return out, None

@@ -19,21 +19,30 @@ from scipy.optimize import curve_fit
 import wandb
 from attrdict import AttrDict
 import json
+import csv
+from scipy.stats import spearmanr
 
 # from models.huBERT_wrapper import HuBERTWrapper_full,HuBERTWrapper_extractor
 # from models.wav2vec2_wrapper import Wav2Vec2Wrapper_no_helper,Wav2Vec2Wrapper_encoder_only
 # from models.llama_wrapper import LlamaWrapper
 # from models.ni_predictors import MetricPredictor, MetricPredictorCombo
-from models.ni_predictor_models import MetricPredictor, MetricPredictorCombo
+from models.ni_predictor_models import MetricPredictorLSTM, MetricPredictorLSTMCombo, MetricPredictorAttenPool
 from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, XLSRCombo_feats, HuBERTEncoder_feats, HuBERTFull_feats
 from models.ni_predictor_exemplar_models import ExemplarMetricPredictor, ExemplarMetricPredictorCombo
 
 DATAROOT = "/store/store1/data/clarity_CPC2_data/" 
+DATAROOT_CPC1 = "/store/store1/data/clarity_CPC1_data/" 
 # DATAROOT = "~/exp/data/clarity_CPC2_data/" 
-df_listener = pd.read_json(DATAROOT + "clarity_data/metadata/listeners.json")
+# df_listener = pd.read_json(DATAROOT + "clarity_data/metadata/listeners.json")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 resampler = T.Resample(32000, 16000).to(device)
+
+def rmse_score(x, y):
+    return np.sqrt(np.mean((x - y) ** 2))
+
+def std_err(x, y):
+    return np.std(x - y) / np.sqrt(len(x))
 
 def compute_feats(wavs,fs):
         """Feature computation pipeline"""
@@ -77,7 +86,7 @@ def get_mean(scores):
     return torch.Tensor(out_list).unsqueeze(0)
 
 
-def extract_feats(feat_extractor, data, N, combo = False):
+def extract_feats(feat_extractor, data, args, theset, combo = False):
     feat_extractor.eval()
     name_list = data["signal"]
     correctness_list = data["correctness"]
@@ -99,16 +108,21 @@ def extract_feats(feat_extractor, data, N, combo = False):
         {"func": lambda l: format_correctness(l),
         "takes": "correctness",
         "provides": "formatted_correctness"},
-        {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
-        "takes": ["signal","subset"],
-        "provides": "wav"},
-        #{"func": lambda l: audio_pipeline("%s/clarity_data/HA_outputs/train/%s_HL-output.wav"%(DATAROOT,l),44100),
-        #"takes": "signal",
-        #"provides": "wav"},
-        #{"func": lambda l: audio_pipeline("%s/clarity_data/scenes//%s_target_anechoic.wav"%(DATAROOT,l),44100),
-        #"takes": "scene",
-        #"provides": "clean_wav"},
+        
     ]
+    if args.use_CPC1:
+        dynamic_items.append(
+            {"func": lambda l: audio_pipeline("%s/clarity_data/HA_outputs/%s/%s.wav"%(args.dataroot,theset,l),32000),
+            "takes": ["signal"],
+            "provides": "wav"}
+        )
+    else:
+        dynamic_items.append(
+            {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/%s.%s/%s/%s.wav"%(args.dataroot,theset,args.N,y,l),32000),
+            "takes": ["signal","subset"],
+            "provides": "wav"}
+        )
+
     data_set = sb.dataio.dataset.DynamicItemDataset(test_dict,dynamic_items)
     #train_set.set_output_keys(["wav","clean_wav", "formatted_correctness","audiogram_np","haspi"])
     data_set.set_output_keys(["wav", "formatted_correctness"])
@@ -180,28 +194,29 @@ def make_disjoint_train_set(
     return train_df
 
 
-# def get_disjoint_val_set(CPC1set, CPC2set, base_test_prop = 0.05):
+def get_disjoint_val_set(args, data):
+
+    unique_CEC2_listeners = data.loc(data['subset'] == 'CEC2').listener.unique()
+
+    # unique_signals = CPC1set.signal.unique()
+    # print(f"unique_signals 1: \n{unique_signals}")
+    # unique_systems = CPC1set.system.unique()
+    # print(f"unique_systems 1: \n{unique_systems}")
+    # unique_listeners = CPC1set.listener.unique()
+    # print(f"unique_listeners 1: \n{unique_listeners}")
 
 
-#     unique_signals = CPC1set.signal.unique()
-#     print(f"unique_signals 1: \n{unique_signals}")
-#     unique_systems = CPC1set.system.unique()
-#     print(f"unique_systems 1: \n{unique_systems}")
-#     unique_listeners = CPC1set.listener.unique()
-#     print(f"unique_listeners 1: \n{unique_listeners}")
-
-
-#     unique_signals = CPC2set.signal.unique()
-#     print(f"unique_signals 2: \n{unique_signals}")
-#     unique_systems = CPC2set.system.unique()
-#     print(f"unique_systems 2: \n{unique_systems}")
-#     unique_listeners = CPC2set.listener.unique()
-#     print(f"unique_listeners 2: \n{unique_listeners}")
+    # unique_signals = CPC2set.signal.unique()
+    # print(f"unique_signals 2: \n{unique_signals}")
+    # unique_systems = CPC2set.system.unique()
+    # print(f"unique_systems 2: \n{unique_systems}")
+    # unique_listeners = CPC2set.listener.unique()
+    # print(f"unique_listeners 2: \n{unique_listeners}")
 
 
 
-#     # train_CPC2, val_data = train_test_split(CPC2set, test_size = base_test_prop)
-#     # for row in val_data.iterrows():
+    # train_CPC2, val_data = train_test_split(CPC2set, test_size = base_test_prop)
+    # for row in val_data.iterrows():
 
 
 
@@ -234,10 +249,7 @@ def get_dynamic_dataset(data):
             "provides": "formatted_feats_l"},
             {"func": lambda l: format_feats(l),
             "takes": "feats_r",
-            "provides": "formatted_feats_r"},
-            # {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
-            # "takes": ["signal","subset"],
-            # "provides": "wav"},
+            "provides": "formatted_feats_r"}
         ]
 
     ddata = sb.dataio.dataset.DynamicItemDataset(data_dict,dynamic_items)
@@ -285,9 +297,6 @@ def get_dynamic_dataset_combo(data):
         {"func": lambda l: format_feats(l),
         "takes": "feats_extract_r",
         "provides": "formatted_feats_extract_r"},
-        # {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/train.%s/%s/%s.wav"%(DATAROOT,N,y,l),32000),
-        # "takes": ["signal","subset"],
-        # "provides": "wav"},
     ]
     
     ddata = sb.dataio.dataset.DynamicItemDataset(data_dict,dynamic_items)
@@ -297,11 +306,12 @@ def get_dynamic_dataset_combo(data):
     return ddata
 
 
-def validate_model(model,test_data,optimizer,criterion,N,combo):
+def validate_model(model,test_data,optimizer,criterion,args,combo):
     out_list = []
     model.eval()
     running_loss = 0.0
     loss_list = []
+
     if combo:
         test_set = get_dynamic_dataset_combo(test_data)
     else:
@@ -311,7 +321,6 @@ def validate_model(model,test_data,optimizer,criterion,N,combo):
     print("starting validation...")
     for batch in tqdm(my_dataloader):
        
-        batch = batch.to(device)
         if combo:
             correctness, feats_full_l, feats_full_r, feats_extract_l, feats_extract_r = batch
             feats_full_l = feats_full_l.data
@@ -336,8 +345,7 @@ def validate_model(model,test_data,optimizer,criterion,N,combo):
             feats_l = feats_l.to(device)
             feats_r = feats_r.to(device)
             
-        correctness = correctness.data
-        target_scores = correctness
+        target_scores = correctness.data.to(device)
         
         if combo:
             output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
@@ -358,53 +366,6 @@ def validate_model(model,test_data,optimizer,criterion,N,combo):
         running_loss += loss.item()
     return out_list,sum(loss_list)/len(loss_list)
 
-def test_model(model,test_data,optimizer,criterion,N,combo):
-    out_list = []
-    model.eval()
-    running_loss = 0.0
-    loss_list = []
-
-    if combo:
-        test_set = get_dynamic_dataset_combo(test_data)
-    else:
-        test_set = get_dynamic_dataset(test_data)
-
-    my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
-    print("starting testing...")
-    for batch in tqdm(my_dataloader):
-
-        batch = batch.to(device)
-        if combo:
-            correctness, feats_full_l, feats_full_r, feats_extract_l, feats_extract_r = batch
-            feats_full_l = feats_full_l.data
-            feats_full_r = feats_full_r.data
-            feats_extract_l = feats_extract_l.data
-            feats_extract_r = feats_extract_r.data
-        else:
-            correctness, feats_l, feats_r = batch
-            feats_l = feats_l.data
-            feats_r = feats_r.data
-
-        correctness =correctness.data
-        target_scores = correctness
-        
-        if combo:
-            output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
-            output_r,_ = model(feats_full_r.float(), feats_extract_r.float())
-        else:
-            output_l,_ = model(feats_l.float())
-            output_r,_ = model(feats_r.float())
-
-        output = max(output_l,output_r)
-        loss = criterion(output,target_scores)
-
-        out_list.append(output.detach().cpu().numpy()[0][0]*100)
-
-        loss_list.append(loss.item())
-        # print statistics
-        running_loss += loss.item()
-
-    return out_list,sum(loss_list)/len(loss_list)
 
 def format_audiogram(audiogram):
     """
@@ -427,10 +388,7 @@ def format_audiogram(audiogram):
     return audiogram
     
 
-
-
-
-def train_model(model,train_data,optimizer,criterion,N,combo=False,ex_data=None):
+def train_model(model,train_data,optimizer,criterion,args,combo=False,ex_data=None):
     model.train()
         
     running_loss = 0.0
@@ -441,17 +399,46 @@ def train_model(model,train_data,optimizer,criterion,N,combo=False,ex_data=None)
     else:
         train_set = get_dynamic_dataset(train_data)
 
-    my_dataloader = DataLoader(train_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
+    my_dataloader = DataLoader(train_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch)
+    print(f"batch_size: {args.batch_size}")
     print("starting training...")
     
     for batch in tqdm(my_dataloader, total=len(my_dataloader)):
         # batch = batch.to(device)
         if combo:
             correctness, feats_full_l, feats_full_r, feats_extract_l, feats_extract_r = batch
-            feats_full_l = feats_full_l.data
-            feats_full_r = feats_full_r.data
-            feats_extract_l = feats_extract_l.data
-            feats_extract_r = feats_extract_r.data
+            # feats_full_l = feats_full_l.data
+            # feats_full_r = feats_full_r.data
+            # feats_extract_l = feats_extract_l.data
+            # feats_extract_r = feats_extract_r.data
+            feats_full_l = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_full_l.data, 
+                (feats_full_l.lengths * feats_full_l.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            feats_full_r = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_full_r.data, 
+                (feats_full_r.lengths * feats_full_r.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            feats_extract_l = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_extract_l.data, 
+                (feats_extract_l.lengths * feats_extract_l.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            feats_extract_r = torch.nn.utils.rnn.pack_padded_sequence(
+                feats_extract_r.data, 
+                (feats_extract_r.lengths * feats_extract_r.data.size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            feats_full_l = feats_full_l.to(device)
+            feats_full_r = feats_full_r.to(device)
+            feats_extract_l = feats_extract_l.to(device)
+            feats_extract_r = feats_extract_r.to(device)
         else:
             correctness, feats_l, feats_r = batch
             # print(f"main feats_l.size: {feats_l.data.size()}")
@@ -482,8 +469,8 @@ def train_model(model,train_data,optimizer,criterion,N,combo=False,ex_data=None)
     
         optimizer.zero_grad()
         if combo:
-            output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
-            output_r,_ = model(feats_full_r.float(), feats_extract_r.float())
+            output_l,_ = model(feats_full_l, feats_extract_l)
+            output_r,_ = model(feats_full_r, feats_extract_r)
         else:
             output_l,_ = model(feats_l)
             output_r,_ = model(feats_r)
@@ -495,8 +482,8 @@ def train_model(model,train_data,optimizer,criterion,N,combo=False,ex_data=None)
         optimizer.step()
         loss_list.append(loss.item())
         running_loss += loss.item()
+        # break
         
-        break
         
     #print("Average Training loss: %s"%(sum(loss_list)/len(loss_list)))
     
@@ -526,95 +513,78 @@ def main(args, config):
     torch.manual_seed(args.seed)
     N = args.N
     combo = False
-    if args.model == "XLSREncoder":
+    if args.feats == "XLSREncoder":
         feat_extractor = XLSREncoder_feats()
-        if args.exemplar:
-            config["minerva_config"]["input_dim"] = 512
-            model = ExemplarMetricPredictor(
-                minerva_config = config["minerva_config"], 
-                dim_extractor=512, 
-                hidden_size=512//2, 
-                activation=nn.LeakyReLU, 
-                att_pool_dim = 512
-            )
-        else:
-            model = MetricPredictor(dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU, att_pool_dim = 512)
-        # from models.ni_predictors import XLSRMetricPredictorEncoder
-        # model = XLSRMetricPredictorEncoder().to(args.device)
-    elif args.model == "XLSRFull":
+        dim_extractor = 512
+        hidden_size = 512//2
+        activation = nn.LeakyReLU
+        att_pool_dim = 512
+
+    elif args.feats == "XLSRFull":
         feat_extractor = XLSRFull_feats()
-        if args.exemplar:
-            model = ExemplarMetricPredictor(
-                minerva_config = config["minerva_config"], 
-                dim_extractor=1024, 
-                hidden_size=1024//2, 
-                activation=nn.LeakyReLU, 
-                att_pool_dim = 1024
-            )
-        else:
-            model = MetricPredictor(dim_extractor=1024, hidden_size=1024//2, activation=nn.LeakyReLU, att_pool_dim=1024)
-        # from models.ni_predictors import XLSRMetricPredictorFull
-        # model = XLSRMetricPredictorFull().to(args.device)
-    elif args.model == "XLSRCombo":
+        dim_extractor = 1024
+        hidden_size = 1024//2
+        activation = nn.LeakyReLU
+        att_pool_dim = 1024
+        
+    elif args.feats == "XLSRCombo":
         ## Tricky one! Check fat extractor
         combo = True
         feat_extractor = XLSRCombo_feats()
-        if args.exemplar:
-            model = ExemplarMetricPredictorCombo(
-                minerva_config = config["minerva_config"], 
-                dim_extractor=1024, 
-                hidden_size=1024//2, 
-                activation=nn.LeakyReLU
-            )
-        else:
-            model = MetricPredictorCombo(dim_extractor=1024, hidden_size=1024//2, activation=nn.LeakyReLU)
-        # from models.ni_predictors import XLSRMetricPredictorCombo
-        # model = XLSRMetricPredictorCombo().to(args.device)
-    elif args.model == "HuBERTEncoder":
+        dim_extractor = 1024
+        hidden_size = 1024//2
+        activation = nn.LeakyReLU
+        
+    elif args.feats == "HuBERTEncoder":
         feat_extractor = HuBERTEncoder_feats()
-        if args.exemplar:
-            model = ExemplarMetricPredictor(
-                minerva_config = config["minerva_config"], 
-                dim_extractor=512, 
-                hidden_size=512//2, 
-                activation=nn.LeakyReLU, 
-                att_pool_dim = 512
-            )
-        else:
-            model = MetricPredictor(dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU, att_pool_dim=512)
-        # from models.ni_predictors import HuBERTMetricPredictorEncoder
-        # model = HuBERTMetricPredictorEncoder().to(args.device)
-    elif args.model == "HuBERTFull":
+        dim_extractor = 512
+        hidden_size = 512//2
+        activation = nn.LeakyReLU
+        att_pool_dim = 512
+        
+    elif args.feats == "HuBERTFull":
         feat_extractor = HuBERTFull_feats()
-        if args.exemplar:
-            model = ExemplarMetricPredictor(
-                minerva_config = config["minerva_config"], 
-                dim_extractor=768, 
-                hidden_size=768//2, 
-                activation=nn.LeakyReLU, 
-                att_pool_dim = 768
-            )
-        else:
-            model = MetricPredictor(dim_extractor=768, hidden_size=768//2, activation=nn.LeakyReLU, att_pool_dim=768)
-        # from models.ni_predictors import HuBERTMetricPredictorFull
-        # model = HuBERTMetricPredictorFull().to(args.device)
-    elif args.model == "Spec":  
+        dim_extractor = 768
+        hidden_size = 768//2
+        activation = nn.LeakyReLU
+        att_pool_dim = 768
+        
+    elif args.feats == "Spec":  
         feat_extractor = Spec_feats()
-        if args.exemplar:
-            model = ExemplarMetricPredictor(
-                minerva_config = config["minerva_config"], 
-                dim_extractor=257, 
-                hidden_size=257//2, 
-                activation=nn.LeakyReLU, 
-                att_pool_dim = 256
-            )
+        dim_extractor = 257
+        hidden_size = 257//2
+        activation = nn.LeakyReLU
+        att_pool_dim = 256
+        
+    else:
+        print("Feats extractor not recognised")
+        exit(1)
+
+    if args.model == "LSTM":
+        if combo:
+            model = MetricPredictorLSTMCombo(dim_extractor, hidden_size, activation)
         else:
-            model = MetricPredictor(dim_extractor=257, hidden_size=257//2, activation=nn.LeakyReLU, att_pool_dim = 256)
-        # from models.ni_predictors import SpecMetricPredictor
-        # model = SpecMetricPredictor().to(args.device)
+            model = MetricPredictorLSTM(dim_extractor, hidden_size, activation, att_pool_dim)
+    elif args.model == "AttenPool":
+        if combo:
+            print("Combo Attention Pooling model not yet implemented")
+            quit
+        else:
+            model = MetricPredictorAttenPool(att_pool_dim)
     else:
         print("Model not recognised")
         exit(1)
+
+        # if args.exemplar:
+        #     config["minerva_config"]["input_dim"] = 512
+        #     model = ExemplarMetricPredictor(
+        #         minerva_config = config["minerva_config"], 
+        #         dim_extractor=512, 
+        #         hidden_size=512//2, 
+        #         activation=nn.LeakyReLU, 
+        #         att_pool_dim = 512
+        #     )
+
 
     feat_extractor.eval()
     feat_extractor.requires_grad_(False)
@@ -624,7 +594,7 @@ def main(args, config):
     date = today.strftime("%H-%M-%d-%b-%Y")
     ex = "ex" if args.exemplar else ""
 
-    model_name = "%s_%s_%s_%s_%s_%s"%(args.exp_id,args.N,args.model,ex,date,args.seed)
+    model_name = "%s_%s_%s_%s_%s_%s_%s"%(args.exp_id,args.N,args.feats,args.model,ex,date,args.seed)
     model_dir = "save/%s"%(model_name)
     if not args.skip_wandb:
         # wandb_name = "%s_%s_%s_%s_feats_%s_%s"%(args.exp_id,args.N,args.model,ex,date,args.seed)
@@ -637,62 +607,43 @@ def main(args, config):
         
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(),lr=args.lr)
-    if int(args.in_json_file.split("/")[-1].split(".")[-2]) != args.N:
-        print("Warning: N does not match dataset:")
-        print(args.in_json_file.split("/")[-1].split(".")[-2],args.N)
-        exit()
+    if not args.use_CPC1:
+        if int(args.in_json_file.split("/")[-1].split(".")[-2]) != args.N:
+            print("Warning: N does not match dataset:")
+            print(args.in_json_file.split("/")[-1].split(".")[-2],args.N)
+            exit()
 
     # if args.model == "XLSREncoder" and os.path.exists("data/xlsrencoder_feats.csv"):
     #     data = pd.read_csv("data/xlsrencoder_feats.csv")
     # else:
 
-    # Load the intelligibility data
     data = pd.read_json(args.in_json_file)
     data["subset"] = "CEC1"
-    data2 = pd.read_json(args.in_json_file.replace("CEC1","CEC2"))
-    data2["subset"] = "CEC2"
-
-    # get_disjoint_val_set(data, data2)
-    # quit()
-
-    data = pd.concat([data, data2])
+    if not args.use_CPC1:
+        data2 = pd.read_json(args.in_json_file.replace("CEC1","CEC2"))
+        data2["subset"] = "CEC2"
+        data = pd.concat([data, data2])
     data["predicted"] = np.nan  # Add column to store intel predictions
 
     feat_extractor.to(args.device)
-    data = extract_feats(feat_extractor, data, N, combo)
+    theset = "train_indep" if args.use_CPC1 else "train"
+    data = extract_feats(feat_extractor, data, args, theset, combo)
     feat_extractor.to('cpu')
 
-    # if args.model == "XLSREncoder" and not os.path.exists("data/xlsrencoder_feats.csv"):
-    #     csv_types = {
-    #         # "prompt": ,
-    #         # "scene": ,
-    #         "n_words": np.int64,
-    #         "hits": np.int64,
-    #         # "listener": ,
-    #         # "system": ,
-    #         "correctness": np.float32,
-    #         # "response": ,
-    #         "volume": np.float32,
-    #         # "signal": ,
-    #         # "subset": ,
-    #         "predicted": np.nan,
-    #         "feats_l": ,
-    #         "feats_r": 
-    #     }
-    #     data.to_csv("data/xlsrencoder_feats.csv", index = False)
-
     print(data[:50])
-    
 
     # Split into train and val sets
     train_data,val_data = train_test_split(data,test_size=0.1)
     #TODO set up validation to partition on scene
     if args.test_json_file is not None:
         test_data = pd.read_json(args.test_json_file)
+        test_data["subset"] = "CEC1" if args.use_CPC1 else "CEC2"
         test_data["predicted"] = np.nan
+        theset = "test_indep" if args.use_CPC1 else "test"
         feat_extractor.to(args.device)
-        test_data = extract_feats(test_data, data, N, combo)
+        test_data = extract_feats(feat_extractor, test_data, args, theset, combo)
         feat_extractor.to('cpu')
+        print(f"Using test data: {args.test_json_file}")
     else:
         test_data = val_data
     print("Trainset: %s\nValset: %s\nTestset: %s "%(train_data.shape[0],val_data.shape[0],test_data.shape[0]))
@@ -754,16 +705,21 @@ def main(args, config):
         for epoch in range(args.n_epochs):
 
 
-            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args.N,combo,ex_data)
+            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,combo,ex_data)
 
-            _,val_loss = validate_model(model,val_data,optimizer,criterion,args.N,combo)
+            _,val_loss = validate_model(model,val_data,optimizer,criterion,args,combo)
+            if args.test_json_file is not None:
+                _,eval_loss = validate_model(model,test_data,optimizer,criterion,args,combo)
 
             if not args.skip_wandb:
+                log_dict = {
+                    "dev_rmse": val_loss**0.5,
+                    "train_rmse": training_loss**0.5
+                }
+                if args.test_json_file is not None:
+                    log_dict["eval_rmse"] = eval_loss**0.5
                 
-                wandb.log({
-                    "dev_loss": val_loss,
-                    "train_loss": training_loss
-                })
+                wandb.log(log_dict)
             
             save_model(model,optimizer,epoch,args,val_loss)
             torch.cuda.empty_cache()
@@ -780,7 +736,13 @@ def main(args, config):
     model.load_state_dict(torch.load("%s/%s"%(model_dir,model_file)))
     
     # get validation predictions
-    val_predictions,_ = validate_model(model,val_data,optimizer,criterion,args.N,combo)
+    val_predictions,val_loss = validate_model(model,val_data,optimizer,criterion,args,combo)
+    val_error = val_loss**0.5
+    val_p_corr = np.corrcoef(np.array(val_predictions),val_data["correctness"])[0][1]
+    val_s_corr = spearmanr(np.array(val_predictions),val_data["correctness"])[0]
+    val_std = std_err(np.array(val_predictions), val_data["correctness"])
+    val_data["predicted"] = val_predictions
+    val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file, index=False)
     
     #normalise the predictions
     val_gt = val_data["correctness"].to_numpy()/100
@@ -797,20 +759,35 @@ def main(args, config):
     # Test the model
     if args.test_json_file is not None:
         print("Testing model on test set")
-        predictions,test_loss = test_model(model,test_data,optimizer,criterion,args.N)
+        predictions,test_loss = validate_model(model,test_data,optimizer,criterion,args,combo)
         predictions_fitted = np.asarray(predictions)/100
         #apply the logistic mapping
         predictions_fitted = logit_func(predictions_fitted,a,b)
         test_data["predicted"] = predictions
         test_data["predicted_fitted"] = predictions_fitted*100
-
-        test_data[["scene", "listener", "system", "predicted","predicted_fitted"]].to_csv("save/" + args.exp_id + args.out_csv_file, index=False)
+        test_data[["scene", "listener", "system", "predicted","predicted_fitted"]].to_csv(args.out_csv_file, index=False)
+        error = test_loss**0.5 * 100
+        p_corr = np.corrcoef(np.array(predictions),test_data["correctness"])[0][1]
+        s_corr = spearmanr(np.array(predictions),test_data["correctness"])[0]
+        std = std_err(np.array(predictions), test_data["correctness"])
+        error_fitted = rmse_score(np.array(predictions_fitted)*100,test_data["correctness"])
+        p_corr_fitted = np.corrcoef(np.array(predictions_fitted)*100,test_data["correctness"])[0][1]
+        s_corr_fitted = spearmanr(np.array(predictions_fitted)*100,test_data["correctness"])[0]
+        std_fitted = std_err(np.array(predictions_fitted)*100,test_data["correctness"])
     else:
         print("Testing model on train+val set")
-        predictions,test_loss = validate_model(model,data,optimizer,criterion,args.N,combo)
-    
+        predictions,test_loss = validate_model(model,data,optimizer,criterion,args,combo)
         data["predicted"] = predictions
         data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file, index=False)
+    
+    with open (args.summ_file, "a") as f:
+        csv_writer = csv.writer(f)
+        if args.test_json_file is not None:
+            csv_writer.writerow([args.out_csv_file.split("/")[-1].strip(".csv"), val_error, val_p_corr, val_s_corr, val_std, error, std, p_corr, s_corr, error_fitted, std_fitted, p_corr_fitted, s_corr_fitted])
+        else:
+            csv_writer.writerow([args.out_csv_file.split("/")[-1].strip(".csv"), val_error, val_p_corr, val_s_corr, val_std])
+
+    
     print("Test Loss: %s"%test_loss)
     print("=====================================")
 
@@ -823,15 +800,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "config_file", help="location of configuation json file", 
     )
-    # parser.add_argument(
-    #     "in_json_file", help="JSON file containing the CPC2 training metadata"
-    # )
-    # parser.add_argument(
-    #     "out_csv_file", help="output csv file containing the intelligibility predictions"
-    # )
-    # parser.add_argument(
-    #     "N", help="partion on which to train/test", type=int
-    # )
     parser.add_argument(
         "--test_json_file", help="JSON file containing the CPC2 test metadata", 
     )
@@ -840,6 +808,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--lr", help="learning rate", default=999, type=float
+    )
+    parser.add_argument(
+        "--feats", help="feats extractor" , default="999",
     )
     parser.add_argument(
         "--model", help="model type" , default="999",
@@ -856,6 +827,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--exp_id", help="id for individual experiment"
     )
+    parser.add_argument(
+        "--batch_size", help="batch size" , default=999, type=int
+    )
+    parser.add_argument(
+        "--use_CPC1", help="train and evaluate on CPC1 data" , default=False, action='store_true'
+    )
+    parser.add_argument(
+        "--summ_file", help="train and evaluate on CPC1 data" , default=None
+    )
+
     args = parser.parse_args()
 
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -864,39 +845,75 @@ if __name__ == "__main__":
     with open(os.path.join("configs", config_filename)) as f:
         config = AttrDict(json.load(f))
 
-    args.in_json_file = config["in_json_file"]
-    args.out_csv_file = config["out_csv_file"]
+    args.out_csv_file = f"save/{args.exp_id}_{args.feats}_{args.model}_preds.csv"
+    config["out_csv_file"] = args.out_csv_file
     args.N = config["N"]
     args.exemplar = config["exemplar"]
-    args.wandb_project = config["wandb_project"]
+
     if args.test_json_file is None:
         args.test_json_file = config["test_json_file"]
     else:
         config["test_json_file"] = args.test_json_file
+
     if args.n_epochs == 0:
         args.n_epochs = config["n_epochs"]
     else:
         config["n_epochs"] = args.n_epochs
+
     if args.lr == 999:
         args.lr = config["lr"]
     else:
         config["lr"] = args.lr
+
+    if args.feats == "999":
+        args.feats = config["feats"]
+    else:
+        config["feats"] = args.feats
+
     if args.model == "999":
         args.model = config["model"]
     else:
         config["model"] = args.model
+
     if args.seed == 999:
         args.seed = config["seed"]
     else:
         config["seed"] = args.seed
+
     if not args.do_train:
         config["do_train"] = False
+
     if args.skip_wandb:
         config["skip_wandb"] = True
+
     if args.exp_id is not None:
         config["exp_id"] = args.exp_id
     else:
         args.exp_id = config["exp_id"]
+
+    if args.batch_size == 999:
+        args.batch_size = config["batch_size"]
+    else:
+        config["batch_size"] = args.batch_size
+
+    if args.use_CPC1:
+        args.wandb_project = "CPC1"
+        config["wandb_project"] = "CPC1"
+        args.dataroot = DATAROOT_CPC1
+        args.in_json_file = DATAROOT_CPC1 + "metadata/CPC1.train_indep.json"
+        config["in_json_file"] = DATAROOT_CPC1 + "metadata/CPC1.train_indep.json"
+        args.test_json_file = DATAROOT_CPC1 + "metadata/CPC1.test_indep.json"
+        config["test_json_file"] = DATAROOT_CPC1 + "metadata/CPC1.test_indep.json"
+    else:
+        args.dataroot = DATAROOT
+        args.wandb_project = config["wandb_project"]
+        args.in_json_file = config["in_json_file"]
+    if args.summ_file is None:
+        if args.use_CPC1:
+            args.summ_file = "save/CPC1_metrics.csv"
+        else:
+            args.summ_file = "save/CPC2_metrics.csv"
+    
     config["device"] = args.device
 
     main(args, config)
