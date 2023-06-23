@@ -555,7 +555,15 @@ def main(args, config):
     model_dir = "save/%s"%(model_name)
     if not args.skip_wandb:
         # wandb_name = "%s_%s_%s_%s_feats_%s_%s"%(args.exp_id,args.N,args.model,ex,date,args.seed)
-        run = wandb.init(project=args.wandb_project, reinit = True, name = model_name)
+        run = wandb.init(
+            project=args.wandb_project, 
+            reinit = True, 
+            name = model_name,
+            tags = [f"N{args.N}", f"lr{args.lr}", args.feats, args.model, f"bs{args.batch_size}"]
+        )
+        if args.exemplar:
+            run.tags = run.tags + ("exemplar")
+    
     args.model_dir = model_dir
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
@@ -565,7 +573,7 @@ def main(args, config):
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(),lr=args.lr)
     if not args.use_CPC1:
-        if int(args.in_json_file.split("/")[-1].split(".")[-2]) != args.N:
+        if int(args.in_json_file.split("/")[-1].split(".")[-2]) != int(args.N):
             print("Warning: N does not match dataset:")
             print(args.in_json_file.split("/")[-1].split(".")[-2],args.N)
             exit()
@@ -855,7 +863,10 @@ if __name__ == "__main__":
         "--summ_file", help="train and evaluate on CPC1 data" , default=None
     )
     parser.add_argument(
-        "--N", help="train split" , default=1
+        "--N", help="train split" , default=1, type=int
+    )
+    parser.add_argument(
+        "--wandb_project", help="W and B project name" , default=None
     )
 
     args = parser.parse_args()
@@ -925,8 +936,11 @@ if __name__ == "__main__":
         config["test_json_file"] = DATAROOT_CPC1 + "metadata/CPC1.test_indep.json"
     else:
         args.dataroot = DATAROOT
-        args.wandb_project = config["wandb_project"]
-        args.in_json_file = config["in_json_file"]
+        args.wandb_project = "CPC2" if args.wandb_project is None else args.wandb_project
+        config["wandb_project"] = args.wandb_project
+        args.in_json_file = f"{DATAROOT}clarity_data/metadata/CEC1.train.{args.N}.json"
+        config["in_json_file"] = args.in_json_file
+        
     if args.summ_file is None:
         if args.use_CPC1:
             args.summ_file = "save/CPC1_metrics.csv"

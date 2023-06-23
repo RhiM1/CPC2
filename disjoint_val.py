@@ -52,19 +52,6 @@ def get_disjoint_val_set(args, data):
     data.loc[data.scene.isin(val_scenes), 'validation'] += 4
     
     vals = data.validation.value_counts()
-    # print(vals)
-
-    # print("train:", len(data[data.validation.isin([0])]))
-    # print("val:", len(data[data.validation.isin([1, 2, 3, 4, 5, 6, 7])]))
-    # print("val listener:", len(data[data.validation.isin([1, 3, 5, 7])]))
-    # print("val system:", len(data[data.validation.isin([2, 3, 6, 7])]))
-    # print("val scene:", len(data[data.validation.isin([4, 5, 6, 7])]))
-    # print("val listener, system:", len(data[data.validation.isin([3, 7])]))
-    # print("val listener, scene:", len(data[data.validation.isin([5, 7])]))
-    # print("val system, scene:", len(data[data.validation.isin([6, 7])]))
-    # print("val disjoint:", len(data[data.validation.isin([7])]))
-    
-
 
     return data
 
