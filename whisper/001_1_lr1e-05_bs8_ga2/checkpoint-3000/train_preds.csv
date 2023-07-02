@@ -1,0 +1,11 @@
+prompt,scene,n_words,hits,listener,system,correctness,response,volume,signal,subset,validation,__index_level_0__,prediction,response_wer,predicted_wer
+so if you spot a public phone box tell me,S08778,10,10,L0209,E008_hr,100.0,so if you spot a public phone box tell me,60,S08778_L0209_E008_hr,CEC2,0,6407,so if you spot a public phone box tell me,0.0,0.0
+he had his black chest out too,S08902,7,7,L0209,E008_hr,100.0,he had his black chest out too,58,S08902_L0209_E008_hr,CEC2,0,6384,he had his black chest out too,0.0,0.0
+we're going to have to cut back,S09990,7,7,L0221,E001,100.0,we're going to have to cut back,50,S09990_L0221_E001,CEC1,0,148,we're going to have to cut back,0.0,0.0
+legislation on that however is still in the future,S09359,9,5,L0201,E021,55.5555555556,is still in the future,54,S09359_L0201_E021,CEC1,0,1359,legislation on that however is still in the future,0.4444444444444444,0.0
+normal practice is to offer club membership,S09579,7,7,L0202,E010,100.0,normal practice is to offer club membership,99,S09579_L0202_E010,CEC1,0,5490,normal practice is to offer club membership,0.0,0.0
+roll over and repeat on the other side,S09227,8,8,L0229,E003,100.0,roll over and repeat on the other side,51,S09227_L0229_E003,CEC1,0,2413,roll over and repeat on the other side,0.0,0.0
+you can say you were having a word with me,S08761,10,10,L0240,E019,100.0,you can say you were having a word with me,100,S08761_L0240_E019,CEC1,0,1132,you can say you were having a word with me,0.0,0.0
+she wasn't used to being without a pillow,S09714,8,1,L0227,E005,12.5,without the,50,S09714_L0227_E005,CEC1,0,2828,she wasn't used to being without a pillow,0.875,0.0
+i have no reason to suppose that she isn't,S09057,9,9,L0219,E009,100.0,  i have no reason to suppose that she isn't.,50,S09057_L0219_E009,CEC2,0,7272,i have no reason to suppose that she isn't,0.1111111111111111,0.0
+let the water wash you all over,S09595,7,7,L0227,E019,100.0,let the water wash you all over,50,S09595_L0227_E019,CEC1,0,1228,let the water wash you all over,0.0,0.0

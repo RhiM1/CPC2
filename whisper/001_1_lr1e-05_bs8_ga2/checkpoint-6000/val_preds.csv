@@ -1,0 +1,578 @@
+prompt,scene,n_words,hits,listener,system,correctness,response,volume,signal,subset,validation,__index_level_0__,prediction,response_wer,predicted_wer
+he has ability and a good attitude,S09536,7,7,L0202,E018,100.0,he has ability and a good attitude,89,S09536_L0202_E018,CEC1,0,1933,he has ability and a good attitude,0.0,0.0
+i break them in for my dad,S08872,7,3,L0200,E007,42.8571428571,for my dad,98,S08872_L0200_E007,CEC1,0,519,i break them in for my dad,0.5714285714285714,0.0
+i urge you all to be most careful,S09280,8,8,L0220,E010,100.0,i urge you all to be most careful,50,S09280_L0220_E010,CEC1,0,5472,i urge you all to be most careful,0.0,0.0
+there isn't much scope for skill here,S09051,7,7,L0200,E013,100.0,there isn't much scope for skill here,90,S09051_L0200_E013,CEC1,0,1014,there isn't much scope for skill here,0.0,0.0
+stay in the car if you don't mind,S08576,8,0,L0229,E001,0.0,apart,100,S08576_L0229_E001,CEC1,0,1960,stay in the car if you don't mind,1.0,0.0
+just tell me what i need to know,S08780,8,8,L0224,E018,100.0,just tell me what i need to know,99,S08780_L0224_E018,CEC1,0,4789,just tell me what i need to know,0.0,0.0
+it was a silly thing to say,S09500,7,7,L0235,E007,100.0,it was a silly thing to say,65,S09500_L0235_E007,CEC1,0,5318,it was a silly thing to say,0.0,0.0
+i wouldn't repeat what i said not to anybody,S09476,9,9,L0240,E021,100.0,i wouldn't repeat what i said not to anybody ,100,S09476_L0240_E021,CEC1,0,4633,i wouldn't repeat what i said not to anybody,0.0,0.0
+she spun round hand to her chest,S09799,7,6,L0224,E009,85.7142857143,she spun round hands to her chest ,99,S09799_L0224_E009,CEC1,0,780,she spun round hand to her chest,0.14285714285714285,0.0
+there hasn't been anything said about foul play yet,S08693,9,9,L0236,E010,100.0,there hasn't been anything said about foul play yet,100,S08693_L0236_E010,CEC1,0,819,there hasn't been anything said about foul play yet,0.0,0.0
+how did you pass the lower guard,S08971,7,1,L0220,E005,14.2857142857,lower,50,S08971_L0220_E005,CEC1,0,5222,how did you pass the lower guard,0.8571428571428571,0.0
+the district society is not alone in its call,S09450,9,8,L0222,E021,88.8888888889,a district society is not alone in its call,40,S09450_L0222_E021,CEC1,0,4624,the district society is not alone in its call,0.1111111111111111,0.0
+how good it is to see you,S09619,7,3,L0236,E001,42.8571428571,is to see how,85,S09619_L0236_E001,CEC1,0,116,how good it is to see you,0.5714285714285714,0.0
+so then in frustration she had to retreat,S08593,8,8,L0209,E010,100.0,so then in frustration she had to retreat,84,S08593_L0209_E010,CEC1,0,805,so then in frustration she had to retreat,0.0,0.0
+she sat in the hedge for a long time,S09350,9,9,L0221,E018,100.0,she sat in the hedge for a long time,50,S09350_L0221_E018,CEC1,0,4912,she sat in the hedge for a long time,0.0,0.0
+could you please at least tell them it's quite urgent,S08739,10,9,L0242,E021,90.0,could you at least tell them its quite urgent,75,S08739_L0242_E021,CEC1,0,4468,could you please at least tell them it's quite urgent,0.2,0.0
+police were forced to clear the court,S09329,7,4,L0240,E009,57.1428571429,ali's was called to clear the court ,100,S09329_L0240_E009,CEC1,0,3351,police were forced to clear the court,0.42857142857142855,0.0
+at least she knew adam was safe now,S09707,8,0,L0201,E001,0.0,,78,S09707_L0201_E001,CEC1,0,2209,or was it she knew about it,1.0,0.875
+how did the car come off the road,S09312,8,0,L0200,E001,0.0,,77,S09312_L0200_E001,CEC1,0,84,how did the car come off the road,1.0,0.0
+but this is more out of opportunity than necessity,S09396,9,8,L0219,E021,88.8888888889,this is more out of opportunity than necessity,100,S09396_L0219_E021,CEC1,0,4614,but this is more out of opportunity than necessity,0.1111111111111111,0.0
+it's a gun he said bending to pick it up,S09011,10,10,L0206,E013,100.0,it's a gun he said bending to pick it up,50,S09011_L0206_E013,CEC1,0,3921,it's a gun he said bending to pick it up,0.0,0.0
+what time did he get home last night,S09327,8,7,L0240,E037,87.5,what time did you get home last night,100,S09327_L0240_E037,CEC2,0,7701,what time did he get home last night,0.125,0.0
+it's my intention that they appear on my gravestone,S09532,9,8,L0231,E003,88.8888888889,it's my intention they appear on my gravestone ,50,S09532_L0231_E003,CEC1,0,2481,it's my intention that they appear on my gravestone,0.1111111111111111,0.0
+the term mixed race is also inaccurate,S08532,7,7,L0201,E019,100.0,the term mixed race is also inaccurate,54,S08532_L0201_E019,CEC1,0,4121,the term mixed race is also inaccurate,0.0,0.0
+the question was what should he say,S08976,7,0,L0206,E001,0.0,,50,S08976_L0206_E001,CEC1,0,2048,question me how to spot you on site,1.0,1.1428571428571428
+his smile was wry and full of understanding,S08781,8,8,L0221,E021,100.0,his smile was wry and full of understanding,50,S08781_L0221_E021,CEC1,0,4478,his smile was wry and full of understanding,0.0,0.0
+will i get some in for you now,S08870,8,1,L0215,E001,12.5,we'll get by,50,S08870_L0215_E001,CEC1,0,34,will i get some in for you now,0.875,0.0
+it is not business as usual with china,S08952,8,8,L0222,E010,100.0,it is not business as usual with china,30,S08952_L0222_E010,CEC1,0,3584,it is not business as usual with china,0.0,0.0
+i don't want to go home sir,S09271,7,7,L0224,E018,100.0,i don't want to go home sir,99,S09271_L0224_E018,CEC1,0,4894,i don't want to go home sir,0.0,0.0
+no they have gone a bit cool towards her,S08873,9,8,L0206,E010,88.8888888889,they have gone a bit cool towards her,50,S08873_L0206_E010,CEC1,0,843,no they have gone a bit cool towards her,0.1111111111111111,0.0
+entry can be rapid as can withdrawal,S09831,7,5,L0202,E013,71.4285714286,entry could be rapid as could withdrawal,100,S09831_L0202_E013,CEC1,0,5575,entry can be rapid as can withdrawal,0.2857142857142857,0.0
+and if not what will become of it,S08605,8,3,L0227,E007,37.5,but it's not the colour of it,49,S08605_L0227_E007,CEC1,0,482,and if not what will become of it,0.625,0.0
+so then in frustration she had to retreat,S08593,8,0,L0241,E005,0.0,,96,S08593_L0241_E005,CEC1,0,1642,so then in frustration she had to retreat,1.0,0.0
+but he'll get it first thing in the morning,S08887,9,4,L0239,E013,44.4444444444,but first thing morning,50,S08887_L0239_E013,CEC1,0,3891,but he'll get it first thing in the morning,0.5555555555555556,0.0
+i just had to look after our property,S09514,8,7,L0201,E019,87.5,i just have to look after our property,54,S09514_L0201_E019,CEC1,0,1221,i just had to look after our property,0.125,0.0
+they store any amount from one to nine,S08997,8,2,L0239,E018,25.0,any amount,63,S08997_L0239_E018,CEC1,0,4839,they store any amount from one to nine,0.75,0.0
+well what i knew was i would get no more,S09919,10,3,L0242,E001,30.0,what i need was,75,S09919_L0242_E001,CEC1,0,2256,well what i knew was i would get no more,0.7,0.0
+finally he put it in his mouth,S09432,7,0,L0200,E008_hr,0.0,,96,S09432_L0200_E008_hr,CEC2,0,5824,finally he put it in his mouth,1.0,0.0
+we have to identify with each other,S09395,7,6,L0240,E003,85.7142857143,we have to identify with each of,100,S09395_L0240_E003,CEC1,0,249,we have to identify with each other,0.14285714285714285,0.0
+if i tell you to eat you will eat,S08815,9,9,L0202,E021,100.0,if i tell you to eat you will eat,99,S08815_L0202_E021,CEC1,0,5683,if i tell you to eat you will eat,0.0,0.0
+she spat the word into the silence,S09271,7,6,L0209,E024_hr,85.71428571428571,she spat the word into the phone,60,S09271_L0209_E024_hr,CEC2,0,6477,she spat the word into the silence,0.14285714285714285,0.0
+come and sit here and tell me about yourself,S09156,9,0,L0222,E005,0.0,,30,S09156_L0222_E005,CEC1,0,2710,come and sit here and tell me about yourself,1.0,0.0
+but what is the entity in this case,S08871,8,0,L0201,E005,0.0,,78,S08871_L0201_E005,CEC1,0,353,but what is the rest of it all to say,1.0,0.75
+is this because they think they are without inhumane behaviour,S08837,10,1,L0225,E005,10.0,we can't do things without you,98,S08837_L0225_E005,CEC1,0,2651,is this the car they think they are without easy made behaviour,0.9,0.4
+thought you might be able to help,S08763,7,7,L0222,E009,100.0,thought you might be able to help,87,S08763_L0222_E009,CEC2,0,6998,thought you might be able to help,0.0,0.0
+then everything was forgotten except the moment,S08730,7,7,L0240,E037,100.0,then everything was forgotten except the moment,100,S08730_L0240_E037,CEC2,0,7718,then everything was forgotten except the moment,0.0,0.0
+he is a simple man and old,S09382,7,2,L0202,E018,28.5714285714,these are a simple one,89,S09382_L0202_E018,CEC1,0,5788,he is a simple man and old,0.7142857142857143,0.0
+there is however an important general point at issue here,S09753,10,0,L0219,E005,0.0,,100,S09753_L0219_E005,CEC1,0,2836,every kind of man needs a second view,1.0,1.0
+no they have gone a bit cool towards her,S08873,9,4,L0215,E013,44.4444444444,no it was a bit cool for this house,50,S08873_L0215_E013,CEC1,0,990,no they have gone a bit cool towards her,0.6666666666666666,0.0
+what is the difference between information and data,S09710,8,8,L0221,E021,100.0,what is the difference between information and data,50,S09710_L0221_E021,CEC1,0,1396,what is the difference between information and data,0.0,0.0
+wear old clothes and bring a hammer,S08743,7,7,L0215,E013,100.0,wear old clothes and bring a hammer,50,S08743_L0215_E013,CEC1,0,3853,wear old clothes and bring a hammer,0.0,0.0
+now who did you sit next to,S09961,7,4,L0215,E010,57.1428571429,now who did you think said that,50,S09961_L0215_E010,CEC1,0,3805,now who did you sit next to,0.42857142857142855,0.0
+but what is the entity in this case,S08871,8,8,L0227,E007,100.0,but what is the entity in this case,49,S08871_L0227_E007,CEC1,0,518,but what is the entity in this case,0.0,0.0
+they sent a car to the station,S08970,7,0,L0221,E024_hr,0.0,!,50,S08970_L0221_E024_hr,CEC2,0,6750,izsusies un teļa the kitchen,1.0,0.8571428571428571
+this is a classic sauce to serve with fish,S08923,9,9,L0209,E003,100.0,this is a classic sauce to serve with fish,73,S08923_L0209_E003,CEC1,0,2353,this is a classic sauce to serve with fish,0.0,0.0
+i wouldn't dream of taking them before a race,S09325,9,2,L0200,E018,22.2222222222,i have enjoyed taking oats,98,S09325_L0200_E018,CEC1,0,4903,i wouldn't dream of taking them before a race,0.7777777777777778,0.0
+if you could manage to have a look,S09085,8,8,L0201,E009,100.0,if you could manage to have a look,84,S09085_L0201_E009,CEC1,0,695,if you could manage to have a look,0.0,0.0
+all of that was so long ago,S09258,7,7,L0224,E010,100.0,all of that was so long ago,99,S09258_L0224_E010,CEC1,0,880,all of that was so long ago,0.0,0.0
+she had to get her say in didn't she,S09856,9,1,L0236,E005,11.1111111111,you have to have something,97,S09856_L0236_E005,CEC1,0,2854,she had to get her say in didn't she,0.8888888888888888,0.0
+so the last day was going to be a test,S09039,10,9,L0215,E009,90.0,so the last thing was going to be a test,50,S09039_L0215_E009,CEC1,0,691,so the last day was going to be a test,0.1,0.0
+the only goal came midway through the second half,S09198,9,9,L0231,E003,100.0,the only goal came midway through the second half ,50,S09198_L0231_E003,CEC1,0,228,the only goal came midway through the second half,0.0,0.0
+and it would matter to james too,S08793,7,0,L0239,E005,0.0,method,63,S08793_L0239_E005,CEC1,0,2640,and it would matter to james too,1.0,0.0
+she forced herself to look away from him,S09328,8,8,L0219,E021,100.0,she forced herself to look away from him,100,S09328_L0219_E021,CEC1,0,4593,she forced herself to look away from him,0.0,0.0
+the supermarket fruit with that little extra bite,S09485,8,8,L0236,E013,100.0,the supermarket fruit with that little extra bite,98,S09485_L0236_E013,CEC1,0,4019,the supermarket fruit with that little extra bite,0.0,0.0
+far as i know he's still there,S09298,7,7,L0215,E003,100.0,as far as i know he's still there,50,S09298_L0215_E003,CEC1,0,2429,far as i know he's still there,0.14285714285714285,0.0
+replace the paper and the lid and cook another hour,S08614,10,9,L0224,E019,90.0,release the paper and the lid and cook another hour,86,S08614_L0224_E019,CEC1,0,4138,replace the paper and the lid and cook another hour,0.1,0.0
+a great big strapping man he was,S09240,7,7,L0224,E021,100.0,a great big strapping man he was ,99,S09240_L0224_E021,CEC1,0,1342,a great big strapping man he was,0.0,0.0
+they have been absolutely terrific he says,S09386,7,7,L0222,E021,100.0,they have been absolutely terrific he says,40,S09386_L0222_E021,CEC1,0,4612,they have been absolutely terrific he says,0.0,0.0
+it may stop your dream from turning into a nightmare,S09797,10,10,L0242,E003,100.0,it may stop your dream from turning into a nightmare,50,S09797_L0242_E003,CEC1,0,288,it may stop your dream from turning into a nightmare,0.0,0.0
+i can't keep my cool and he does rattle me,S08594,10,10,L0241,E013,100.0,i can't keep my cool and he does rattle me,96,S08594_L0241_E013,CEC1,0,5516,i can't keep my cool and he does rattle me,0.0,0.0
+it's like saying why do you breathe he said,S09837,9,9,L0239,E021,100.0,it's like saying why do you breathe he said,51,S09837_L0239_E021,CEC1,0,4704,it's like saying why do you breathe he said,0.0,0.0
+we shall look at each of these in turn,S09978,9,9,L0206,E009,100.0,we shall look at each of these in turn,50,S09978_L0206_E009,CEC1,0,794,we shall look at each of these in turn,0.0,0.0
+still you know what they say daddy,S08818,7,6,L0236,E005,85.7142857143,you know what they say daddy,97,S08818_L0236_E005,CEC1,0,2647,still you know what they say daddy,0.14285714285714285,0.0
+just a bit the worse for gin i said,S08647,9,8,L0201,E009,88.88888888888889,just a bit the worst for gin i said,80,S08647_L0201_E009,CEC2,0,6162,just a bit the worse for gin i said,0.1111111111111111,0.0
+how free is a free public house,S09317,7,2,L0236,E013,28.5714285714,how pre is,98,S09317_L0236_E013,CEC1,0,3980,how free is a free public house,0.7142857142857143,0.0
+the distinction above is one without a difference,S09489,8,0,L0221,E008_hr,0.0,!,50,S09489_L0221_E008_hr,CEC2,0,6661,the only reason for that is one of the bad things,1.0,1.0
+jealousy had pierced his side like a spear,S09626,8,5,L0235,E019,62.5,jealousy appears to side like a spear,53,S09626_L0235_E019,CEC1,0,5640,jealousy had pierced his side like a spear,0.375,0.0
+we're going to have to cut back,S09990,7,6,L0216,E018,85.7142857143,we're going to have to cut down,90,S09990_L0216_E018,CEC1,0,1574,we're going to have to cut back,0.14285714285714285,0.0
+that thought did not stay around long,S08657,7,7,L0219,E018,100.0,that thought did not stay around long,66,S08657_L0219_E018,CEC1,0,1432,that thought did not stay around long,0.0,0.0
+we chose you you belong to us,S08719,7,0,L0241,E005,0.0,no,96,S08719_L0241_E005,CEC1,0,1647,we chose you you belong to us,1.0,0.0
+so then in frustration she had to retreat,S08593,8,8,L0242,E007,100.0,so then  in frustration she had to retreat,50,S08593_L0242_E007,CEC1,0,479,so then in frustration she had to retreat,0.0,0.0
+ray can then reply down the phone,S08867,7,0,L0219,E018,0.0,,66,S08867_L0219_E018,CEC1,0,4806,ray can then reply down the phone,1.0,0.0
+in fact it does a great deal less,S09828,8,8,L0202,E013,100.0,in fact it does a great deal less,100,S09828_L0202_E013,CEC1,0,5574,in fact it does a great deal less,0.0,0.0
+you won't try to persuade me not to,S08636,8,8,L0241,E018,100.0,you won't try to persuade me not to,96,S08636_L0241_E018,CEC1,0,5744,you won't try to persuade me not to,0.0,0.0
+they must have a lot of catching up to do,S09154,10,10,L0200,E003,100.0,they must have a lot of catching up to do,77,S09154_L0200_E003,CEC1,0,2402,they must have a lot of catching up to do,0.0,0.0
+but he'll get it first thing in the morning,S08887,9,9,L0220,E021,100.0,but he'll get it first thing in the morning,50,S08887_L0220_E021,CEC1,0,5688,but he'll get it first thing in the morning,0.0,0.0
+how good it is to see you,S09619,7,7,L0225,E007,100.0,how good it is to see you,98,S09619_L0225_E007,CEC1,0,596,how good it is to see you,0.0,0.0
+and then for an instant time reversed,S09006,7,2,L0225,E005,28.5714285714,and then,98,S09006_L0225_E005,CEC1,0,369,and then for an instant time reversed,0.7142857142857143,0.0
+i thought we hadn't seen the last of her,S09844,9,8,L0206,E021,88.8888888889,i thought i hadn't seen the last of her,50,S09844_L0206_E021,CEC1,0,4705,i thought we hadn't seen the last of her,0.1111111111111111,0.0
+but they do see the problem as a political one,S08998,10,10,L0201,E036,100.0,but they do see the problem as a political one,84,S08998_L0201_E036,CEC2,0,6292,but they do see the problem as a political one,0.0,0.0
+i am here because you belong to me,S09816,8,8,L0224,E003,100.0,i am here because you belong to me,86,S09816_L0224_E003,CEC1,0,291,i am here because you belong to me,0.0,0.0
+what kind of book she give you pal,S09865,8,3,L0239,E009,37.5,what kind of books,57,S09865_L0239_E009,CEC1,0,3466,what kind of book she give you pal,0.625,0.0
+no news at all of him i'm afraid,S09634,8,7,L0201,E007,87.5,no news at all about him i'm afraid,37,S09634_L0201_E007,CEC1,0,3126,no news at all of him i'm afraid,0.125,0.0
+now let me have a good look at you,S09311,9,8,L0231,E021,88.8888888889,dell let me have a good look at you,50,S09311_L0231_E021,CEC1,0,1352,now let me have a good look at you,0.1111111111111111,0.0
+so we had to shrink the hall,S09715,7,6,L0221,E009,85.7142857143,so we had to shrink the,50,S09715_L0221_E009,CEC1,0,3436,so we had to shrink the hall,0.14285714285714285,0.0
+in fact it does a great deal less,S09828,8,8,L0229,E003,100.0,in fact it does a great deal less,51,S09828_L0229_E003,CEC1,0,2544,in fact it does a great deal less,0.0,0.0
+let the water wash you all over,S09595,7,5,L0225,E007,71.4285714286,let the porter wash him all over,98,S09595_L0225_E007,CEC1,0,591,let the water wash you all over,0.2857142857142857,0.0
+maybe i can find someone to apprentice me,S09376,8,5,L0240,E036,62.5,maybe i can find someone you,100,S09376_L0240_E036,CEC2,0,7677,maybe i can find someone to apprentice me,0.375,0.0
+she forced her voice down an octave,S08993,7,1,L0236,E013,14.2857142857,she post,98,S08993_L0236_E013,CEC1,0,3918,she forced her voice down an octave,0.8571428571428571,0.0
+that is what society is all about isn't it,S08794,9,9,L0241,E010,100.0,that is what society is all about isn't it,96,S08794_L0241_E010,CEC1,0,5437,that is what society is all about isn't it,0.0,0.0
+he didn't want to play the game part time,S09069,9,9,L0200,E013,100.0,he didn't want to play the game part time,90,S09069_L0200_E013,CEC1,0,3931,he didn't want to play the game part time,0.0,0.0
+do i need to treat the mortar,S10000,7,0,L0222,E005,0.0,,30,S10000_L0222_E005,CEC1,0,2887,do i need to see the boy,1.0,0.2857142857142857
+it's almost like being in the country,S09193,7,0,L0216,E001,0.0,is all distracting,99,S09193_L0216_E001,CEC1,0,2089,it's almost like being in the country,1.0,0.0
+she twisted round to look up at him,S08833,8,5,L0241,E021,62.5,she had sit around and just look up at him,96,S08833_L0241_E021,CEC1,0,1873,she twisted round to look up at him,0.625,0.0
+is this because they think they are without inhumane behaviour,S08837,10,0,L0219,E005,0.0,,100,S08837_L0219_E005,CEC1,0,2650,is this because they think they are without easy made behaviour,1.0,0.2
+stay in the car if you don't mind,S08576,8,8,L0217,E003,100.0,stay in the car if you don't mind,50,S08576_L0217_E003,CEC1,0,2279,stay in the car if you don't mind,0.0,0.0
+this time he was going to have everything covered,S09621,9,9,L0216,E009,100.0,this time he was going to have everything covered,90,S09621_L0216_E009,CEC1,0,3416,this time he was going to have everything covered,0.0,0.0
+perhaps you should go to your embassy,S09923,7,7,L0200,E007,100.0,perhaps you should go to your embassy,98,S09923_L0200_E007,CEC1,0,3183,perhaps you should go to your embassy,0.0,0.0
+my waking thought is what will i eat today,S08960,9,7,L0215,E021,77.7777777778,my racing thought it what will i eat today,50,S08960_L0215_E021,CEC1,0,1313,my waking thought is what will i eat today,0.2222222222222222,0.0
+i break them in for my dad,S08872,7,6,L0208,E021,85.7142857143,i rake them in for my dad,100,S08872_L0208_E021,CEC1,0,1875,i break them in for my dad,0.14285714285714285,0.0
+he was here to get a feel for the place,S08795,10,9,L0242,E010,90.0,it was here to get a feel for the place,75,S08795_L0242_E010,CEC1,0,3554,he was here to get a feel for the place,0.1,0.0
+she came between me and my wife,S09581,7,7,L0231,E003,100.0,she came between me and my wife,50,S09581_L0231_E003,CEC1,0,2493,she came between me and my wife,0.0,0.0
+but he'll get it first thing in the morning,S08887,9,5,L0229,E007,55.5555555556,but you get it first thing,51,S08887_L0229_E007,CEC1,0,2961,but he'll get it first thing in the morning,0.4444444444444444,0.0
+i saw the difference the flood had made,S09320,8,6,L0215,E018,75.0,i saw the difference the children made,50,S09320_L0215_E018,CEC1,0,1515,i saw the difference the flood had made,0.25,0.0
+this is the essence of the algorithm above,S08637,8,8,L0215,E013,100.0,this is the essence of the algorithm above ,50,S08637_L0215_E013,CEC1,0,3829,this is the essence of the algorithm above,0.0,0.0
+the door to his office was always open,S08943,8,0,L0242,E005,0.0,possibly,75,S08943_L0242_E005,CEC1,0,2672,the door to the club was always open,1.0,0.25
+a free spirit has been and gone,S09427,7,7,L0225,E003,100.0,a free spirit has been and gone,98,S09427_L0225_E003,CEC1,0,253,a free spirit has been and gone,0.0,0.0
+we know the truth of the matter,S09229,7,2,L0227,E018,28.5714285714,we are watching the,49,S09229_L0227_E018,CEC1,0,1499,we know the truth of the matter,0.7142857142857143,0.0
+surely such a creature cannot be of use to us,S09101,10,10,L0231,E009,100.0,surely such a creature cannot be of use to us ,50,S09101_L0231_E009,CEC1,0,3310,surely such a creature cannot be of use to us,0.0,0.0
+it's all this moving around the country,S08827,7,7,L0241,E013,100.0,it's all this moving around the country,96,S08827_L0241_E013,CEC1,0,1791,it's all this moving around the country,0.0,0.0
+do i need to treat the mortar,S10000,7,6,L0240,E010,85.7142857143,do i need to treat the faulty,100,S10000_L0240_E010,CEC1,0,3809,do i need to treat the mortar,0.14285714285714285,0.0
+they must have a lot of catching up to do,S09154,10,8,L0206,E007,80.0,they have got a lot of catching up to do,50,S09154_L0206_E007,CEC1,0,3018,they must have a lot of catching up to do,0.2,0.0
+no it's nothing to do with him,S09250,7,7,L0242,E007,100.0,no it's nothing to do with him,50,S09250_L0242_E007,CEC1,0,3036,no it's nothing to do with him,0.0,0.0
+this is the essence of the algorithm above,S08637,8,2,L0224,E005,25.0,algorithm above,86,S08637_L0224_E005,CEC1,0,2602,this was the essence of the algorithm above,0.75,0.125
+this was a real answer to prayer,S08889,7,5,L0206,E005,71.4285714286,this was the real answer to claire,50,S08889_L0206_E005,CEC1,0,2659,this was a real answer to prayer,0.2857142857142857,0.0
+his vigorous faith was an active faith,S09362,7,5,L0242,E021,71.4285714286,his vigorous face was an active face,75,S09362_L0242_E021,CEC1,0,4605,his vigorous faith was an active faith,0.2857142857142857,0.0
+i wouldn't repeat what i said not to anybody,S09476,9,9,L0215,E005,100.0,i wouldn't repeat what i said not to anybody,50,S09476_L0215_E005,CEC1,0,2779,i wouldn't repeat what i said not to anybody,0.0,0.0
+maybe i can find someone to apprentice me,S08936,8,8,L0240,E013,100.0,maybe i can find someone to apprentice me ,100,S08936_L0240_E013,CEC1,0,996,maybe i can find someone to apprentice me,0.0,0.0
+there hasn't been anything said about foul play yet,S08693,9,9,L0224,E019,100.0,there hasn't been anything said about foul play yet,86,S08693_L0224_E019,CEC1,0,1127,there hasn't been anything said about foul play yet,0.0,0.0
+it is something else i cannot understand,S08977,7,7,L0241,E018,100.0,it is something else i cannot understand,96,S08977_L0241_E018,CEC1,0,5765,it is something else i can't understand,0.0,0.14285714285714285
+and we need your help with the survey,S08732,8,8,L0231,E019,100.0,and we need your help with the survey,50,S08732_L0231_E019,CEC1,0,4159,and we need your help with the survey,0.0,0.0
+he is a simple man and old,S09382,7,6,L0239,E013,85.7142857143,he is a simple man and,50,S09382_L0239_E013,CEC1,0,3995,he is a simple man and old,0.14285714285714285,0.0
+and we need your help with the survey,S08732,8,0,L0200,E001,0.0,,77,S08732_L0200_E001,CEC1,0,1988,and we need your help with the survey,1.0,0.0
+it is not business as usual with china,S08952,8,8,L0235,E003,100.0,it is not business as usual with china,41,S08952_L0235_E003,CEC1,0,5142,it is not business as usual with china,0.0,0.0
+allow to cool undisturbed and then pour into a jar,S09684,10,10,L0221,E019,100.0,allow to cool undisturbed and then pour into a jar,50,S09684_L0221_E019,CEC1,0,4373,allow to cool undisturbed and then pour into a jar,0.0,0.0
+not because of your lovely mouth my dear,S09964,8,8,L0222,E019,100.0,not because of your lovely mouth my dear,30,S09964_L0222_E019,CEC1,0,4424,not because of your lovely mouth my dear,0.0,0.0
+it was a silly thing to say,S09500,7,6,L0239,E013,85.7142857143,was a silly thing to say,50,S09500_L0239_E013,CEC1,0,4021,it was a silly thing to say,0.14285714285714285,0.0
+will i get some in for you now,S08870,8,0,L0217,E005,0.0,,50,S08870_L0217_E005,CEC1,0,352,will i get some in for you now,1.0,0.0
+no i didn't really think you were,S09508,7,0,L0200,E005,0.0,,77,S09508_L0200_E005,CEC1,0,430,now i didn't believe that he would,1.0,0.7142857142857143
+i thought you were dead for sure,S08824,7,7,L0224,E018,100.0,i thought you were dead for sure ,99,S08824_L0224_E018,CEC1,0,1448,i thought you were dead for sure,0.0,0.0
+but then they would have heard her surely,S09000,8,0,L0201,E005,0.0,,78,S09000_L0201_E005,CEC1,0,2690,we said they would have hurt you surely,1.0,0.5
+it was the third hour of the night watch,S09893,9,8,L0240,E001,88.8888888889,it was the third hour of the night rush ,100,S09893_L0240_E001,CEC1,0,2246,it was the third hour of the night watch,0.1111111111111111,0.0
+all his long life the taste never abandoned him,S08503,9,9,L0219,E009,100.0,all his long life the taste never abandoned him,50,S08503_L0219_E009,CEC2,0,7271,all his long life the taste never abandoned him,0.0,0.0
+she spun round hand to her chest,S09799,7,0,L0217,E021,0.0,,50,S09799_L0217_E021,CEC1,0,1405,she's on round hand to her chest,1.0,0.2857142857142857
+come and sit here and tell me about yourself,S09156,9,9,L0242,E021,100.0,come and sit here and tell me about yourself,75,S09156_L0242_E021,CEC1,0,4558,come and sit here and tell me about yourself,0.0,0.0
+we chose you you belong to us,S08719,7,7,L0221,E001,100.0,we chose you you belong to us,50,S08719_L0221_E001,CEC1,0,18, Utrus viņi un viņi noklests,0.0,1.0
+even that would be better than separation,S09752,7,0,L0219,E005,0.0,,100,S09752_L0219_E005,CEC1,0,2834,even that would be better than separation,1.0,0.0
+and there is no profit in that,S09178,7,6,L0216,E021,85.7142857143,no there is no profit in that,90,S09178_L0216_E021,CEC1,0,4563,and there is no profit in that,0.14285714285714285,0.0
+but when he was in this mood fear came,S08523,9,6,L0236,E010,66.6666666667,but when he was fear came,100,S08523_L0236_E010,CEC1,0,798,but when he was in this mood fear came,0.3333333333333333,0.0
+how did you pass the lower guard,S08971,7,7,L0231,E021,100.0,how did you pass the lower guard ,50,S08971_L0231_E021,CEC1,0,4522,how did you pass the lower guard,0.0,0.0
+birth control however is a very controversial issue,S09118,8,8,L0221,E008_hr,100.0,birth control however is a very controversial issue,50,S09118_L0221_E008_hr,CEC2,0,6691,birth control however is a very controversial issue,0.0,0.0
+what kind of house do you want,S08969,7,7,L0239,E009,100.0,what kind of house do you want,57,S08969_L0239_E009,CEC1,0,3282,what kind of house do you want,0.0,0.0
+it's my intention that they appear on my gravestone,S09532,9,9,L0220,E009,100.0,it's my intention that they appear on my gravestone,50,S09532_L0220_E009,CEC1,0,5402,it's my intention that they appear on my gravestone,0.0,0.0
+i break them in for my dad,S08872,7,7,L0206,E010,100.0,i break them in for my dad,50,S08872_L0206_E010,CEC1,0,842,i break them in for my dad,0.0,0.0
+i urge you all to be most careful,S09280,8,8,L0202,E007,100.0,i urge you all to be most careful,100,S09280_L0202_E007,CEC1,0,5307,i urge you all to be most careful,0.0,0.0
+it made you feel pretty peculiar didn't it,S08723,8,7,L0242,E005,87.5,made you feel pretty peculiar didn't it,75,S08723_L0242_E005,CEC1,0,2620,it made you feel pretty peculiar didn't it,0.125,0.0
+tuesday is also usually the interview day,S09533,7,3,L0215,E001,42.8571428571,tuesday is also,50,S09533_L0215_E001,CEC1,0,2167,tuesday is also usually good of you though,0.5714285714285714,0.5714285714285714
+they must have a lot of catching up to do,S09154,10,9,L0222,E019,90.0,we must have a lot of catching up to do,30,S09154_L0222_E019,CEC1,0,4258,they must have a lot of catching up to do,0.1,0.0
+take a look at them will you,S09637,7,0,L0242,E001,0.0,,75,S09637_L0242_E001,CEC1,0,2195,you have to be careful with that,1.0,1.0
+jack raised one hand in a feeble salute,S09451,8,8,L0224,E003,100.0,jack raised one hand in a feeble salute,86,S09451_L0224_E003,CEC1,0,2461,jack raised one hand in a feeble salute,0.0,0.0
+waiter may i have some bread please,S08633,7,7,L0217,E009,100.0,waiter may i have some bread please,50,S08633_L0217_E009,CEC1,0,642,waiter may i have some bread please,0.0,0.0
+but it does not work like that,S08940,7,7,L0240,E013,100.0,but it does not work like that,100,S08940_L0240_E013,CEC1,0,999,but it does not work like that,0.0,0.0
+still you know what they say daddy,S08818,7,7,L0206,E019,100.0,still you know what they say daddy,50,S08818_L0206_E019,CEC1,0,4190,still you know what they say daddy,0.0,0.0
+i must fight the sea with hatred,S09991,7,7,L0215,E009,100.0,i must fight the sea with hatred,50,S09991_L0215_E009,CEC1,0,797,i must fight the sea with hatred,0.0,0.0
+please call me harry except when on duty,S09762,8,5,L0242,E001,62.5,please call me while i'm on duty,75,S09762_L0242_E001,CEC1,0,131,please call me harry except when on duty,0.375,0.0
+i thank you my lord for your courtesy,S09951,8,0,L0216,E005,0.0,how does that feel,90,S09951_L0216_E005,CEC1,0,2881,i thank you my dear for your courtesy,1.0,0.125
+there hasn't been anything said about foul play yet,S09336,9,9,L0201,E036,100.0,there hasn't been anything said about foul play yet,84,S09336_L0201_E036,CEC2,0,6275,there hasn't been anything said about foul play yet,0.0,0.0
+no it's nothing to do with him,S09250,7,0,L0221,E001,0.0,,50,S09250_L0221_E001,CEC1,0,2100, no iesneprāk un iesneprāk,1.0,0.8571428571428571
+i don't owe anyone except perhaps myself,S09945,7,3,L0235,E010,42.8571428571,i don't except for,60,S09945_L0235_E010,CEC1,0,5507,i don't owe anyone except perhaps myself,0.5714285714285714,0.0
+the distinction however is little more than skin deep,S08683,9,9,L0229,E010,100.0,the distinction however is little more than skin deep,100,S08683_L0229_E010,CEC1,0,3522,the distinction however is little more than skin deep,0.0,0.0
+without another word they took him away,S09401,7,7,L0201,E009,100.0,without another word they took him away,72,S09401_L0201_E009,CEC2,0,6161,without another word they took him away,0.0,0.0
+one of the men said yes we are,S09811,8,0,L0216,E001,0.0,,99,S09811_L0216_E001,CEC1,0,2225,one of the men said yes we are,1.0,0.0
+now who did you sit next to,S09961,7,7,L0209,E019,100.0,now who did you sit next to,95,S09961_L0209_E019,CEC1,0,4423,now who did you sit next to,0.0,0.0
+get out of my way at once,S08578,7,7,L0235,E010,100.0,get out of my way at once,60,S08578_L0235_E010,CEC1,0,5429,get out of my way at once,0.0,0.0
+we simply had nothing else to say,S09544,7,2,L0200,E005,28.5714285714,we simply,77,S09544_L0200_E005,CEC1,0,434,we simply had nothing else to say,0.7142857142857143,0.0
+it's my intention that they appear on my gravestone,S09532,9,0,L0222,E001,0.0,,60,S09532_L0222_E001,CEC1,0,2166,it's hard to say what he said,1.0,0.8888888888888888
+but i put on a bright new grin,S09564,8,5,L0208,E018,62.5,but i would a bright new ring,71,S09564_L0208_E018,CEC1,0,5795,but i put on a bright new grin,0.375,0.0
+i have to believe he'll keep his word,S09004,8,8,L0222,E037,100.0,i have to believe he'll keep his word,56,S09004_L0222_E037,CEC2,0,7176,i have to believe he'll keep his word,0.0,0.0
+the town clerk held up his hand,S09803,7,7,L0240,E007,100.0,the town clerk held up his hand,100,S09803_L0240_E007,CEC1,0,3150,the town clerk held up his hand,0.0,0.0
+we manage interest rate risk as well as currency risk,S09096,10,0,L0200,E036,0.0,,90,S09096_L0200_E036,CEC2,0,5980,we know his interest rate was a fairly high issue,1.0,0.8
+it made no mention of my wife,S08713,7,7,L0240,E021,100.0,it made no mention of my wife,100,S08713_L0240_E021,CEC1,0,4461,it made no mention of my wife,0.0,0.0
+i should not be thrown around like luggage,S09877,8,7,L0241,E019,87.5,i should not be slung around like luggage,96,S09877_L0241_E019,CEC1,0,5657,i should not be thrown around like luggage,0.125,0.0
+she came between me and my wife,S09581,7,5,L0242,E018,71.4285714286,between me and my wife,50,S09581_L0242_E018,CEC1,0,4968,she came between me and my wife,0.2857142857142857,0.0
+there was a strong sense of form,S09671,7,0,L0239,E005,0.0,,82,S09671_L0239_E005,CEC1,0,444,they were strong and strong,1.0,0.8571428571428571
+you are like children playing a game,S08890,7,7,L0219,E021,100.0,you are like children playing a game,100,S08890_L0219_E021,CEC1,0,4499,you are like children playing a game,0.0,0.0
+her mother left her alone in an empty house,S09952,9,8,L0241,E013,88.8888888889,my mother left her alone in an empty house,96,S09952_L0241_E013,CEC1,0,5586,her mother left her alone in an empty house,0.1111111111111111,0.0
+these are the army and the police out of uniform,S09546,10,0,L0217,E001,0.0,,50,S09546_L0217_E001,CEC1,0,2169,we wish to report a theft said my chum,1.0,1.0
+would you give me your view of the problem,S09463,9,4,L0227,E007,44.4444444444,could you give me your,49,S09463_L0227_E007,CEC1,0,3088,would you give me your view of the problem,0.5555555555555556,0.0
+there is no substitute for personal contact in this work,S08884,10,10,L0216,E019,100.0,there is no substitute for personal contact in this work,90,S08884_L0216_E019,CEC1,0,1150,there is no substitute for personal contact in this work,0.0,0.0
+your mother needs help with the washing,S08955,7,7,L0201,E007,100.0,your mother needs help with the washing,37,S08955_L0201_E007,CEC1,0,529,your mother needs help with the washing,0.0,0.0
+do you think we could try again,S09528,7,7,L0235,E018,100.0,do you think we could try again,79,S09528_L0235_E018,CEC1,0,1932,do you think we could try again,0.0,0.0
+it was about the future of the soviet union,S09884,9,9,L0216,E013,100.0,it was about the future of the soviet union,90,S09884_L0216_E013,CEC1,0,4096,it was about the future of the soviet union,0.0,0.0
+i have no reason to suppose that she isn't,S09391,9,0,L0220,E007,0.0,,50,S09391_L0220_E007,CEC1,0,1699, ಸಿರಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿಕಿ�,1.0,1.0
+and how long will this last us,S09765,7,3,L0224,E013,42.8571428571,and how long,99,S09765_L0224_E013,CEC1,0,4072,and how long will this last us,0.5714285714285714,0.0
+she had to get her say in didn't she,S09856,9,9,L0206,E019,100.0,she had to get her say in didn't she,50,S09856_L0206_E019,CEC1,0,4402,she had to get her say in didn't she,0.0,0.0
+and there is no profit in that,S09178,7,7,L0202,E021,100.0,and there is no profit in that,99,S09178_L0202_E021,CEC1,0,5698,and there is no profit in that,0.0,0.0
+but when he was in this mood fear came,S08523,9,3,L0209,E013,33.3333333333,but when there was listening hear pain,100,S08523_L0209_E013,CEC1,0,952,but when he was in this mood fear came,0.6666666666666666,0.0
+he could have used this to burn the diary,S08821,9,6,L0227,E009,66.6666666667,he could have used this to dine them,49,S08821_L0227_E009,CEC1,0,660,he could have used this to burn the diary,0.3333333333333333,0.0
+if i tell you to eat you will eat,S08815,9,9,L0225,E019,100.0,if i tell you to eat you will eat,98,S08815_L0225_E019,CEC1,0,4187,if i tell you to eat you will eat,0.0,0.0
+the second goal should have been stopped too,S09164,8,7,L0219,E003,87.5,a second goal should have been stopped too,55,S09164_L0219_E003,CEC1,0,2405,the second goal should have been stopped too,0.125,0.0
+i think it's a good reason for not getting married,S08929,10,7,L0216,E007,70.0,and it was a good reason for not getting married,99,S08929_L0216_E007,CEC1,0,2977,i think it's a good reason for not getting married,0.3,0.0
+it was difficult to tell from this distance,S09719,8,8,L0231,E007,100.0,it was difficult to tell from this distance ,50,S09719_L0231_E007,CEC1,0,3140,it was difficult to tell from this distance,0.0,0.0
+i urge you all to be most careful,S09280,8,7,L0229,E019,87.5,we urge you all to be most careful,100,S09280_L0229_E019,CEC1,0,4283,i urge you all to be most careful,0.125,0.0
+you were watching me all the time,S08791,7,5,L0215,E007,71.4285714286,you cannot see me all the time,50,S08791_L0215_E007,CEC1,0,2943,you were watching me all the time,0.2857142857142857,0.0
+at least she knew adam was safe now,S08837,8,0,L0221,E024_hr,0.0,!,50,S08837_L0221_E024_hr,CEC2,0,6749,at least she knew adam was safe now,1.0,0.0
+surely such a creature cannot be of use to us,S09101,10,10,L0206,E018,100.0,surely such a creature cannot be of any use to us,50,S09101_L0206_E018,CEC1,0,4860,surely such a creature cannot be of use to us,0.1,0.0
+all we can say is it's about time,S09307,8,8,L0240,E009,100.0,all we can say is it's about time,100,S09307_L0240_E009,CEC2,0,7547,all we can say is it's about time,0.0,0.0
+at least she thought i will die touching something beautiful,S09342,10,7,L0216,E007,70.0,at least she thought i will die,99,S09342_L0216_E007,CEC1,0,3056,at least she thought i will die touching something beautiful,0.3,0.0
+do they make much fuss about that,S08742,7,2,L0229,E001,28.5714285714,you much fuss,100,S08742_L0229_E001,CEC1,0,1991,do they make much fuss about that,0.7142857142857143,0.0
+it's very busy out on this road sir,S09426,8,0,L0225,E001,0.0,working,98,S09426_L0225_E001,CEC1,0,2144,it's very busy out on this road sir,1.0,0.0
+the supermarket fruit with that little extra bite,S09485,8,8,L0240,E001,100.0,the supermarket fruit with that little extra bite ,100,S09485_L0240_E001,CEC1,0,2158,the supermarket fruit with that little extra bite,0.0,0.0
+no one came on as a sub did they,S08645,9,9,L0236,E013,100.0,no one came on as a sub did they,98,S08645_L0236_E013,CEC1,0,3830,no one came on as a sub did they,0.0,0.0
+add the sugar and beat again until fluffy and light,S09790,10,9,L0221,E019,90.0,add the sugar then beat again until fluffy and light,50,S09790_L0221_E019,CEC1,0,4389,add the sugar and beat again until fluffy and light,0.1,0.0
+none of the people in this plane has hurt you,S09387,10,3,L0236,E018,30.0,has hurt you,80,S09387_L0236_E018,CEC1,0,4923,none of the people in this plane has hurt you,0.7,0.0
+the agency however has promised that he'll be in touch,S08751,10,0,L0235,E001,0.0,,38,S08751_L0235_E001,CEC1,0,5057,the agency however has promised that he'll be in touch,1.0,0.0
+but it's only just gone four o'clock,S08843,7,0,L0215,E001,0.0,,50,S08843_L0215_E001,CEC1,0,2019,but it's a bit of a laugh,1.0,0.7142857142857143
+and then for an instant time reversed,S09006,7,7,L0222,E003,100.0,and then for an instant time reversed,30,S09006_L0222_E003,CEC1,0,205,and then for an instant time reversed,0.0,0.0
+i thought you were dead for sure,S08824,7,1,L0229,E005,14.2857142857,i am,100,S08824_L0229_E005,CEC1,0,343,i thought you were dead for sure,0.8571428571428571,0.0
+my first call was met with polite efficiency,S08587,8,3,L0215,E013,37.5,my first school was ,50,S08587_L0215_E013,CEC1,0,957,my first call was met with polite efficiency,0.625,0.0
+he said it was a great team effort,S09352,8,8,L0216,E010,100.0,he said it was a great team effort,81,S09352_L0216_E010,CEC1,0,3665,he said it was a great team effort,0.0,0.0
+it is not business as usual with china,S08952,8,8,L0227,E003,100.0,it is not business as usual with china,50,S08952_L0227_E003,CEC1,0,2362,it is not business as usual with china,0.0,0.0
+i didn't expect anything in return for them,S09061,8,7,L0216,E007,87.5,i didn't inspect anything in return for them,99,S09061_L0216_E007,CEC1,0,3002,i didn't expect anything in return for them,0.125,0.0
+i knew i didn't want to walk up that beach,S09144,10,10,L0206,E007,100.0,i knew i didn't want to walk up that beach,50,S09144_L0206_E007,CEC1,0,3016,i knew i didn't want to walk up that beach,0.0,0.0
+when was american aid going to show a return,S09370,9,1,L0231,E005,11.1111111111,when they announce,50,S09370_L0231_E005,CEC1,0,414,when was american aid going to show a return,0.8888888888888888,0.0
+maybe i can find someone to apprentice me,S09376,8,6,L0201,E036,75.0,maybe i can find someone to assess you,84,S09376_L0201_E036,CEC2,0,6278,maybe i can find someone to apprentice me,0.25,0.0
+we wish to report a theft said my chum,S09428,9,9,L0220,E019,100.0,we wish to report a theft said my chum,50,S09428_L0220_E019,CEC1,0,1846,we wish to report a theft said my chum,0.0,0.0
+do you think we could try again,S09528,7,7,L0206,E013,100.0,do you think we could try again,50,S09528_L0206_E013,CEC1,0,1069,do you think we could try again,0.0,0.0
+but it just grew out of all proportion,S09377,8,6,L0219,E021,75.0,he just grew out of all proportion,100,S09377_L0219_E021,CEC1,0,4608,but it just grew out of all proportion,0.25,0.0
+add the sugar and beat again until fluffy and light,S09790,10,9,L0216,E013,90.0,add the sugar then beat again until fluffy and light,90,S09790_L0216_E013,CEC1,0,4077,add the sugar and beat again until fluffy and light,0.1,0.0
+it must have been playing on her mind,S09520,8,8,L0220,E003,100.0,it must have been playing on her mind,50,S09520_L0220_E003,CEC1,0,5170,it must have been playing on her mind,0.0,0.0
+it was the third hour of the night watch,S09893,9,9,L0220,E003,100.0,it was the third hour of the night watch,50,S09893_L0220_E003,CEC1,0,5196,it was the third hour of the night watch,0.0,0.0
+she came between me and my wife,S09581,7,7,L0236,E019,100.0,she came between me and my wife,100,S09581_L0236_E019,CEC1,0,4345,she came between me and my wife,0.0,0.0
+for all that once would be enough for her,S09360,9,9,L0219,E021,100.0,for all that once would be enough for her,100,S09360_L0219_E021,CEC1,0,1360,for all that once would be enough for her,0.0,0.0
+do they make much fuss about that,S08742,7,6,L0224,E013,85.7142857143,did they make much fuss about that ,99,S08742_L0224_E013,CEC1,0,3852,do they make much fuss about that,0.14285714285714285,0.0
+these are the army and the police out of uniform,S09546,10,8,L0200,E013,80.0,these are the police and the army out of uniform,90,S09546_L0200_E013,CEC1,0,4032,these are the army and the police out of uniform,0.2,0.0
+i must go and stand in until father comes,S09430,9,7,L0201,E036,77.77777777777777,i must go and stand in until,84,S09430_L0201_E036,CEC2,0,6290,i must go and stand in until father comes,0.2222222222222222,0.0
+at home indoors i didn't ask my mum,S08564,8,8,L0222,E013,100.0,at home indoors i didn't ask my mum,40,S08564_L0222_E013,CEC1,0,955,at home indoors i didn't ask my mum,0.0,0.0
+it wasn't really that different from the approved school,S08648,9,8,L0217,E018,88.8888888889,it wasn't really that different at the approved school,50,S08648_L0217_E018,CEC1,0,1430,it wasn't really that different from the approved school,0.1111111111111111,0.0
+i wish i could help them somehow,S09199,7,6,L0229,E018,85.7142857143,i wish i could help him somehow,100,S09199_L0229_E018,CEC1,0,4876,i wish i could help them somehow,0.14285714285714285,0.0
+you are like children playing a game,S08890,7,6,L0221,E007,85.7142857143,you were like children playing a game,50,S08890_L0221_E007,CEC1,0,2964,you are like children playing a game,0.14285714285714285,0.0
+i wish someone would come along and take me home,S09231,10,3,L0222,E009,30.0,i wish someone,30,S09231_L0222_E009,CEC1,0,3329,i wish someone would come along and take me home,0.7,0.0
+they made me feel older than they were,S08858,8,7,L0227,E003,87.5,it made me feel older than they were,50,S08858_L0227_E003,CEC1,0,190,they made me feel older than they were,0.125,0.0
+they have been absolutely terrific he says,S09386,7,4,L0201,E010,57.1428571429,they had been absolutely terrific she said,19,S09386_L0201_E010,CEC1,0,3673,they have been absolutely terrific he says,0.42857142857142855,0.0
+any kind of treatment or rehabilitation is impossible,S09646,8,7,L0231,E013,87.5,any kind of treatment or rehabilitation was impossible ,50,S09646_L0231_E013,CEC1,0,4055,any kind of treatment or rehabilitation is impossible,0.125,0.0
+and we need your help with the survey,S08732,8,7,L0224,E021,87.5,we need your help with the survey ,99,S08732_L0224_E021,CEC1,0,4466,and we need your help with the survey,0.125,0.0
+either mean it or don't do it,S09259,7,7,L0236,E021,100.0,either mean it or don't do it,69,S09259_L0236_E021,CEC1,0,4579,either mean it or don't do it,0.0,0.0
+i don't want us to apportion blame she said,S08547,9,9,L0201,E013,100.0,i don't want us to apportion blame she said,100,S08547_L0201_E013,CEC1,0,954,i don't want us to apportion blame she said,0.0,0.0
+the only goal came midway through the second half,S09198,9,9,L0209,E021,100.0,the only goal came midway through the second half,98,S09198_L0209_E021,CEC1,0,1339,the only goal came midway through the second half,0.0,0.0
+it may stop your dream from turning into a nightmare,S09069,10,10,L0201,E037,100.0,it may stop your dream from turning into a nightmare,72,S09069_L0201_E037,CEC2,0,6324,it may stop your dream from turning into a nightmare,0.0,0.0
+tuesday is also usually the interview day,S09533,7,5,L0208,E009,71.4285714286,tuesday is usually also the interview day,100,S09533_L0208_E009,CEC1,0,5403,tuesday is also usually the interview day,0.2857142857142857,0.0
+the distinction above is one without a difference,S09306,8,4,L0225,E018,50.0,the distinction was one about difference,98,S09306_L0225_E018,CEC1,0,4897,the distinction above is one without a difference,0.5,0.0
+whatever it is he can't fix it up here,S09618,9,0,L0241,E005,0.0,but i've noticed,96,S09618_L0241_E005,CEC1,0,1669,was ever a good he can't keep his word,1.0,0.8888888888888888
+but when he was in this mood fear came,S08523,9,7,L0202,E019,77.7777777778,but when he was in there listening the fear came,66,S08523_L0202_E019,CEC1,0,1822,but when he was in this mood fear came,0.3333333333333333,0.0
+the life giving wind will come soon,S09841,7,6,L0200,E019,85.7142857143,a life giving wind will come soon,90,S09841_L0200_E019,CEC1,0,4400,the life giving wind will come soon,0.14285714285714285,0.0
+i love you better than anything in the world,S09070,9,9,L0217,E018,100.0,i love you better than anything in the world,50,S09070_L0217_E018,CEC1,0,1483,i love you better than anything in the world,0.0,0.0
+there hasn't been anything said about foul play yet,S08693,9,9,L0206,E003,100.0,there hasn't been anything said about foul play yet,50,S08693_L0206_E003,CEC1,0,176,there hasn't been anything said about foul play yet,0.0,0.0
+then what chance is there for the rest of us,S09365,10,2,L0209,E008_hr,20.0,then what tom just said,60,S09365_L0209_E008_hr,CEC2,0,6398,then what chance is there for the rest of us,0.8,0.0
+all we can say is it's about time,S09290,8,8,L0217,E019,100.0,all we can say is it's about time,50,S09290_L0217_E019,CEC1,0,1198,all we can say is it's about time,0.0,0.0
+he needs to leap into the next league,S09456,8,3,L0209,E024_hr,37.5,please into the next,60,S09456_L0209_E024_hr,CEC2,0,6472,he needs to leap into the next league,0.625,0.0
+tell me what you made of her,S09406,7,0,L0222,E001,0.0,,60,S09406_L0222_E001,CEC1,0,2143,tell me what you made of her,1.0,0.0
+that thought did not stay around long,S08657,7,7,L0220,E001,100.0,that thought did not stay around long,50,S08657_L0220_E001,CEC1,0,1580,that thought did not stay around long,0.0,0.0
+i wouldn't dream of taking them before a race,S09325,9,9,L0206,E021,100.0,i wouldn't dream of taking them before a race,50,S09325_L0206_E021,CEC1,0,4592,i wouldn't dream of taking them before a race,0.0,0.0
+i think he confirmed this on saturday,S08529,7,2,L0200,E005,28.5714285714,i think you are,77,S08529_L0200_E005,CEC1,0,2585,i think he confirmed this on saturday,0.7142857142857143,0.0
+but then they would have heard her surely,S09000,8,8,L0225,E018,100.0,but then they would have heard her surely,98,S09000_L0225_E018,CEC1,0,4841,but then they would have heard her surely,0.0,0.0
+at least the little girl could have ridden,S08526,8,2,L0240,E036,25.0,at least,100,S08526_L0240_E036,CEC2,0,7686,at least the little girl could have ridden,0.75,0.0
+it's no good fooling yourself is it,S08778,7,5,L0202,E018,71.4285714286,it's no good claiming is it,89,S08778_L0202_E018,CEC1,0,5751,it's no good fooling yourself is it,0.2857142857142857,0.0
+it was about the future of the soviet union,S09884,9,0,L0215,E001,0.0,,50,S09884_L0215_E001,CEC1,0,2244,it was about the future of the soviet union,1.0,0.0
+dad sat back looking pleased with himself,S08967,7,6,L0215,E021,85.7142857143,jack sat back looking pleased with himself,50,S08967_L0215_E021,CEC1,0,1314,zab sat back looking pleased with himself,0.14285714285714285,0.14285714285714285
+birth control however is a very controversial issue,S08554,8,3,L0239,E013,37.5,first it is a controversial decision,50,S08554_L0239_E013,CEC1,0,3814,birth control however is a very controversial issue,0.625,0.0
+i was thinking about that today over lunch,S09662,8,8,L0202,E021,100.0,i was thinking about that today over lunch,99,S09662_L0202_E021,CEC1,0,5729,i was thinking about that today over lunch,0.0,0.0
+already he was inspired by the thought of their fusion,S09197,10,6,L0236,E001,60.0,already he was inspired by the,85,S09197_L0236_E001,CEC1,0,72,already he was inspired by the thought of their fusion,0.4,0.0
+smoking is dangerous for you and your baby,S09666,8,8,L0206,E009,100.0,smoking is dangerous for you and your baby,50,S09666_L0206_E009,CEC1,0,3426,smoking is dangerous for you and your baby,0.0,0.0
+a spurious contrast effect is provided in the opening paragraph,S08820,10,9,L0220,E021,90.0,a spurious contrast effect is in the opening paragraph,50,S08820_L0220_E021,CEC1,0,5684,a spurious contrast effect is provided in the opening paragraph,0.1,0.0
+it's like saying why do you breathe he said,S09837,9,9,L0221,E009,100.0,it's like saying why do you breathe he said,50,S09837_L0221_E009,CEC1,0,3458,it's like saying why do you breathe he said,0.0,0.0
+that will not be necessary he told her,S09569,8,8,L0201,E021,100.0,that will not be necessary he told her,54,S09569_L0201_E021,CEC1,0,4651,that will not be necessary he told her,0.0,0.0
+he spoke to the financial controller too,S09913,7,6,L0215,E019,85.7142857143,he spoke to a financial controller too ,50,S09913_L0215_E019,CEC1,0,4413,he spoke to the financial controller too,0.14285714285714285,0.0
+there was a white envelope next to it,S08595,8,8,L0206,E013,100.0,there was a white envelope next to it,50,S08595_L0206_E013,CEC1,0,959,there was a white envelope next to it,0.0,0.0
+that will not be necessary he told her,S09569,8,0,L0241,E001,0.0,,96,S09569_L0241_E001,CEC1,0,5094,that will not be necessary he told her,1.0,0.0
+the question was what should he say,S08976,7,7,L0208,E010,100.0,the question was what should he say,50,S08976_L0208_E010,CEC1,0,5452,the question was what should he say,0.0,0.0
+she decided to extricate herself with dignity,S09296,7,7,L0242,E024_hr,100.0,she decided to extricate herself with dignity,100,S09296_L0242_E024_hr,CEC2,0,7877,she decided to extricate herself with dignity,0.0,0.0
+i saw the difference the flood had made,S09320,8,8,L0208,E003,100.0,i saw the difference the flood had made,50,S09320_L0208_E003,CEC1,0,1627,i saw the difference the flood had made,0.0,0.0
+we have a strong science base in britain he said,S09911,10,10,L0220,E013,100.0,we have a strong science base in britain he said,59,S09911_L0220_E013,CEC1,0,5582,we have a strong science base in britain he said,0.0,0.0
+and the good must triumph over the bad,S09655,8,8,L0241,E013,100.0,and the good must triumph over the bad,96,S09655_L0241_E013,CEC1,0,5568,and the good must triumph over the bad,0.0,0.0
+where else could he have been going,S09908,7,6,L0200,E003,85.7142857143,where else could you have been going,77,S09908_L0200_E003,CEC1,0,2565,where else could he have been going,0.14285714285714285,0.0
+she doesn't miss a trick does she,S08667,7,7,L0240,E019,100.0,she doesn't miss a trick does she ,100,S08667_L0240_E019,CEC1,0,1123,she doesn't miss a trick does she,0.0,0.0
+it was five o'clock and dark and cold and wet,S09257,10,10,L0227,E021,100.0,it was five o'clock and dark and cold and wet,49,S09257_L0227_E021,CEC1,0,1344,it was five o'clock and dark and cold and wet,0.0,0.0
+you want to go over there then,S09589,7,1,L0215,E005,14.2857142857,you are not still at the bar are you,50,S09589_L0215_E005,CEC1,0,2802,you want to go to jail then,1.1428571428571428,0.2857142857142857
+i don't see how he could have done,S08759,8,8,L0200,E036,100.0,i don't see how he could have done,84,S08759_L0200_E036,CEC2,0,6004,i don't see how he could have done it,0.0,0.125
+it's no use going now carmen told him,S09203,8,8,L0219,E013,100.0,it's no use going now carmen told him,100,S09203_L0219_E013,CEC1,0,3956,it's no use going now carmen told him,0.0,0.0
+i am here because you belong to me,S09816,8,0,L0240,E005,0.0,,100,S09816_L0240_E005,CEC1,0,459,i am here because you belong to me,1.0,0.0
+just get over there and start working,S09670,7,7,L0225,E013,100.0,just get over there and start working,98,S09670_L0225_E013,CEC1,0,4057,just get over there and start working,0.0,0.0
+and then for an instant time reversed,S08989,7,7,L0200,E008_hr,100.0,and then for an instant time reversed,90,S08989_L0200_E008_hr,CEC2,0,5850,and then for an instant time reversed,0.0,0.0
+the design process is also more simple too,S09118,8,8,L0239,E003,100.0,the design process is also more simple too,51,S09118_L0239_E003,CEC1,0,218,the design process is also more simple too,0.0,0.0
+i wish i could help them somehow,S09199,7,5,L0216,E005,71.4285714286,i wish i could help in shanghai,90,S09199_L0216_E005,CEC1,0,2715,i wish i could help them somehow,0.2857142857142857,0.0
+well what i knew was i would get no more,S09919,10,6,L0236,E003,60.0,but i mean was i will get no more,59,S09919_L0236_E003,CEC1,0,2569,well what i knew was i would get no more,0.4,0.0
+it was about the future of the soviet union,S09884,9,9,L0200,E018,100.0,it was about the future of the soviet union,98,S09884_L0200_E018,CEC1,0,5018,it was about the future of the soviet union,0.0,0.0
+could you please at least tell them it's quite urgent,S08739,10,10,L0225,E007,100.0,could you please at least tell them it's quite urgent,98,S08739_L0225_E007,CEC1,0,2924,could you please at least tell them it's quite urgent,0.0,0.0
+the queen sent her own sister a real princess instead,S09716,10,7,L0227,E001,70.0,the queen sent her own sister instead,50,S09716_L0227_E001,CEC1,0,2213,the queen sent her own sister a real princess instead,0.3,0.0
+it's actually made me quite nervous about being in london,S09448,10,10,L0220,E013,100.0,it's actually made me quite nervous about being in london,59,S09448_L0220_E013,CEC1,0,5552,it's actually made me quite nervous about being in london,0.0,0.0
+it was five o'clock and dark and cold and wet,S09257,10,1,L0217,E001,10.0,wet,50,S09257_L0217_E001,CEC1,0,78,it was five o'clock and dark and cold and wet,0.9,0.0
+she did but in a roundabout way,S09446,7,6,L0201,E013,85.7142857143,she did but in a round about way,100,S09446_L0201_E013,CEC1,0,4007,she did but in a roundabout way,0.2857142857142857,0.0
+i could go another myself he said,S09852,7,5,L0227,E003,71.4285714286,i could do with another massage he said,50,S09852_L0227_E003,CEC1,0,294,i could go another myself he said,0.42857142857142855,0.0
+he was speaking with sham formality again,S09452,7,4,L0222,E010,57.1428571429,he was speaking with,30,S09452_L0222_E010,CEC1,0,3689,he was speaking with sham formality again,0.42857142857142855,0.0
+how could he make her confess such a thing,S09981,9,8,L0239,E013,88.8888888889,how could you make her confess such a thing,50,S09981_L0239_E013,CEC1,0,1102,how could he make her confess such a thing,0.1111111111111111,0.0
+my waking thought is what will i eat today,S08960,9,0,L0224,E013,0.0,,99,S08960_L0224_E013,CEC1,0,1004,my waking thought is what will i eat today,1.0,0.0
+come and look at this lot lad,S09041,7,0,L0200,E024_hr,0.0,haven't the,96,S09041_L0200_E024_hr,CEC2,0,5927,come and look at this lot lad,1.0,0.0
+however there was one small but significant error,S08903,8,6,L0206,E010,75.0,however there was one small significant ,50,S08903_L0206_E010,CEC1,0,3574,however there was one small but significant error,0.25,0.0
+and we both know that force wouldn't be necessary,S08916,9,8,L0208,E003,88.8888888889,we both know that force wouldn't be necessary,50,S08916_L0208_E003,CEC1,0,5139,and we both know that force wouldn't be necessary,0.1111111111111111,0.0
+people in love are peculiar that way you know,S09225,9,0,L0201,E036,0.0,,84,S09225_L0201_E036,CEC2,0,6266,people in love are peculiar that way you know,1.0,0.0
+she sat in the hedge for a long time,S09350,9,7,L0202,E010,77.7777777778,she sat on the bed for a long time,99,S09350_L0202_E010,CEC1,0,5479,she sat in the hedge for a long time,0.2222222222222222,0.0
+this is thought to reflect a selection bias,S09571,8,7,L0217,E007,87.5,this is thought to reflect a selection,50,S09571_L0217_E007,CEC1,0,3107,this is thought to reflect a selection bias,0.125,0.0
+how did they make the stuff hold all that water,S08983,10,3,L0209,E007,30.0,why did they make this set weaker,78,S08983_L0209_E007,CEC1,0,2991,how did they make the stuff hold all that water,0.7,0.0
+replace the paper and the lid and cook another hour,S08614,10,8,L0216,E018,80.0,replace the on the lid and cook for another hour,90,S08614_L0216_E018,CEC1,0,4756,replace the paper and the lid and cook another hour,0.3,0.0
+it made no mention of my wife,S08713,7,0,L0227,E007,0.0,people mentioned life,49,S08713_L0227_E007,CEC1,0,2919,it made no mention of my wife,1.0,0.0
+but i have always felt rather uncomfortable in her presence,S09480,10,0,L0241,E018,0.0,,96,S09480_L0241_E018,CEC1,0,5792,but i have always felt rather uncomfortable in her presence,1.0,0.0
+but he would not be following or watching her,S08869,9,7,L0215,E003,77.7777777778,he would not be fondling or watching her,50,S08869_L0215_E003,CEC1,0,2342,but he would not be following or watching her,0.2222222222222222,0.0
+it also meant something looking back as well as forward,S09080,10,10,L0239,E019,100.0,it also meant something looking back as well as forward,51,S09080_L0239_E019,CEC1,0,4247,it also meant something looking back as well as forward,0.0,0.0
+then we can get the help we need,S09262,8,8,L0227,E007,100.0,then we can get the help we need,49,S09262_L0227_E007,CEC1,0,3039,then we can get the help we need,0.0,0.0
+she was great fun charming and kind says a friend,S08931,10,6,L0208,E005,60.0,she was and charming and kind said the friend,100,S08931_L0208_E005,CEC1,0,5220,she was great fun charming and kind says a friend,0.4,0.0
+her mouth was compressed into a tight line,S09125,8,8,L0229,E021,100.0,her mouth was compressed into a tight line,100,S09125_L0229_E021,CEC1,0,4551,her mouth was compressed into a tight line,0.0,0.0
+how could he make her confess such a thing,S09981,9,9,L0220,E021,100.0,how could he make her confess such a thing,50,S09981_L0220_E021,CEC1,0,1904,how could he make her confess such a thing,0.0,0.0
+i was beginning to think you weren't coming,S08644,8,8,L0241,E013,100.0,i was beginning to think you weren't coming,96,S08644_L0241_E013,CEC1,0,5519,i was beginning to think you weren't coming,0.0,0.0
+she said mum gave it to me,S08515,7,7,L0202,E021,100.0,she said mum gave it to me,99,S08515_L0202_E021,CEC1,0,5665,she said mum gave it to me,0.0,0.0
+the question was what should he say,S08976,7,7,L0200,E019,100.0,the question was what should he say,90,S08976_L0200_E019,CEC1,0,4223,the question was what should he say,0.0,0.0
+she had summed up his immediate task in a nutshell,S09052,10,9,L0235,E013,90.0,she had summed his immediate task in a nutshell,81,S09052_L0235_E013,CEC1,0,1795,she had summed up his immediate task in a nutshell,0.1,0.0
+i shall never visit her or write to her,S08771,9,9,L0242,E010,100.0,i shall never visit her or write to her,75,S08771_L0242_E010,CEC1,0,3544,i shall never visit her or write to her,0.0,0.0
+at home indoors i didn't ask my mum,S08564,8,8,L0236,E009,100.0,at home indoors i didn't ask my mum,100,S08564_L0236_E009,CEC1,0,635,at home indoors i didn't ask my mum,0.0,0.0
+the private dirt track led directly to it,S09616,8,7,L0200,E013,87.5,the private dirt track lead directly to it,90,S09616_L0200_E013,CEC1,0,4045,the private dirt track led directly to it,0.125,0.0
+it wouldn't be right to do that,S08855,7,7,L0235,E019,100.0,it wouldn't be right to do that,53,S08855_L0235_E019,CEC1,0,1827,it wouldn't be right to do that,0.0,0.0
+it is something else i cannot understand,S08977,7,0,L0219,E005,0.0,,100,S08977_L0219_E005,CEC1,0,2682,it is something else i cannot understand,1.0,0.0
+was he one of the three you didn't know,S09101,9,0,L0221,E008_hr,0.0,!,50,S09101_L0221_E008_hr,CEC2,0,6686,it would be difficult to say,1.0,1.0
+the life giving wind will come soon,S09841,7,4,L0215,E003,57.1428571429,the life giving sea will cut through,50,S09841_L0215_E003,CEC1,0,2552,the life giving wind will come soon,0.42857142857142855,0.0
+such men are educated they can think they can appreciate,S09454,10,10,L0201,E021,100.0,such men are educated they can think they can appreciate,54,S09454_L0201_E021,CEC1,0,1375,such men are educated they can think they can appreciate,0.0,0.0
+don't believe all of the city is like this,S08808,9,9,L0221,E019,100.0,don't believe all of the city is like this,50,S08808_L0221_E019,CEC1,0,1134,don't believe all of the city is like this,0.0,0.0
+indeed the longer you kept them the better they became,S09065,10,9,L0240,E007,90.0,indeed the longer you get them the better they became,100,S09065_L0240_E007,CEC1,0,3003,indeed the longer you kept them the better they became,0.1,0.0
+none of them was quite right yet,S09876,7,7,L0224,E018,100.0,none of them was quite right yet,99,S09876_L0224_E018,CEC1,0,1565,none of them was quite right yet,0.0,0.0
+but what is the entity in this case,S08871,8,8,L0209,E013,100.0,but what is the entity in this case,100,S08871_L0209_E013,CEC1,0,988,but what is the entity in this case,0.0,0.0
+the answer is likely to be in the kitchen,S08950,9,9,L0208,E019,100.0,the answer is likely to be in the kitchen,50,S08950_L0208_E019,CEC1,0,5611,the answer is likely to be in the kitchen,0.0,0.0
+afterwards we could look round at leisure,S09403,7,0,L0242,E024_hr,0.0,after work he took the legend,100,S09403_L0242_E024_hr,CEC2,0,7872,afterwards we could look round at leisure,1.0,0.0
+well what i knew was i would get no more,S09919,10,5,L0227,E021,50.0,well wherever he was he would get more,49,S09919_L0227_E021,CEC1,0,4723,well what i knew was i would get no more,0.5,0.0
+and will you be happy to go,S08752,7,7,L0236,E021,100.0,and will you be happy to go,69,S08752_L0236_E021,CEC1,0,4473,and will you be happy to go,0.0,0.0
+you were late by half an hour this afternoon,S08652,9,9,L0206,E010,100.0,you were late by half an hour this afternoon,50,S08652_L0206_E010,CEC1,0,3518,you were late by half an hour this afternoon,0.0,0.0
+now who did you sit next to,S09961,7,0,L0200,E005,0.0,,77,S09961_L0200_E005,CEC1,0,2882,now who did you sit next to,1.0,0.0
+not everything in the forest was delightful,S09699,7,7,L0221,E018,100.0,not everything in the forest was delightful,50,S09699_L0221_E018,CEC1,0,1548,not everything in the forest was delightful,0.0,0.0
+we shall look at each of these in turn,S09978,9,2,L0240,E005,22.2222222222,we shall ,100,S09978_L0240_E005,CEC1,0,471,we shall look at each of these in turn,0.7777777777777778,0.0
+not everything in the forest was delightful,S09699,7,6,L0216,E010,85.7142857143,not everything in the forest is delightful,81,S09699_L0216_E010,CEC1,0,923,not everything in the forest was delightful,0.14285714285714285,0.0
+the engineer would go to sleep soon in a corner,S09161,10,2,L0200,E008_hr,20.0,their engineer was in at,96,S09161_L0200_E008_hr,CEC2,0,5821,the endowment would go to sleep soon in a corner,0.8,0.1
+this is a classic sauce to serve with fish,S08923,9,9,L0224,E009,100.0,this is a classic sauce to serve with fish,99,S08923_L0224_E009,CEC1,0,3272,this is a classic sauce to serve with fish,0.0,0.0
+clever of me to acquire such information don't you agree,S09181,10,8,L0201,E010,80.0,clever of him to acquire such installation don't you agree,19,S09181_L0201_E010,CEC1,0,3626,clever of me to acquire such information don't you agree,0.2,0.0
+he couldn't make any sense of it at all,S08574,9,9,L0236,E009,100.0,he couldn't make any sense of it at all,100,S08574_L0236_E009,CEC1,0,3204,he couldn't make any sense of it at all,0.0,0.0
+they must have a lot of catching up to do,S09154,10,10,L0217,E013,100.0,they must have a lot of catching up to do,50,S09154_L0217_E013,CEC1,0,3947,they must have a lot of catching up to do,0.0,0.0
+perhaps it is a job for the flying squad,S09556,9,6,L0241,E019,66.6666666667,the house is a jar for the flying squad,96,S09556_L0241_E019,CEC1,0,1849,perhaps it is a job for the flying squad,0.3333333333333333,0.0
+we must now look at that bourgeois society,S09321,8,8,L0229,E013,100.0,we must now look at that bourgeois society,100,S09321_L0229_E013,CEC1,0,3981,we must now look at that bourgeois society,0.0,0.0
+was he one of the three you didn't know,S09702,9,9,L0216,E019,100.0,was he one of the three that you didn't know,90,S09702_L0216_E019,CEC1,0,1237,was he one of the three you didn't know,0.1111111111111111,0.0
+could you please at least tell them it's quite urgent,S08739,10,9,L0231,E007,90.0,could you at least tell them it's quite urgent ,50,S08739_L0231_E007,CEC1,0,2925,could you please at least tell them it's quite urgent,0.1,0.0
+the following comment is from one member of this board,S08831,10,10,L0235,E001,100.0,the following comment is from one member of this board,38,S08831_L0235_E001,CEC1,0,1583,the following comment is from one member of this board,0.0,0.0
+just you the wind the water and the sun,S09935,9,9,L0242,E009,100.0,just you the wind the water and the sun,75,S09935_L0242_E009,CEC1,0,3484,just you the wind the water and the sun,0.0,0.0
+was he one of the three you didn't know,S09702,9,9,L0217,E010,100.0,was he one of the three you didn't know,50,S09702_L0217_E010,CEC1,0,924,was he one of the three you didn't know,0.0,0.0
+this is thought to reflect a selection bias,S09571,8,0,L0227,E005,0.0,by it,50,S09571_L0227_E005,CEC1,0,2796,this is thought to reflect a selection bias,1.0,0.0
+the banquet was a sumptuous luxurious meal,S09777,7,7,L0220,E001,100.0,the banquet was a sumptuous luxurious meal,50,S09777_L0220_E001,CEC1,0,5107,the banquet is a sumptuous luxurious meal,0.0,0.14285714285714285
+there will be no need for that,S09188,7,0,L0200,E018,0.0,,98,S09188_L0200_E018,CEC1,0,4874,there will be no need for that,1.0,0.0
+the ground there is still common land,S08674,7,0,L0242,E007,0.0,coming round,50,S08674_L0242_E007,CEC1,0,495,the ground there is still common land,1.0,0.0
+he could have used this to burn the diary,S08821,9,4,L0222,E018,44.4444444444,she could have used it to stay,30,S08821_L0222_E018,CEC1,0,1447,he could have used this to burn the diary,0.5555555555555556,0.0
+would such a document be difficult to trace,S09071,8,1,L0217,E005,12.5,would today,50,S09071_L0217_E005,CEC1,0,2700,we expect to document the visible issue today,0.875,0.875
+my waking thought is what will i eat today,S08960,9,7,L0206,E019,77.7777777778,my waking is sorted what will i eat today,50,S08960_L0206_E019,CEC1,0,1161,my waking thought is what will i eat today,0.2222222222222222,0.0
+i am writing a book on the subject,S08671,8,0,L0206,E005,0.0,,50,S08671_L0206_E005,CEC1,0,330,i am taking a  picture of them,1.0,0.625
+it wouldn't be right to do that,S08855,7,7,L0208,E003,100.0,it wouldn't be right to do that,50,S08855_L0208_E003,CEC1,0,1618,it wouldn't be right to do that,0.0,0.0
+my waking thought is what will i eat today,S08960,9,9,L0217,E003,100.0,my waking thought is what will i eat today,50,S08960_L0217_E003,CEC1,0,202,my waking thought is what will i eat today,0.0,0.0
+i hold your hand and you hold mine,S08901,8,8,L0216,E021,100.0,i hold your hand and you hold mine,90,S08901_L0216_E021,CEC1,0,4506,i hold your hand and you hold mine,0.0,0.0
+you could buy your own fighter plane for that,S09540,9,0,L0219,E001,0.0,,41,S09540_L0219_E001,CEC1,0,2168,you could buy your own fighter plane for that,1.0,0.0
+you will also possess a large amount of information,S09722,9,9,L0208,E021,100.0,you will also possess a large amount of information,100,S09722_L0208_E021,CEC1,0,1898,you will also possess a large amount of information,0.0,0.0
+i urge you all to be most careful,S09280,8,8,L0216,E007,100.0,i urge you all to be most careful,99,S09280_L0216_E007,CEC1,0,3044,i urge you all to be most careful,0.0,0.0
+i'm just delighted to make the team,S09681,7,7,L0224,E013,100.0,i'm just delighted to make the team ,99,S09681_L0224_E013,CEC1,0,4061,i'm just delighted to make the team,0.0,0.0
+come and sit here and tell me about yourself,S09156,9,9,L0202,E009,100.0,come and sit here and tell me about yourself,100,S09156_L0202_E009,CEC1,0,5378,come and sit here and tell me about yourself,0.0,0.0
+how did you know about my father and my uncle,S09366,10,10,L0235,E003,100.0,how did you know about my father and my uncle,41,S09366_L0235_E003,CEC1,0,5162,how did you know about my father and my uncle,0.0,0.0
+there was no such basis available for women,S09673,8,7,L0235,E009,87.5,there was no such space available for women,54,S09673_L0235_E009,CEC1,0,5408,there was no such basis available for women,0.125,0.0
+from a commercial point of view however liquidity is fundamental,S08847,10,5,L0229,E003,50.0,from a point of view it,51,S08847_L0229_E003,CEC1,0,188,from a commercial point of view however liquidity is fundamental,0.5,0.0
+she sat in the hedge for a long time,S09350,9,4,L0229,E001,44.4444444444,she stand in long long time,100,S09350_L0229_E001,CEC1,0,2124,she sat in the hedge for a long time,0.5555555555555556,0.0
+i do love you both so much,S09424,7,7,L0200,E021,100.0,i do love you both so much,98,S09424_L0200_E021,CEC1,0,1368,i do love you both so much,0.0,0.0
+it would be difficult to hide a cat in it,S09504,10,0,L0219,E008_hr,0.0,what he did,50,S09504_L0219_E008_hr,CEC2,0,7222,it was also possible that he would be in the party,1.0,0.9
+get out of my way at once,S08578,7,7,L0217,E013,100.0,get out of my way at once,50,S08578_L0217_E013,CEC1,0,3821,get out of my way at once,0.0,0.0
+there is however an important general point at issue here,S09753,10,2,L0224,E009,20.0,there is ,99,S09753_L0224_E009,CEC1,0,3442,there is however an important general point at issue here,0.8,0.0
+perhaps you wonder why i married him then,S08786,8,8,L0236,E003,100.0,perhaps you wonder why i married him then,59,S08786_L0236_E003,CEC1,0,180,perhaps you wonder why i married him then,0.0,0.0
+how did they make the stuff hold all that water,S08983,10,8,L0231,E010,80.0,how do they make the staff hold all that water ,50,S08983_L0231_E010,CEC1,0,3594,how did they make the stuff hold all that water,0.2,0.0
+host performance is said to be unaffected by the board,S09904,10,7,L0206,E021,70.0,close performance is supposed to be expected by the board ,50,S09904_L0206_E021,CEC1,0,4716,host performance is said to be unaffected by the board,0.3,0.0
+i thought you were dead for sure,S08824,7,7,L0239,E010,100.0,i thought you were dead for sure,51,S08824_L0239_E010,CEC1,0,829,i thought you were dead for sure,0.0,0.0
+i wish i could help them somehow,S09199,7,7,L0220,E009,100.0,i wish i could help them somehow,50,S09199_L0220_E009,CEC1,0,5382,i wish i could help them somehow,0.0,0.0
+eloquence alone was sufficient to defeat the motion,S08735,8,0,L0222,E036,0.0,i reckon,87,S08735_L0222_E036,CEC2,0,7109,eloquence alone was sufficient to defeat the motion,1.0,0.0
+so if you spot a public phone box tell me,S08778,10,10,L0222,E037,100.0,so if you spot a public phone box tell me,56,S08778_L0222_E037,CEC2,0,7170,so if you spot a public phone box tell me,0.0,0.0
+what sort of a name is it,S09802,7,7,L0216,E007,100.0,what sort of a name is it,99,S09802_L0216_E007,CEC1,0,618,what sort of a name is it,0.0,0.0
+this time he was going to have everything covered,S09621,9,3,L0239,E005,33.3333333333,this time everything happened,82,S09621_L0239_E005,CEC1,0,2807,this time you are going to have everything covered,0.6666666666666666,0.2222222222222222
+that will be when the crafty bit comes in,S08921,9,9,L0222,E037,100.0,that will be when the crafty bit comes in,56,S08921_L0222_E037,CEC2,0,7172,now be when the crafty bit comes in,0.0,0.2222222222222222
+the quality of housing is also improving all the time,S08942,10,7,L0209,E001,70.0,the quality of person is all the time,91,S08942_L0209_E001,CEC1,0,46,the quality of housing is also improving all the time,0.3,0.0
+i knew i didn't want to walk up that beach,S09144,10,10,L0200,E003,100.0,i knew i didn't want to walk up that beach,77,S09144_L0200_E003,CEC1,0,2399,i knew i didn't want to walk up that beach,0.0,0.0
+you won't lie so you still believe it,S09818,8,0,L0222,E005,0.0,,30,S09818_L0222_E005,CEC1,0,2847,you won't lie so you still believe it,1.0,0.0
+normal practice is to offer club membership,S09273,7,0,L0219,E024_hr,0.0,practice with the clubs and the shaft,50,S09273_L0219_E024_hr,CEC2,0,7329,normal practice is to offer club membership,1.0,0.0
+then everything was forgotten except the moment,S08782,7,7,L0200,E010,100.0,then everything was forgotten except the moment,98,S08782_L0200_E010,CEC1,0,3549,then everything was forgotten except the moment,0.0,0.0
+these are the army and the police out of uniform,S09546,10,0,L0239,E005,0.0,,82,S09546_L0239_E005,CEC1,0,2793,these are the army and the police out of uniform,1.0,0.0
+he is a simple man and old,S09382,7,0,L0221,E001,0.0,,50,S09382_L0221_E001,CEC1,0,2134,he is a simple man and happy,1.0,0.14285714285714285
+we chose you you belong to us,S08702,7,1,L0200,E036,14.285714285714286,he belonged to you,84,S08702_L0200_E036,CEC2,0,5996,we chose you you belong to us,0.8571428571428571,0.0
+now what should she get for lunch,S09833,7,1,L0216,E001,14.2857142857,what is this,99,S09833_L0216_E001,CEC1,0,2231,no what should she get for lunch,0.8571428571428571,0.14285714285714285
+water must be soft and very clear,S09021,7,0,L0206,E005,0.0,,50,S09021_L0206_E005,CEC1,0,373,tuntu on jättynyt johonkin,1.0,1.0
+just a bit the worse for gin i said,S08647,9,3,L0222,E037,33.333333333333336,just the bits the g. note said,56,S08647_L0222_E037,CEC2,0,7166,just a bit the worse for gin i said,0.6666666666666666,0.0
+no i could eat and get away with it,S08681,9,9,L0231,E003,100.0,i know i could eat some and get away with it ,50,S08681_L0231_E003,CEC1,0,173,no i could eat and get away with it,0.3333333333333333,0.0
+we wish to report a theft said my chum,S09428,9,0,L0242,E005,0.0,,75,S09428_L0242_E005,CEC1,0,424,we wish to report a theft said my chum,1.0,0.0
+there hasn't been anything said about foul play yet,S09336,9,7,L0221,E008_hr,77.77777777777777,there hasn't been anything said about yet,50,S09336_L0221_E008_hr,CEC2,0,6673,there hasn't been anything said about foul play yet,0.2222222222222222,0.0
+we must now look at that bourgeois society,S09321,8,8,L0201,E009,100.0,we must now look at that bourgeois society,84,S09321_L0201_E009,CEC1,0,3348,we must now look at that bourgeois society,0.0,0.0
+what about what he's doing to everybody else,S09110,8,7,L0200,E008_hr,87.5,what about what he's doing with everybody else,90,S09110_L0200_E008_hr,CEC2,0,5855,what about what he's doing to everybody else,0.125,0.0
+the district society is not alone in its call,S09450,9,2,L0200,E005,22.2222222222,not alone,77,S09450_L0200_E005,CEC1,0,2771,the district society is not alone in its call,0.7777777777777778,0.0
+roll over and repeat on the other side,S09227,8,8,L0221,E019,100.0,roll over and repeat on the other side,50,S09227_L0221_E019,CEC1,0,4271,roll over and repeat on the other side,0.0,0.0
+she decided not to go to communion,S09984,7,7,L0231,E003,100.0,she decided not to go to communion,50,S09984_L0231_E003,CEC1,0,307,she decided not to go to communion,0.0,0.0
+you won't try to persuade me not to,S08636,8,8,L0220,E010,100.0,you won't try to persuade me not to,50,S08636_L0220_E010,CEC1,0,5431,you won't try to persuade me not to,0.0,0.0
+i must fight the sea with hatred,S09991,7,7,L0217,E013,100.0,i must fight the sea with hatred,50,S09991_L0217_E013,CEC1,0,1106,i must fight the sea with hatred,0.0,0.0
+no i didn't really think you were,S09508,7,6,L0216,E001,85.7142857143,now i didn't really think you were,99,S09508_L0216_E001,CEC1,0,104,no i didn't really think you were,0.14285714285714285,0.0
+then everything was forgotten except the moment,S08782,7,0,L0219,E005,0.0,,100,S08782_L0219_E005,CEC1,0,2637,there was everything was forgotten and he said the moment,1.0,0.7142857142857143
+and we both know that force wouldn't be necessary,S08916,9,8,L0231,E007,88.8888888889,we both know that force wouldn't be necessary ,50,S08916_L0231_E007,CEC1,0,2973,and we both know that force wouldn't be necessary,0.1111111111111111,0.0
+that doesn't mean i can't talk to you does it,S08894,10,10,L0225,E003,100.0,that doesn't mean i can't talk to you does it,98,S08894_L0225_E003,CEC1,0,196,that doesn't mean i can't talk to you does it,0.0,0.0
+still you know what they say daddy,S08818,7,7,L0231,E010,100.0,still you know what they say daddy,50,S08818_L0231_E010,CEC1,0,3559,still you know what they say daddy,0.0,0.0
+wait there is something else i must teach you,S09515,9,9,L0219,E021,100.0,wait there is something else i must teach you,100,S09515_L0219_E021,CEC1,0,4640,wait there is something else i must teach you,0.0,0.0
+a great big strapping man he was,S09240,7,4,L0219,E018,57.1428571429,strapping man he was,66,S09240_L0219_E018,CEC1,0,1503,a great big strapping man he was,0.42857142857142855,0.0
+yet they do appear to be making money,S09580,8,5,L0231,E001,62.5,yeah they do appear to be ,50,S09580_L0231_E001,CEC1,0,2178,yet they do appear to be making money,0.375,0.0
+host performance is said to be unaffected by the board,S09904,10,8,L0236,E007,80.0,most of the performance is said to be unaffected by the ball,100,S09904_L0236_E007,CEC1,0,3174,host performance is said to be unaffected by the board,0.4,0.0
+the ground there is still common land,S08674,7,7,L0216,E018,100.0,the ground there is still common land,90,S08674_L0216_E018,CEC1,0,1438,the ground there is still common land,0.0,0.0
+take a look at them will you,S09637,7,7,L0231,E009,100.0,take a look at them will you,50,S09637_L0231_E009,CEC1,0,3422,take a look at them will you,0.0,0.0
+she had plenty to get on with meanwhile,S08928,8,8,L0241,E019,100.0,she had plenty to get on with meanwhile,96,S08928_L0241_E019,CEC1,0,5608,she had plenty to get on with meanwhile,0.0,0.0
+it's not just that he needs the money,S09351,8,8,L0202,E010,100.0,it's not just that he needs the money,99,S09351_L0202_E010,CEC1,0,5480,it's not just that he needs the money,0.0,0.0
+it's a tradition or an old charter or something,S09282,9,9,L0224,E007,100.0,it's a tradition or an old charter or something,86,S09282_L0224_E007,CEC1,0,3045,it's a tradition or an old charter or something,0.0,0.0
+it was five o'clock and dark and cold and wet,S09257,10,10,L0236,E003,100.0,it was five o'clock and dark and cold and wet,59,S09257_L0236_E003,CEC1,0,232,it was five o'clock and dark and cold and wet,0.0,0.0
+how did the car come off the road,S09312,8,8,L0229,E009,100.0,how did the car come off the road,100,S09312_L0229_E009,CEC1,0,725,how did the car come off the road,0.0,0.0
+what kind of house do you want,S08969,7,6,L0241,E001,85.7142857143,what kind of do you want,96,S08969_L0241_E001,CEC1,0,5064,what kind of house do you want,0.14285714285714285,0.0
+i thought it was just like any other party,S09091,9,7,L0215,E019,77.7777777778,you hear it was just like any other party,50,S09091_L0215_E019,CEC1,0,1174,i thought it was just like any other party,0.2222222222222222,0.0
+a more complete unification would not be possible,S09017,8,2,L0221,E010,25.0,a more,50,S09017_L0221_E010,CEC1,0,856,a more complete unification would not be possible,0.75,0.0
+that is what society is all about isn't it,S08794,9,9,L0216,E001,100.0,that is what society is all about isn't it,99,S08794_L0216_E001,CEC1,0,2011,that is what society is all about isn't it,0.0,0.0
+ray can then reply down the phone,S08867,7,7,L0229,E009,100.0,ray can then reply down the phone,100,S08867_L0229_E009,CEC1,0,3261,ray can then reply down the phone,0.0,0.0
+from a commercial point of view however liquidity is fundamental,S08847,10,0,L0217,E005,0.0,find,50,S08847_L0217_E005,CEC1,0,347,from a commercial point of view however the liquidity is fundamental,1.0,0.1
+but i told myself i shouldn't provoke her too much,S09823,10,0,L0241,E001,0.0,,96,S09823_L0241_E001,CEC1,0,1609,but i told myself i shouldn't provoke her too much,1.0,0.0
+she felt ashamed of being such a failure,S08911,8,8,L0242,E019,100.0,she felt ashamed of being such a failure,75,S08911_L0242_E019,CEC1,0,4210,she felt ashamed of being such a failure,0.0,0.0
+how did you pass the lower guard,S09511,7,4,L0209,E008_hr,57.142857142857146,how did you flush so the yellow card,58,S09511_L0209_E008_hr,CEC2,0,6396,how did you pass the lower guard,0.5714285714285714,0.0
+at least not in front of the maid,S09717,8,8,L0202,E019,100.0,at least not in front of the maid,66,S09717_L0202_E019,CEC1,0,5645,at least not in front of the maid,0.0,0.0
+smoking is dangerous for you and your baby,S09666,8,6,L0216,E001,75.0,something is dangerous to you and your baby,99,S09666_L0216_E001,CEC1,0,2200,smoking is dangerous for you and your baby,0.25,0.0
+i did not want to know this,S09326,7,7,L0240,E037,100.0,i did not want to know this,100,S09326_L0240_E037,CEC2,0,7700,i did not want to know this,0.0,0.0
+it is not business as usual with china,S08695,8,4,L0222,E037,50.0,if it is not business,56,S08695_L0222_E037,CEC2,0,7179,it is not business as usual with china,0.625,0.0
+i've had to be very strong through this,S09264,8,8,L0231,E018,100.0,i've had to be very strong through this ,50,S09264_L0231_E018,CEC1,0,4892,i've had to be very strong through this,0.0,0.0
+dad sat back looking pleased with himself,S08967,7,3,L0229,E001,42.8571428571,pleased with himself,100,S08967_L0229_E001,CEC1,0,51,dad sat back looking pleased with himself,0.5714285714285714,0.0
+what kind of house do you want,S08969,7,7,L0225,E010,100.0,what kind of house do you want,98,S08969_L0225_E010,CEC1,0,3588,what kind of house do you want,0.0,0.0
+my income and his pay packet didn't run to that,S09946,10,2,L0231,E001,20.0,my income ,50,S09946_L0231_E001,CEC1,0,143,i am going to come and ask you all whether you are doing well or not,0.8,1.5
+it was difficult to tell from this distance,S09719,8,8,L0224,E009,100.0,it was difficult to tell from this distance ,99,S09719_L0224_E009,CEC1,0,3439,it was difficult to tell from this distance,0.0,0.0
+all we can say is it's about time,S09290,8,0,L0227,E018,0.0,good,49,S09290_L0227_E018,CEC1,0,1511,all we can say is it's about time,1.0,0.0
+now let me have a good look at you,S09311,9,0,L0202,E001,0.0,,55,S09311_L0202_E001,CEC1,0,1597,now let me have a good look at you,1.0,0.0
+is this because they think they are without inhumane behaviour,S08837,10,7,L0242,E019,70.0,is this because they are without humane behaviour,75,S08837_L0242_E019,CEC1,0,4194,is this because they think they are without inhumane behaviour,0.3,0.0
+will i forget how to speak to the audience,S08614,9,8,L0201,E009,88.88888888888889,i forget how to speak to the audience ,80,S08614_L0201_E009,CEC2,0,6173,will i forget how to speak to the audience,0.1111111111111111,0.0
+that was the end of that then,S09248,7,7,L0201,E001,100.0,that was the end of that then,78,S09248_L0201_E001,CEC1,0,2099,that was the end of that then,0.0,0.0
+i thought we hadn't seen the last of her,S09844,9,9,L0209,E009,100.0,i thought we hadn't seen the last of her,93,S09844_L0209_E009,CEC1,0,3460,i thought we hadn't seen the last of her,0.0,0.0
+it is something else i cannot understand,S08977,7,7,L0239,E003,100.0,it is something else i cannot understand,51,S08977_L0239_E003,CEC1,0,2370,it is something else i cannot understand,0.0,0.0
+wasn't it a rather weighty responsibility to shoulder,S09278,8,7,L0231,E007,87.5,wasn't it a rather weighty to shoulder ,50,S09278_L0231_E007,CEC1,0,563,wasn't it a rather weighty responsibility to shoulder,0.125,0.0
+you won't try to persuade me not to,S08636,8,8,L0229,E019,100.0,you won't try to persuade me not to,100,S08636_L0229_E019,CEC1,0,4140,you won't try to persuade me not to,0.0,0.0
+i want to hear that voice again,S09510,7,2,L0242,E018,28.5714285714,and the voice again,50,S09510_L0242_E018,CEC1,0,4952,i want to hear that voice again,0.7142857142857143,0.0
+i did tell you how old i am didn't i,S09587,10,10,L0239,E007,100.0,i did tell you how old i am didn't i,63,S09587_L0239_E007,CEC1,0,3112,i did tell you how old i am didn't i,0.0,0.0
+my income and his pay packet didn't run to that,S09946,10,6,L0215,E010,60.0,my income didn't run to that,50,S09946_L0215_E010,CEC1,0,944,my income and his pay packet didn't run to that,0.4,0.0
+here and now is not the time,S09208,7,7,L0220,E009,100.0,here and now is not the time,50,S09208_L0220_E009,CEC1,0,5383,here and now is not the time,0.0,0.0
+his vigorous faith was an active faith,S09362,7,1,L0239,E005,14.2857142857,active space,82,S09362_L0239_E005,CEC1,0,2756,he put you as follows you can ask him to,0.8571428571428571,1.4285714285714286
+just you the wind the water and the sun,S09935,9,8,L0240,E021,88.8888888889,just you the wind the water the sun ,100,S09935_L0240_E021,CEC1,0,4730,just you the wind the water and the sun,0.1111111111111111,0.0
+confidence is a key factor in any football situation,S09453,9,9,L0202,E003,100.0,confidence is a key factor in any football situation,53,S09453_L0202_E003,CEC1,0,1633,confidence is a key factor in any football situation,0.0,0.0
+i was afraid she would die there and then,S08753,9,9,L0220,E007,100.0,i was afraid she would die there and then,50,S08753_L0220_E007,CEC1,0,5286,i was afraid she would die there and then,0.0,0.0
+he has ability and a good attitude,S09536,7,3,L0209,E010,42.8571428571,he has ability,84,S09536_L0209_E010,CEC1,0,909,he has ability and a good attitude,0.5714285714285714,0.0
+i'm sure i wouldn't know how inquisitor,S09296,7,5,L0201,E018,71.4285714286,i'm sure i didn't know how,89,S09296_L0201_E018,CEC1,0,1512,i'm sure i wouldn't know how inquisitor,0.2857142857142857,0.0
+all we can say is it's about time,S09290,8,8,L0235,E018,100.0,all we can say is it's about time,79,S09290_L0235_E018,CEC1,0,1927,all i can say is it's about time,0.0,0.125
+i must fight the sea with hatred,S09991,7,7,L0200,E003,100.0,i must fight the sea with hatred,77,S09991_L0200_E003,CEC1,0,310,i must fight the sea with hatred,0.0,0.0
+all we can say is it's about time,S09290,8,8,L0222,E003,100.0,all we can say is it's about time,30,S09290_L0222_E003,CEC1,0,238,all we can say is it's about time,0.0,0.0
+she said no he was going to be all right,S08764,10,9,L0201,E037,90.0,she said no it was going to be all right,73,S08764_L0201_E037,CEC2,0,6298,she said no he was going to be all right,0.1,0.0
+there isn't much scope for skill here,S09051,7,7,L0224,E010,100.0,there isn't much scope for skill here,99,S09051_L0224_E010,CEC1,0,860,there isn't much scope for skill here,0.0,0.0
+it made no mention of my wife,S08713,7,6,L0209,E013,85.7142857143,it made no mention that my wife,100,S08713_L0209_E013,CEC1,0,3843,it made no mention of my wife,0.14285714285714285,0.0
+it also meant something looking back as well as forward,S09080,10,7,L0206,E009,70.0,it was looking back as well as forward ,50,S09080_L0206_E009,CEC1,0,3307,it also meant something looking back as well as forward,0.3,0.0
+we have to identify with each other,S09395,7,3,L0202,E001,42.8571428571,they have to identify themselves,49,S09395_L0202_E001,CEC1,0,1601,we have to identify with each other,0.5714285714285714,0.0
+if i tell you to eat you will eat,S08815,9,9,L0239,E018,100.0,if i tell you to eat you will eat,63,S08815_L0239_E018,CEC1,0,4800,if i tell you to eat you will eat,0.0,0.0
+surely such a creature cannot be of use to us,S09101,10,10,L0200,E013,100.0,surely such a creature cannot be of use to us,90,S09101_L0200_E013,CEC1,0,3939,surely such a creature cannot be of use to us,0.0,0.0
+i have to believe he'll keep his word,S09960,8,8,L0240,E019,100.0,i have to believe he'll keep his word ,100,S09960_L0240_E019,CEC1,0,1257,i have to believe he'll keep his word,0.0,0.0
+when i first went in it felt strange,S09749,8,8,L0216,E010,100.0,when i first went in it felt strange,81,S09749_L0216_E010,CEC1,0,929,when i first went in it felt strange,0.0,0.0
+now i must leave you he said gently,S08722,8,8,L0221,E003,100.0,now i must leave you he said gently,50,S08722_L0221_E003,CEC1,0,2305,now i must leave you he said gently,0.0,0.0
+how did you pass the lower guard,S09511,7,3,L0242,E008_hr,42.857142857142854,how did you bust out of the grounds,100,S09511_L0242_E008_hr,CEC2,0,7789,how did you pass the lower guard,0.7142857142857143,0.0
+he was speaking with sham formality again,S09452,7,7,L0209,E009,100.0,he was speaking with sham formality again,93,S09452_L0209_E009,CEC1,0,3377,he was speaking with sham formality again,0.0,0.0
+or i would be if it weren't for the circumstances,S09442,10,9,L0201,E009,90.0,or it would be if it weren't for the circumstances,72,S09442_L0201_E009,CEC2,0,6160,or i would be if it weren't for the circumstances,0.1,0.0
+it was difficult to tell from this distance,S09719,8,8,L0240,E010,100.0,it was difficult to tell from this distance,100,S09719_L0240_E010,CEC1,0,3752,it was difficult to tell from this distance,0.0,0.0
+stay in the car if you don't mind,S08576,8,8,L0216,E010,100.0,stay in the car if you don't mind,81,S08576_L0216_E010,CEC1,0,3504,stay in the car if you don't mind,0.0,0.0
+but then they would have heard her surely,S09000,8,8,L0236,E010,100.0,but then they would have heard her surely,100,S09000_L0236_E010,CEC1,0,3600,but then they would have heard her surely,0.0,0.0
+but i told myself i shouldn't provoke her too much,S09823,10,9,L0220,E018,90.0,as i told myself i shouldn't provoke her too much,50,S09823_L0220_E018,CEC1,0,1941,but i told myself i shouldn't provoke her too much,0.1,0.0
+rain or no rain i must get on my way,S09308,10,10,L0208,E003,100.0,rain or no rain i must get on my way,50,S09308_L0208_E003,CEC1,0,5158,rain or no rain i must get on my way,0.0,0.0
+this is the essence of the algorithm above,S08637,8,8,L0240,E007,100.0,this is the essence of the algorithm above ,100,S08637_L0240_E007,CEC1,0,2910,this is the essence of the algorithm above,0.0,0.0
+you haven't gone and fallen have you,S08685,7,0,L0221,E005,0.0,,50,S08685_L0221_E005,CEC1,0,2610,you haven't gone and fallen have you,1.0,0.0
+tell me what you made of her,S09406,7,5,L0215,E013,71.4285714286,tell me what you know of trevor,50,S09406_L0215_E013,CEC1,0,4003,tell me what you made of her,0.2857142857142857,0.0
+a great big strapping man he was,S09240,7,7,L0235,E009,100.0,a great big strapping man he was,54,S09240_L0235_E009,CEC1,0,1731,a great big strapping man he was,0.0,0.0
+he couldn't make any sense of it at all,S08574,9,9,L0222,E013,100.0,he couldn't make any sense of it at all,40,S08574_L0222_E013,CEC1,0,3818,he couldn't make any sense of it at all,0.0,0.0
+it is something else i cannot understand,S08977,7,7,L0202,E007,100.0,but it is something else i cannot understand,100,S08977_L0202_E007,CEC1,0,5298,it is something else i cannot understand,0.14285714285714285,0.0
+it was a pleasure having her round to tea,S09310,9,8,L0221,E024_hr,88.88888888888889, it was a pleasure having her round for tea.,50,S09310_L0221_E024_hr,CEC2,0,6769,it was a pleasure having her round to tea,0.2222222222222222,0.0
+alan will charge off and take immediate action,S09770,8,5,L0221,E013,62.5,alan would charge off and take a reduction,50,S09770_L0221_E013,CEC1,0,4074,alan will charge off and take immediate action,0.375,0.0
+it was the third hour of the night watch,S09893,9,9,L0236,E013,100.0,it was the third hour of the night watch,98,S09893_L0236_E013,CEC1,0,4098,it was the third hour of the night watch,0.0,0.0
+i didn't know about your father about making you work,S09180,10,9,L0200,E013,90.0,i didn't know about your father about making it work,90,S09180_L0200_E013,CEC1,0,1027,i didn't know about your father about making you work,0.1,0.0
+closed from end of october to beginning of march,S08800,9,8,L0220,E010,88.8888888889,close from end of october to beginning of march,50,S08800_L0220_E010,CEC1,0,5438,closed from end of october to beginning of march,0.1111111111111111,0.0
+the second goal should have been stopped too,S09164,8,2,L0216,E005,25.0,should not be stopped,90,S09164_L0216_E005,CEC1,0,2711,the second goal should have been stopped too,0.75,0.0
+you may find it helpful having read this booklet,S09048,9,8,L0200,E036,88.88888888888889,you may find it helpful having read this,84,S09048_L0200_E036,CEC2,0,6003,you may find it helpful having read this booklet,0.1111111111111111,0.0
+how should i measure up what to buy,S09135,8,8,L0235,E010,100.0,how should i measure up what to buy,60,S09135_L0235_E010,CEC1,0,1762,how should i measure up what to buy,0.0,0.0
+we will have to be careful he said,S09297,8,8,L0222,E009,100.0,we will have to be careful he said,30,S09297_L0222_E009,CEC1,0,3342,we will have to be careful he said,0.0,0.0
+it's all this moving around the country,S08827,7,7,L0201,E010,100.0,it's all this moving around the country,19,S08827_L0201_E010,CEC1,0,830,it's all this moving around the country,0.0,0.0
+already he was inspired by the thought of their fusion,S09197,10,9,L0202,E009,90.0,already he was inspired by the thought of their kinship,100,S09197_L0202_E009,CEC1,0,1730,already he was inspired by the thought of their fusion,0.1,0.0
+you haven't gone and fallen have you,S08685,7,7,L0225,E019,100.0,you haven't gone and fallen have you,98,S08685_L0225_E019,CEC1,0,4150,you haven't gone and fallen have you,0.0,0.0
+he doesn't like his photograph being taken,S08690,7,7,L0217,E003,100.0,he doesn't like his photograph being taken,50,S08690_L0217_E003,CEC1,0,2300,he doesn't like his photograph being taken,0.0,0.0
+perhaps you wonder why i married him then,S08786,8,7,L0240,E013,87.5,perhaps you wonder why i married him,100,S08786_L0240_E013,CEC1,0,977,perhaps you wonder why i married him then,0.125,0.0
+i am here because you belong to me,S09816,8,8,L0235,E013,100.0,i am here because you belong to me,81,S09816_L0235_E013,CEC1,0,1817,i am here because you belong to me,0.0,0.0
+it must have been playing on her mind,S09520,8,8,L0219,E019,100.0,it must have been playing on her mind,91,S09520_L0219_E019,CEC1,0,4331,it must have been playing on her mind,0.0,0.0
+please call me harry except when on duty,S08535,8,0,L0200,E036,0.0,,84,S08535_L0200_E036,CEC2,0,6006,please call me harry except when on duty,1.0,0.0
+yet they do appear to be making money,S09580,8,8,L0209,E019,100.0,yet they do appear to be making money,95,S09580_L0209_E019,CEC1,0,4344,yet they do appear to be making money,0.0,0.0
+i put my hat on and get up,S08603,8,2,L0236,E005,25.0,i think my grandma,97,S08603_L0236_E005,CEC1,0,319,i put my hat on and get up,0.75,0.0
+wear old clothes and bring a hammer,S08743,7,3,L0231,E003,42.8571428571,where all parents bring a hammer ,50,S08743_L0231_E003,CEC1,0,2312,wear old clothes and bring a hammer,0.5714285714285714,0.0
+was he one of the three you didn't know,S09702,9,9,L0229,E009,100.0,was he one of the three you didn't know,100,S09702_L0229_E009,CEC1,0,765,was he one of the three you didn't know,0.0,0.0
+do they make much fuss about that,S08742,7,7,L0208,E007,100.0,do they make much fuss about that,50,S08742_L0208_E007,CEC1,0,5284,do they make much fuss about that,0.0,0.0
+that is what society is all about isn't it,S08997,9,9,L0201,E037,100.0,that is what society is all about isn't it,72,S08997_L0201_E037,CEC2,0,6326,that is what society is all about isn't it,0.0,0.0
+get out of my way at once,S08578,7,0,L0224,E001,0.0,,99,S08578_L0224_E001,CEC1,0,1961,what kind of a play is this,1.0,0.8571428571428571
+what kind of book she give you pal,S09865,8,0,L0215,E001,0.0,,50,S09865_L0215_E001,CEC1,0,2242,what kind of book she give you pal,1.0,0.0
+jack raised one hand in a feeble salute,S09451,8,5,L0215,E010,62.5,jack raised one arm in a fetal image,50,S09451_L0215_E010,CEC1,0,3688,jack raised one hand in a feeble salute,0.375,0.0
+they sent a car to the station,S08970,7,7,L0222,E037,100.0,they sent a car to the station,56,S08970_L0222_E037,CEC2,0,7154,they sent a car to the station,0.0,0.0
+all his long life the taste never abandoned him,S09903,9,7,L0236,E009,77.7777777778,all his long life she had never abandoned him,100,S09903_L0236_E009,CEC1,0,3472,all his long life the taste never abandoned him,0.2222222222222222,0.0
+dad sat back looking pleased with himself,S08967,7,7,L0206,E019,100.0,dad sat back looking pleased with himself,50,S08967_L0206_E019,CEC1,0,1162,dad sat back looking pleased with himself,0.0,0.0
+from a commercial point of view however liquidity is fundamental,S08847,10,7,L0200,E018,70.0,from a commercial point of view that is,98,S08847_L0200_E018,CEC1,0,1451,from a commercial point of view however liquidity is fundamental,0.3,0.0
+that will be when the crafty bit comes in,S08921,9,9,L0201,E009,100.0,that will be when the crafty bit comes in,80,S08921_L0201_E009,CEC2,0,6168,that will be when the crafty bit comes in,0.0,0.0
+how did the car come off the road,S09312,8,8,L0215,E007,100.0,how did the car come off the road,50,S09312_L0215_E007,CEC1,0,568,how did the car come off the road,0.0,0.0
+the door to his office was always open,S08943,8,8,L0231,E013,100.0,the door to his office was always open ,50,S08943_L0231_E013,CEC1,0,3905,the door to his office was always open,0.0,0.0
+i could go another myself he said,S09852,7,1,L0240,E018,14.2857142857,i will be going out about seven ,100,S09852_L0240_E018,CEC1,0,1564,i could go another myself he said,0.8571428571428571,0.0
+could you please at least tell them it's quite urgent,S08739,10,9,L0202,E009,90.0,could you at least please tell them it's quite urgent,100,S08739_L0202_E009,CEC1,0,5357,could you please at least tell them it's quite urgent,0.2,0.0
+for all that once would be enough for her,S09360,9,8,L0215,E010,88.8888888889,for all that once would be enough with her ,50,S09360_L0215_E010,CEC1,0,892,for all that once would be enough for her,0.1111111111111111,0.0
+jack raised one hand in a feeble salute,S09451,8,7,L0239,E019,87.5,jack raised one hand in a feedble salute,51,S09451_L0239_E019,CEC1,0,4317,jack raised one hand in a feeble salute,0.125,0.0
+and it would matter to james too,S08793,7,7,L0216,E009,100.0,and it would matter to james too,90,S08793_L0216_E009,CEC1,0,3248,and it would matter to james too,0.0,0.0
+it isn't fairness that the world needs,S08756,7,0,L0222,E005,0.0,,30,S08756_L0222_E005,CEC1,0,337,it would be far from that the world could see,1.0,0.8571428571428571
+a good thump is beneficial when cod fishing,S09325,8,8,L0240,E009,100.0,a good thump is beneficial when cod fishing,100,S09325_L0240_E009,CEC2,0,7565,a good thump is beneficial when cod fishing,0.0,0.0
+well what i knew was i would get no more,S09919,10,4,L0202,E010,40.0,for what a me was i wanted more,99,S09919_L0202_E010,CEC1,0,5504,well what i knew was i would get no more,0.6,0.0
+let the water wash you all over,S09595,7,0,L0236,E001,0.0,that was the voice,85,S09595_L0236_E001,CEC1,0,113,then we can all shop all over again,1.0,0.8571428571428571
+we simply had nothing else to say,S09544,7,6,L0208,E019,85.7142857143,we simply have nothing else to say,50,S09544_L0208_E019,CEC1,0,1848,we simply had nothing else to say,0.14285714285714285,0.0
+water must be soft and very clear,S09021,7,3,L0227,E009,42.8571428571,the water was shocked and that was very clear,49,S09021_L0227_E009,CEC1,0,689,water must be soft and very clear,0.8571428571428571,0.0
+i did not want to know this,S09326,7,7,L0201,E037,100.0,i did not want to know this,73,S09326_L0201_E037,CEC2,0,6301,i did not want to know this,0.0,0.0
+the next question is where can they be bought,S09767,9,8,L0231,E005,88.8888888889,the next question is where can they be brought ,50,S09767_L0231_E005,CEC1,0,2840,the next question is where can they be bought,0.1111111111111111,0.0
+it also meant something looking back as well as forward,S09080,10,10,L0215,E010,100.0,it also meant something looking back as well as forward ,50,S09080_L0215_E010,CEC1,0,3612,it also meant something looking back as well as forward,0.0,0.0
+it's not a good day for us,S09140,7,4,L0222,E036,57.142857142857146,it's not a good,87,S09140_L0222_E036,CEC2,0,7113,it's not a good day for,0.42857142857142855,0.14285714285714285
+gin was the first alcohol i ever had,S09242,8,8,L0224,E021,100.0,gin was the first alcohol i ever had ,99,S09242_L0224_E021,CEC1,0,1343,gin was the first alcohol i ever had,0.0,0.0
+replace the paper and the lid and cook another hour,S08614,10,9,L0229,E007,90.0,replace the and the lid and cook another hour,51,S08614_L0229_E007,CEC1,0,2906,replace the paper and the lid and cook another hour,0.1,0.0
+but it had all been a bluff,S09169,7,7,L0241,E007,100.0,but it had all been a bluff,96,S09169_L0241_E007,CEC1,0,1693,but it had all been a bluff,0.0,0.0
+i saw the difference the flood had made,S09320,8,8,L0224,E009,100.0,i saw the difference the flood had made ,99,S09320_L0224_E009,CEC1,0,726,i saw the difference the flood had made,0.0,0.0
+this is a classic sauce to serve with fish,S08923,9,9,L0231,E007,100.0,this is a classic sauce to serve with fish ,50,S08923_L0231_E007,CEC1,0,2974,this is a classic sauce to serve with fish,0.0,0.0
+the ground there is still common land,S08674,7,6,L0221,E001,85.7142857143,the ground there was still common land,50,S08674_L0221_E001,CEC1,0,14,the ground there was still common land,0.14285714285714285,0.14285714285714285
+is it a residential dwelling or an office,S08628,8,4,L0222,E037,50.0,is it a residential ,56,S08628_L0222_E037,CEC2,0,7146,is it a residential dwelling or an office,0.5,0.0
+you didn't ask who he got his information from,S09519,9,9,L0202,E003,100.0,you didn't ask who he got his information from,53,S09519_L0202_E003,CEC1,0,5169,you didn't ask who he got his information from,0.0,0.0
+and it is the most incredible thing,S08508,7,5,L0229,E021,71.4285714286,is the most incredible thing,100,S08508_L0229_E021,CEC1,0,4429,and it is the most incredible thing,0.2857142857142857,0.0
+but i told myself i shouldn't provoke her too much,S09823,10,9,L0202,E013,90.0,but i tell myself i shouldn't provoke her too much,100,S09823_L0202_E013,CEC1,0,1818,but i told myself i shouldn't provoke her too much,0.1,0.0
+tonight she would be cool and in command,S09455,8,8,L0236,E019,100.0,tonight she would be cool and in command,100,S09455_L0236_E019,CEC1,0,4318,tonight she would be cool and in command,0.0,0.0
+tuesday is also usually the interview day,S09533,7,0,L0217,E005,0.0,,50,S09533_L0217_E005,CEC1,0,2790,jimba is also usually made of glass,1.0,0.5714285714285714
+the town clerk held up his hand,S09803,7,0,L0242,E018,0.0,,50,S09803_L0242_E018,CEC1,0,5003,the town clerk held up his hand,1.0,0.0
+so how have you been making out without me then,S09830,10,10,L0225,E003,100.0,so how have you been making out without me then,98,S09830_L0225_E003,CEC1,0,2546,so how have you been making out without me then,0.0,0.0
+no they have gone a bit cool towards her,S08873,9,0,L0200,E007,0.0,,98,S08873_L0200_E007,CEC1,0,520,no they have gone a bit cool towards her,1.0,0.0
+sport will also form part of his brief,S09723,8,5,L0241,E021,62.5,sport would also form part of this,96,S09723_L0241_E021,CEC1,0,1899,sport will also form part of his brief,0.375,0.0
+just a bit the worse for gin i said,S08647,9,3,L0209,E008_hr,33.333333333333336,just the bit the worst the g. no ted,60,S08647_L0209_E008_hr,CEC2,0,6399,just a bit the worse for gin i said,0.6666666666666666,0.0
+now that has all been sunk without trace,S08660,8,8,L0224,E003,100.0,now that has all been sunk without trace ,86,S08660_L0224_E003,CEC1,0,2297,now that has all been sunk without trace,0.0,0.0
+from a commercial point of view however liquidity is fundamental,S08847,10,8,L0216,E013,80.0,from a commercial point of view however the is essential,90,S08847_L0216_E013,CEC1,0,984,from a commercial point of view however liquidity is fundamental,0.2,0.0
+it was a silly thing to say,S09500,7,7,L0217,E009,100.0,it was a silly thing to say,50,S09500_L0217_E009,CEC1,0,3385,it was a silly thing to say,0.0,0.0
+she did but in a roundabout way,S09446,7,6,L0225,E003,85.7142857143,she did but in a round about way,98,S09446_L0225_E003,CEC1,0,2457,she did but in a roundabout way,0.2857142857142857,0.0
+my income and his pay packet didn't run to that,S09946,10,9,L0222,E021,90.0,my income and his pay package didn't run to that,40,S09946_L0222_E021,CEC1,0,1414,my income and his pay packet didn't run to that,0.1,0.0
+this was a real answer to prayer,S08889,7,6,L0235,E009,85.7142857143,this was real answer to prayer,54,S08889_L0235_E009,CEC1,0,5365,this was a real answer to prayer,0.14285714285714285,0.0
+all of that was so long ago,S09258,7,7,L0216,E009,100.0,all of that was so long ago,90,S09258_L0216_E009,CEC1,0,714,all of that was so long ago,0.0,0.0
+please call me harry except when on duty,S09762,8,8,L0240,E013,100.0,please call me harry except when on duty ,100,S09762_L0240_E013,CEC1,0,1086,please call me harry except when on duty,0.0,0.0
+and i wouldn't be happy working for anyone else,S08965,9,9,L0221,E009,100.0,and i wouldn't be happy working for anyone else,50,S08965_L0221_E009,CEC1,0,3281,and i wouldn't be happy working for anyone else,0.0,0.0
+even that would be better than separation,S09752,7,7,L0221,E013,100.0,even that would be better than separation,50,S09752_L0221_E013,CEC1,0,4071,even that would be better than separation,0.0,0.0
+rain or no rain i must get on my way,S09308,10,6,L0216,E007,60.0,on their own i must get on my way,99,S09308_L0216_E007,CEC1,0,3049,rain or no rain i must get on my way,0.4,0.0
+i come to the beach every week,S08704,7,2,L0221,E008_hr,28.571428571428573,every week,50,S08704_L0221_E008_hr,CEC2,0,6664,i don't have to do anything you tell me,0.7142857142857143,1.0
+the second blow sent the door flying open,S09411,8,3,L0239,E010,37.5,the second door,51,S09411_L0239_E010,CEC1,0,896,the second blow sent the door flying open,0.625,0.0
+apart from one plump couple they were all men,S08785,9,9,L0200,E003,100.0,apart from one plump couple they were all men,77,S08785_L0200_E003,CEC1,0,2324,apart from one plump couple they were all men,0.0,0.0
+this was a real answer to prayer,S08889,7,6,L0200,E001,85.7142857143,this is a real answer to prayer,77,S08889_L0200_E001,CEC1,0,2027,this was a real answer to prayer,0.14285714285714285,0.0
+sport will also form part of his brief,S09723,8,6,L0201,E019,75.0,thought would also form part of his brief,54,S09723_L0201_E019,CEC1,0,1240,sport will also form part of his brief,0.25,0.0
+he thought of himself as a responsible and dependable person,S09228,10,0,L0224,E005,0.0,,86,S09228_L0224_E005,CEC1,0,2721,he thought of himself as a responsible and dependable person,1.0,0.0
+it wasn't really that different from the approved school,S08648,9,0,L0224,E005,0.0,,86,S08648_L0224_E005,CEC1,0,324,it wasn't really that different from the beach store,1.0,0.2222222222222222
+surely such a creature cannot be of use to us,S09101,10,10,L0217,E001,100.0,surely such a creature cannot be of use to us,50,S09101_L0217_E001,CEC1,0,2074,surely such a creature cannot be of use to us,0.0,0.0

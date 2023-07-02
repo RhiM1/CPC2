@@ -21,18 +21,21 @@ from attrdict import AttrDict
 import json
 import csv
 from scipy.stats import spearmanr
-from disjoint_val import get_disjoint_val_set
+from data_handling import get_disjoint_val_set
 
 # from models.huBERT_wrapper import HuBERTWrapper_full,HuBERTWrapper_extractor
 # from models.wav2vec2_wrapper import Wav2Vec2Wrapper_no_helper,Wav2Vec2Wrapper_encoder_only
 # from models.llama_wrapper import LlamaWrapper
 # from models.ni_predictors import MetricPredictor, MetricPredictorCombo
-from models.ni_predictor_models import MetricPredictorLSTM, MetricPredictorLSTMCombo, MetricPredictorAttenPool
-from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, XLSRCombo_feats, HuBERTEncoder_feats, HuBERTFull_feats
-from models.ni_predictor_exemplar_models import ExemplarMetricPredictor, ExemplarMetricPredictorCombo
+from models.ni_predictor_models import MetricPredictorLSTM, MetricPredictorLSTMCombo, MetricPredictorAttenPool, ExLSTM
+from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, \
+    XLSRCombo_feats, HuBERTEncoder_feats, HuBERTFull_feats, WhisperEncoder_feats, WhisperFull_feats
+# from models.ni_predictor_exemplar_models import ExemplarMetricPredictor, ExemplarMetricPredictorCombo
 
-DATAROOT = "/store/store1/data/clarity_CPC2_data/" 
-DATAROOT_CPC1 = "/store/store1/data/clarity_CPC1_data/" 
+from constants import DATAROOT, DATAROOT_CPC1
+
+# DATAROOT = "/store/store1/data/clarity_CPC2_data/" 
+# DATAROOT_CPC1 = "/store/store1/data/clarity_CPC1_data/" 
 # DATAROOT = "~/exp/data/clarity_CPC2_data/" 
 # df_listener = pd.read_json(DATAROOT + "clarity_data/metadata/listeners.json")
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -113,13 +116,13 @@ def extract_feats(feat_extractor, data, args, theset, combo = False):
     ]
     if args.use_CPC1:
         dynamic_items.append(
-            {"func": lambda l: audio_pipeline("%s/clarity_data/HA_outputs/%s/%s.wav"%(args.dataroot,theset,l),32000),
+            {"func": lambda l: audio_pipeline("%s/HA_outputs/%s/%s.wav"%(args.dataroot,theset,l),32000),
             "takes": ["signal"],
             "provides": "wav"}
         )
     else:
         dynamic_items.append(
-            {"func": lambda l,y: audio_pipeline("%s/clarity_data/HA_outputs/%s.%s/%s/%s.wav"%(args.dataroot,theset,args.N,y,l),32000),
+            {"func": lambda l,y: audio_pipeline("%s/HA_outputs/%s.%s/%s/%s.wav"%(args.dataroot,theset,args.N,y,l),32000),
             "takes": ["signal","subset"],
             "provides": "wav"}
         )
@@ -162,6 +165,7 @@ def extract_feats(feat_extractor, data, args, theset, combo = False):
             # print(f"extracted_feats_l.size()\n{extracted_feats_l.size()}")
             # print(f"extracted_feats_l.size()\n{extracted_feats_l.size()}")
 
+            # print(f"extracted_feats_l size:\n{extracted_feats_l.size()}")
             feats_list_l.append(extracted_feats_l.detach().cpu().numpy())
             feats_list_r.append(extracted_feats_r.detach().cpu().numpy())
             correct_list.append(correctness)
@@ -177,17 +181,17 @@ def extract_feats(feat_extractor, data, args, theset, combo = False):
 
     return data
 
-def make_disjoint_train_set(
-    full_df: pd.DataFrame, test_df: pd.DataFrame
-) -> pd.DataFrame:
-    """Make a disjoint train set for given test samples."""
-    # make sure that the train and test sets are disjoint
-    # i.e. no signals, systems or listeners are shared
-    train_df = full_df[~full_df.signal.isin(test_df.signal)]
-    train_df = train_df[~train_df.system.isin(test_df.system)]
-    train_df = train_df[~train_df.listener.isin(test_df.listener)]
-    assert not set(train_df.signal).intersection(set(test_df.signal))
-    return train_df
+# def make_disjoint_train_set(
+#     full_df: pd.DataFrame, test_df: pd.DataFrame
+# ) -> pd.DataFrame:
+#     """Make a disjoint train set for given test samples."""
+#     # make sure that the train and test sets are disjoint
+#     # i.e. no signals, systems or listeners are shared
+#     train_df = full_df[~full_df.signal.isin(test_df.signal)]
+#     train_df = train_df[~train_df.system.isin(test_df.system)]
+#     train_df = train_df[~train_df.listener.isin(test_df.listener)]
+#     assert not set(train_df.signal).intersection(set(test_df.signal))
+#     return train_df
 
 
 
@@ -272,7 +276,7 @@ def get_dynamic_dataset_combo(data):
     return ddata
 
 
-def validate_model(model,test_data,optimizer,criterion,args,combo):
+def validate_model(model,test_data,optimizer,criterion,args,combo,ex_data = None):
     out_list = []
     model.eval()
     running_loss = 0.0
@@ -283,7 +287,18 @@ def validate_model(model,test_data,optimizer,criterion,args,combo):
     else:
         test_set = get_dynamic_dataset(test_data)
 
+    if args.exemplar:
+        ex_set = get_dynamic_dataset(ex_data)
+
     my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
+
+    if ex_data is not None:
+        # ex_dataloader = iter(DataLoader(ex_data,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch))
+        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
+        len_ex = len(ex_dataloader)
+        ex_used = 0
+        ex_dataloader = iter(ex_dataloader)
+
     print("starting validation...")
     for batch in tqdm(my_dataloader):
        
@@ -309,12 +324,39 @@ def validate_model(model,test_data,optimizer,criterion,args,combo):
             )
             feats_l = feats_l.to(device)
             feats_r = feats_r.to(device)
+
+            if ex_data is not None:
+                ex_used += args.ex_size
+                if ex_used > len_ex:
+                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                    ex_used = args.ex_size
+
+                exemplars = next(ex_dataloader)
+                ex_correct, ex_feats_l, ex_feats_r = exemplars
+                ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                    ex_feats_l.data, 
+                    (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
+                    batch_first=True,
+                    enforce_sorted = False
+                )
+                ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                    ex_feats_r.data, 
+                    (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
+                    batch_first=True,
+                    enforce_sorted = False
+                )
+                ex_feats_l = ex_feats_l.to(args.device)
+                ex_feats_r = ex_feats_r.to(args.device)
+                ex_correct = ex_correct.data.to(args.device)
             
         target_scores = correctness.data.to(device)
         
         if combo:
             output_l,_ = model(feats_full_l.float(), feats_extract_l.float())
-            output_r,_ = model(feats_full_r.float(), feats_extract_r.float())
+            output_r, _ = model(feats_full_r.float(), feats_extract_r.float())
+        elif ex_data is not None:
+            output_l, _ = model(feats_l, ex_feats_l, ex_correct)
+            output_r, _ = model(feats_r, ex_feats_r, ex_correct)
         else:
             output_l,_ = model(feats_l)
             output_r,_ = model(feats_r)
@@ -361,13 +403,23 @@ def train_model(model,train_data,optimizer,criterion,args,combo=False,ex_data=No
         train_set = get_dynamic_dataset_combo(train_data)
     else:
         train_set = get_dynamic_dataset(train_data)
+    if args.exemplar:
+        ex_set = get_dynamic_dataset(ex_data)
 
     my_dataloader = DataLoader(train_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch)
+
+    if ex_data is not None:
+        # ex_dataloader = iter(DataLoader(ex_data,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch))
+        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
+        len_ex = len(ex_dataloader)
+        ex_used = 0
+        ex_dataloader = iter(ex_dataloader)
+
     print(f"batch_size: {args.batch_size}")
     print("starting training...")
     
     for batch in tqdm(my_dataloader, total=len(my_dataloader)):
-        # batch = batch.to(device)
+        # my_ex_dataloader = DataLoader(train_set,args.num_ex,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
         if combo:
             correctness, feats_full_l, feats_full_r, feats_extract_l, feats_extract_r = batch
             feats_full_l = torch.nn.utils.rnn.pack_padded_sequence(
@@ -394,10 +446,10 @@ def train_model(model,train_data,optimizer,criterion,args,combo=False,ex_data=No
                 batch_first=True,
                 enforce_sorted = False
             )
-            feats_full_l = feats_full_l.to(device)
-            feats_full_r = feats_full_r.to(device)
-            feats_extract_l = feats_extract_l.to(device)
-            feats_extract_r = feats_extract_r.to(device)
+            feats_full_l = feats_full_l.to(args.device)
+            feats_full_r = feats_full_r.to(args.device)
+            feats_extract_l = feats_extract_l.to(args.device)
+            feats_extract_r = feats_extract_r.to(args.device)
         else:
             correctness, feats_l, feats_r = batch
             # print(f"main feats_l.size: {feats_l.data.size()}")
@@ -408,6 +460,7 @@ def train_model(model,train_data,optimizer,criterion,args,combo=False,ex_data=No
                 batch_first=True,
                 enforce_sorted = False
             )
+            # print(f"feats_l:\n{feats_l}")
             # print(f"main 2 feats_l.size: {feats_l.data.size()}")
             feats_r = torch.nn.utils.rnn.pack_padded_sequence(
                 feats_r.data, 
@@ -415,13 +468,38 @@ def train_model(model,train_data,optimizer,criterion,args,combo=False,ex_data=No
                 batch_first=True,
                 enforce_sorted = False
             )
-            feats_l = feats_l.to(device)
-            feats_r = feats_r.to(device)
+            feats_l = feats_l.to(args.device)
+            feats_r = feats_r.to(args.device)
+
+            if ex_data is not None:
+                ex_used += args.ex_size
+                if ex_used > len_ex:
+                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                    ex_used = args.ex_size
+
+                exemplars = next(ex_dataloader)
+                ex_correct, ex_feats_l, ex_feats_r = exemplars
+                ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                    ex_feats_l.data, 
+                    (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
+                    batch_first=True,
+                    enforce_sorted = False
+                )
+                ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                    ex_feats_r.data, 
+                    (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
+                    batch_first=True,
+                    enforce_sorted = False
+                )
+                ex_feats_l = ex_feats_l.to(args.device)
+                ex_feats_r = ex_feats_r.to(args.device)
+                ex_correct = ex_correct.data.to(args.device)
+
+
             # feats_l = feats_l
             # feats_r = feats_r
         #print("wavs:%s\n correctness:%s\n"%(wavs.data.shape,correctness))
-        target_scores = correctness.data
-        target_scores = target_scores.to(device)
+        target_scores = correctness.data.to(args.device)
         
         # #print(wavs_data.shape)
         # feats_l,feats_r = compute_feats(wavs_data,44100) 
@@ -430,7 +508,12 @@ def train_model(model,train_data,optimizer,criterion,args,combo=False,ex_data=No
         if combo:
             output_l,_ = model(feats_full_l, feats_extract_l)
             output_r,_ = model(feats_full_r, feats_extract_r)
+        elif ex_data is not None:
+            output_l, _ = model(feats_l, ex_feats_l, ex_correct)
+            output_r, _ = model(feats_r, ex_feats_r, ex_correct)
         else:
+            # print(f"feats_l:\n{feats_l}")
+            # print(f"feats_l:\n{feats_l.size()}")
             output_l,_ = model(feats_l)
             output_r,_ = model(feats_r)
         loss_l = criterion(output_l,target_scores)
@@ -466,8 +549,9 @@ def save_model(model,opt,epoch,args,val_loss):
 
 def main(args, config):
     #set up the torch objects
-    print("creating model: %s"%args.model)
+    print("creating model: %s"%args.feats)
     torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
     N = args.N
     combo = False
     if args.feats == "XLSREncoder":
@@ -512,6 +596,29 @@ def main(args, config):
         hidden_size = 257//2
         activation = nn.LeakyReLU
         att_pool_dim = 256
+
+    elif args.feats == "WhisperEncoder":  
+        feat_extractor = WhisperEncoder_feats(
+            pretrained_model=args.pretrained_feats_model, 
+            use_feat_extractor = True,
+            layer = args.layer
+        )
+        dim_extractor = 768
+        hidden_size = 768//2
+        activation = nn.LeakyReLU
+        att_pool_dim = 768
+
+    elif args.feats == "WhisperFull":  
+        # feat_extractor = WhisperFull_feats()
+        feat_extractor = WhisperFull_feats(
+            pretrained_model=args.pretrained_feats_model, 
+            use_feat_extractor = True,
+            layer = args.layer
+        )
+        dim_extractor = 768
+        hidden_size = 768//2
+        activation = nn.LeakyReLU
+        att_pool_dim = 768
         
     else:
         print("Feats extractor not recognised")
@@ -528,20 +635,12 @@ def main(args, config):
             quit
         else:
             model = MetricPredictorAttenPool(att_pool_dim)
+    elif args.model == "ExLSTM":
+        model = ExLSTM(dim_extractor, hidden_size, activation, att_pool_dim)
+        args.exemplar = True
     else:
         print("Model not recognised")
         exit(1)
-
-        # if args.exemplar:
-        #     config["minerva_config"]["input_dim"] = 512
-        #     model = ExemplarMetricPredictor(
-        #         minerva_config = config["minerva_config"], 
-        #         dim_extractor=512, 
-        #         hidden_size=512//2, 
-        #         activation=nn.LeakyReLU, 
-        #         att_pool_dim = 512
-        #     )
-
 
     feat_extractor.eval()
     feat_extractor.requires_grad_(False)
@@ -562,7 +661,7 @@ def main(args, config):
             tags = [f"N{args.N}", f"lr{args.lr}", args.feats, args.model, f"bs{args.batch_size}"]
         )
         if args.exemplar:
-            run.tags = run.tags + ("exemplar")
+            run.tags = run.tags + ("exemplar", f"es{args.ex_size}")
     
     args.model_dir = model_dir
     if not os.path.exists(model_dir):
@@ -584,20 +683,24 @@ def main(args, config):
 
     data = pd.read_json(args.in_json_file)
     data["subset"] = "CEC1"
+    # data = data[0:10]
     if not args.use_CPC1:
         data2 = pd.read_json(args.in_json_file.replace("CEC1","CEC2"))
         data2["subset"] = "CEC2"
+        # data2 = data2[0:10]
         data = pd.concat([data, data2])
     data["predicted"] = np.nan  # Add column to store intel predictions
+
+    
+    # _, data = train_test_split(data, test_size = 0.01)
 
     feat_extractor.to(args.device)
     theset = "train_indep" if args.use_CPC1 else "train"
     data = extract_feats(feat_extractor, data, args, theset, combo)
     feat_extractor.to('cpu')
     data = get_disjoint_val_set(args, data)
-    
 
-    print(data[:50])
+    # print(data[:50])
 
     # Split into train and val sets
     dis_val_data = data[data.validation == 7].copy()
@@ -621,46 +724,51 @@ def main(args, config):
     print("=====================================")
 
     # shuffle the training data
+    # if args.exemplar:
+    #     ex_data = train_data.sample(n = config["minerva_config"]["num_ex"])
+    #     ex_data = get_dynamic_dataset(ex_data)
+    #     ex_dataloader = DataLoader(ex_data,config['minerva_config']['num_ex'],collate_fn=sb.dataio.batch.PaddedBatch)
+    #     for batch_id, batch in enumerate(ex_dataloader):
+    #         print(f"batch_id: {batch_id}")
+    #         ex_targets, ex_feats_l, ex_feats_r = batch
+    #         correctness = correctness.data
+    #         ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+    #             ex_feats_l.data, 
+    #             (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
+    #             batch_first=True,
+    #             enforce_sorted = False
+    #         )
+    #         ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+    #             ex_feats_r.data, 
+    #             (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
+    #             batch_first=True,
+    #             enforce_sorted = False
+    #         )
+    #         # correctness = correctness.data
+    #         # feats_l = feats_l.data
+    #         # feats_r = feats_r.data
+
+    #     print(f"correctness:\n{ex_targets}")
+    #     print(f"feats_l:\n{ex_feats_l}")
+    #     print(f"feats_r:\n{ex_feats_r}")
+
+    #     print(f"correctness.size: {ex_targets.size()}, feat_l.size: {ex_feats_l.data.size()}, feats_r.size: {ex_feats_r.data.size()}")
+
+    #     model.minerva.set_exemplars(
+    #         ex_features_l = ex_feats_l,
+    #         ex_features_r = ex_feats_r,
+    #         ex_targets = ex_targets
+    #     )
+
     if args.exemplar:
-        ex_data = train_data.sample(n = config["minerva_config"]["num_ex"])
-        ex_data = get_dynamic_dataset(ex_data)
-        ex_dataloader = DataLoader(ex_data,config['minerva_config']['num_ex'],collate_fn=sb.dataio.batch.PaddedBatch)
-        for batch_id, batch in enumerate(ex_dataloader):
-            print(f"batch_id: {batch_id}")
-            ex_targets, ex_feats_l, ex_feats_r = batch
-            correctness = correctness.data
-            ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
-                ex_feats_l.data, 
-                (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
-                batch_first=True,
-                enforce_sorted = False
-            )
-            ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
-                ex_feats_r.data, 
-                (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
-                batch_first=True,
-                enforce_sorted = False
-            )
-            # correctness = correctness.data
-            # feats_l = feats_l.data
-            # feats_r = feats_r.data
-
-        print(f"correctness:\n{ex_targets}")
-        print(f"feats_l:\n{ex_feats_l}")
-        print(f"feats_r:\n{ex_feats_r}")
-
-        print(f"correctness.size: {ex_targets.size()}, feat_l.size: {ex_feats_l.data.size()}, feats_r.size: {ex_feats_r.data.size()}")
-
-        model.minerva.set_exemplars(
-            ex_features_l = ex_feats_l,
-            ex_features_r = ex_feats_r,
-            ex_targets = ex_targets
-        )
-
+        ex_data = train_data
+        print("Using training data for exemplars")
     else:
         ex_data = None
 
     train_data = train_data.sample(frac=1).reset_index(drop=True)
+
+
 
       
     # use this line for testing :) 
@@ -676,15 +784,15 @@ def main(args, config):
         for epoch in range(args.n_epochs):
 
 
-            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,combo,ex_data)
+            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,combo,ex_data=ex_data)
 
-            _,val_loss = validate_model(model,val_data,optimizer,criterion,args,combo)
-            _,dis_val_loss = validate_model(model,dis_val_data,optimizer,criterion,args,combo)
-            _,dis_lis_val_loss = validate_model(model,dis_lis_val_data,optimizer,criterion,args,combo)
-            _,dis_sys_val_loss = validate_model(model,dis_sys_val_data,optimizer,criterion,args,combo)
-            _,dis_scene_val_loss = validate_model(model,dis_scene_val_data,optimizer,criterion,args,combo)
+            _,val_loss = validate_model(model,val_data,optimizer,criterion,args,combo,ex_data)
+            _,dis_val_loss = validate_model(model,dis_val_data,optimizer,criterion,args,combo,ex_data)
+            _,dis_lis_val_loss = validate_model(model,dis_lis_val_data,optimizer,criterion,args,combo,ex_data)
+            _,dis_sys_val_loss = validate_model(model,dis_sys_val_data,optimizer,criterion,args,combo,ex_data)
+            _,dis_scene_val_loss = validate_model(model,dis_scene_val_data,optimizer,criterion,args,combo,ex_data)
             if args.test_json_file is not None:
-                _,eval_loss = validate_model(model,test_data,optimizer,criterion,args,combo)
+                _,eval_loss = validate_model(model,test_data,optimizer,criterion,args,combo,ex_data)
 
             if not args.skip_wandb:
                 log_dict = {
@@ -721,7 +829,7 @@ def main(args, config):
     model.load_state_dict(torch.load("%s/%s"%(model_dir,model_file)))
     
     # get validation predictions
-    val_predictions,val_loss = validate_model(model,val_data,optimizer,criterion,args,combo)
+    val_predictions,val_loss = validate_model(model,val_data,optimizer,criterion,args,combo,ex_data)
     val_error = val_loss**0.5
     val_p_corr = np.corrcoef(np.array(val_predictions),val_data["correctness"])[0][1]
     val_s_corr = spearmanr(np.array(val_predictions),val_data["correctness"])[0]
@@ -729,7 +837,7 @@ def main(args, config):
     val_data["predicted"] = val_predictions
     val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file + "_val_preds.csv", index=False)
 
-    dis_val_predictions,dis_val_loss = validate_model(model,dis_val_data,optimizer,criterion,args,combo)
+    dis_val_predictions,dis_val_loss = validate_model(model,dis_val_data,optimizer,criterion,args,combo,ex_data)
     dis_val_error = dis_val_loss**0.5
     dis_val_p_corr = np.corrcoef(np.array(dis_val_predictions),dis_val_data["correctness"])[0][1]
     dis_val_s_corr = spearmanr(np.array(dis_val_predictions),dis_val_data["correctness"])[0]
@@ -737,7 +845,7 @@ def main(args, config):
     dis_val_data["predicted"] = dis_val_predictions
     dis_val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file + "_dis_val_preds.csv", index=False)
 
-    dis_lis_val_predictions,dis_lis_val_loss = validate_model(model,dis_lis_val_data,optimizer,criterion,args,combo)
+    dis_lis_val_predictions,dis_lis_val_loss = validate_model(model,dis_lis_val_data,optimizer,criterion,args,combo,ex_data)
     dis_lis_val_error = dis_lis_val_loss**0.5
     dis_lis_val_p_corr = np.corrcoef(np.array(dis_lis_val_predictions),dis_lis_val_data["correctness"])[0][1]
     dis_lis_val_s_corr = spearmanr(np.array(dis_lis_val_predictions),dis_lis_val_data["correctness"])[0]
@@ -745,7 +853,7 @@ def main(args, config):
     dis_lis_val_data["predicted"] = dis_lis_val_predictions
     dis_lis_val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file + "_dis_lis_val_preds.csv", index=False)
 
-    dis_sys_val_predictions,dis_sys_val_loss = validate_model(model,dis_sys_val_data,optimizer,criterion,args,combo)
+    dis_sys_val_predictions,dis_sys_val_loss = validate_model(model,dis_sys_val_data,optimizer,criterion,args,combo,ex_data)
     dis_sys_val_error = dis_sys_val_loss**0.5
     dis_sys_val_p_corr = np.corrcoef(np.array(dis_sys_val_predictions),dis_sys_val_data["correctness"])[0][1]
     dis_sys_val_s_corr = spearmanr(np.array(dis_sys_val_predictions),dis_sys_val_data["correctness"])[0]
@@ -753,7 +861,7 @@ def main(args, config):
     dis_sys_val_data["predicted"] = dis_sys_val_predictions
     dis_sys_val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file + "_dis_sys_val_preds.csv", index=False)
 
-    dis_scene_val_predictions,dis_scene_val_loss = validate_model(model,dis_scene_val_data,optimizer,criterion,args,combo)
+    dis_scene_val_predictions,dis_scene_val_loss = validate_model(model,dis_scene_val_data,optimizer,criterion,args,combo,ex_data)
     dis_scene_val_error = dis_scene_val_loss**0.5
     dis_scene_val_p_corr = np.corrcoef(np.array(dis_scene_val_predictions),dis_scene_val_data["correctness"])[0][1]
     dis_scene_val_s_corr = spearmanr(np.array(dis_scene_val_predictions),dis_scene_val_data["correctness"])[0]
@@ -777,7 +885,7 @@ def main(args, config):
     # Test the model
     if args.test_json_file is not None:
         print("Testing model on test set")
-        predictions,test_loss = validate_model(model,test_data,optimizer,criterion,args,combo)
+        predictions,test_loss = validate_model(model,test_data,optimizer,criterion,args,combo,ex_data)
         predictions_fitted = np.asarray(predictions)/100
         #apply the logistic mapping
         predictions_fitted = logit_func(predictions_fitted,a,b)
@@ -839,7 +947,13 @@ if __name__ == "__main__":
         "--feats", help="feats extractor" , default="999",
     )
     parser.add_argument(
+        "--layer", help="layer of feat extractor to use" , default=None, type = int
+    )
+    parser.add_argument(
         "--model", help="model type" , default="999",
+    )
+    parser.add_argument(
+        "--pretrained_feats_model", help="model type" , default=None,
     )
     parser.add_argument(
         "--seed", help="torch seed" , default=999,
@@ -867,6 +981,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--wandb_project", help="W and B project name" , default=None
+    )
+    parser.add_argument(
+        "--use_cmvn", help="include cepstral mean and variance normalisation" , default=False, type=bool
+    )
+    parser.add_argument(
+        "--ex_size", help="train split" , default=1, type=int
     )
 
     args = parser.parse_args()
@@ -925,6 +1045,9 @@ if __name__ == "__main__":
         args.batch_size = config["batch_size"]
     else:
         config["batch_size"] = args.batch_size
+    
+    config["use_cmvn"] = args.use_cmvn
+    config["ex_size"] = args.ex_size
 
     if args.use_CPC1:
         args.wandb_project = "CPC1"
@@ -938,7 +1061,7 @@ if __name__ == "__main__":
         args.dataroot = DATAROOT
         args.wandb_project = "CPC2" if args.wandb_project is None else args.wandb_project
         config["wandb_project"] = args.wandb_project
-        args.in_json_file = f"{DATAROOT}clarity_data/metadata/CEC1.train.{args.N}.json"
+        args.in_json_file = f"{DATAROOT}/metadata/CEC1.train.{args.N}.json"
         config["in_json_file"] = args.in_json_file
         
     if args.summ_file is None:

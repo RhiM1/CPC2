@@ -1,10 +1,8 @@
-from evaluate import load
+from datasets import load_dataset
 
-wer = load("wer")
-predictions = ["this is the prediction", "there is an other sample"]
+DATAROOT = "/home/acp20rm/exp/data/clarity_CPC2_data/clarity_data/"
 
-references = ["this is the reference q", "there is another one"]
+if __name__ == "__main__":
+    dataset = load_dataset(DATAROOT)
 
-wer_score = wer.compute(predictions=[predictions[1]], references=[references[1]])
-
-print(wer_score)
+    print(dataset)

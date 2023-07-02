@@ -5,7 +5,6 @@ import pandas as pd
 import argparse
 import torch
 import numpy as np
-from disjoint_val import get_disjoint_val_set
 # import torchaudio
 # import torchaudio.functional as F
 # import torchaudio.transforms as T
@@ -15,103 +14,46 @@ from torch.utils.data import DataLoader
 import datasets
 from datasets import load_dataset, DatasetDict, Dataset, Audio
 # from sklearn.model_selection import train_test_split
-from disjoint_val import get_disjoint_val_set
+from data_handling import get_disjoint_val_set
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
-import os
 import evaluate
+from process_cpc2_data import get_cpc2_dataset
+from constants import DATAROOT
 
-DATAROOT = "/store/store1/data/clarity_CPC2_data/clarity_data/"
+# DATAROOT = "/store/store1/data/clarity_CPC2_data/clarity_data/"
 # DATAROOT = "/home/acp20rm/exp/data/clarity_CPC2_data/clarity_data/"
 # DATAROOT = "~/exp/data/clarity_CPC2_data/clarity_data/"
 # DATAROOT = "~/exp/data/clarity_CPC2_data/clarity_data/"
 
-
-def get_training_args():
+def get_training_args(args):
     training_args = Seq2SeqTrainingArguments(
-        output_dir="./whisper-small-hi",  # change to a repo name of your choice
-        per_device_train_batch_size=8,
-        gradient_accumulation_steps=2,  # increase by 2x for every 2x decrease in batch size
-        learning_rate=1e-5,
+        output_dir=f"whisper/{args.run_name}",  # change to a repo name of your choice
+        per_device_train_batch_size=args.batch_size,
+        gradient_accumulation_steps=args.gradient_acc,  # increase by 2x for every 2x decrease in batch size
+        learning_rate=args.lr,
         warmup_steps=500,
         max_steps=6000,
-        # max_steps=100,
+        # max_steps=2,
         gradient_checkpointing=True,
         fp16=True,
         evaluation_strategy="steps",
         per_device_eval_batch_size=8,
         predict_with_generate=True,
         generation_max_length=225,
-        # save_steps=50,
+        # save_steps=1,
         save_steps=1000,
-        # eval_steps=50,
+        # eval_steps=1,
         eval_steps=1000,
         logging_steps=25,
-        report_to=["tensorboard"],
+        report_to=["wandb"],
         load_best_model_at_end=True,
         metric_for_best_model="wer",
         greater_is_better=False,
         push_to_hub=False,
+        run_name = args.run_name
     )
     return training_args
-
-
-def prepare_dataset(batch, feature_extractor, tokenizer):
-    
-    # load and resample audio data from 48 to 16kHz
-    audio = batch["audio"]
-
-    # compute log-Mel input features from input audio array 
-    batch["input_features"] = feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"]).input_features[0]
-
-    # encode target text to label ids 
-    batch["labels"] = tokenizer(batch["prompt"]).input_ids
-
-    return batch
-
-def get_cpc2_dataset(args, feature_extractor, tokenizer):
-
-    # if args.disk_data and os.path.exists(DATAROOT + args.data_set_loc):
-    #     data = Dataset.load_from_disk(DATAROOT + args.data_set_loc)
-    # else:
-    data = pd.read_json(args.train_json_file)
-    data["subset"] = "CEC1"
-    data2 = pd.read_json(args.train_json_file.replace("CEC1","CEC2"))
-    data2["subset"] = "CEC2"
-    data = pd.concat([data, data2], ignore_index = True)
-    data2 = None
-    data = data.drop_duplicates(subset = ['signal'], keep = 'last')
-    data["predicted"] = np.nan  # Add column to store intel predictions
-
-    wav_loc_list =[]
-
-    for index, row in data.iterrows():
-        wav_loc_list.append(f"{DATAROOT}HA_outputs/train.{args.N}/{row.subset}/{row.signal}.wav")
-
-    data['audio'] = wav_loc_list
-    data = get_disjoint_val_set(args, data)
-
-    # train_data, val_data = train_test_split(data[data.validation == 0],test_size=0.1)
-
-    data_dict = Dataset.from_pandas(data[data.validation == 0])
-    data_dict = data_dict.train_test_split(test_size = 0.1)
-    data_dict['dis_val'] = Dataset.from_pandas(data[data.validation == 7])
-    data_dict['dis_lis_val'] = Dataset.from_pandas(data[data.validation.isin([1, 3, 5, 7])])
-    data_dict['dis_sys_val'] = Dataset.from_pandas(data[data.validation.isin([2, 3, 6, 7])])
-    data_dict['dis_scene_val'] = Dataset.from_pandas(data[data.validation.isin([4, 5, 6, 7])])
-
-    data_dict = data_dict.cast_column("audio", Audio(sampling_rate = 16000, mono = True))
-
-    fnKwargs = {
-        "feature_extractor": feature_extractor,
-        "tokenizer": tokenizer,
-    }
-    data_dict = data_dict.map(prepare_dataset, num_proc = 4, fn_kwargs = fnKwargs)
-
-        # if args.disk_data:
-        #     data.save_to_disk(DATAROOT + args.data_set_loc)
-
-    return data_dict
 
 
 @dataclass
@@ -121,7 +63,8 @@ class DataCollatorSpeechSeq2SeqWithPadding:
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
         # split inputs and labels since they have to be of different lengths and need different padding methods
         # first treat the audio inputs by simply returning torch tensors
-        input_features = [{"input_features": feature["input_features"]} for feature in features]
+        input_features = [{"input_features": feature["input_features"], "attention_mask": feature["attention_mask"]} for feature in features]
+        # attention_mask = [{"attention_mask": feature["attention_mask"]} for feature in features]
         batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")
 
         # get the tokenized label sequences
@@ -164,37 +107,33 @@ def main(args):
     
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
-
-    feature_extractor = WhisperFeatureExtractor.from_pretrained(
-        args.whisper_model
-    )
-    tokenizer = WhisperTokenizer.from_pretrained(
-        args.whisper_model, 
-        language = args.whisper_language, 
-        task = args.whisper_task
-    )
-
-    data = get_cpc2_dataset(args, feature_extractor = feature_extractor, tokenizer = tokenizer)
-
+    
     processor = WhisperProcessor.from_pretrained(
         args.whisper_model, 
         language = args.whisper_language, 
         task = args.whisper_task
     )
 
-    data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
-
-
-    metric = evaluate.load("wer")
-
     model = WhisperForConditionalGeneration.from_pretrained(args.whisper_model)
     model.config.forced_decoder_ids = None
     model.config.suppress_tokens = []
-    print(model)
+    
+    data = get_cpc2_dataset(args, processor = processor)
 
-    training_args = get_training_args()
+    # data_dict = data.filter(lambda row: row['validation'] == 0).train_test_split(test_size = 0.1)
+    # data_dict['dis_val'] = data.filter(lambda row: row['validation'] > 0)
+    # data_dict['dis_lis_val'] = Dataset.from_pandas(data[data.validation.isin([1, 3, 5, 7])])
+    # data_dict['dis_sys_val'] = Dataset.from_pandas(data[data.validation.isin([2, 3, 6, 7])])
+    # data_dict['dis_scene_val'] = Dataset.from_pandas(data[data.validation.isin([4, 5, 6, 7])])
 
-    compute_metric_fn = compute_metric_with_args(tokenizer, metric)
+    data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
+
+    metric = evaluate.load("wer")
+
+
+    training_args = get_training_args(args)
+
+    compute_metric_fn = compute_metric_with_args(processor.tokenizer, metric)
 
     trainer = Seq2SeqTrainer(
         args = training_args,
@@ -208,28 +147,14 @@ def main(args):
 
     trainer.train()
 
-    # trainer.save_metrics()
-
-    # eval_metrics_test = trainer.evaluate(data["test"])
-    # print(f"Validation metrics:\n{eval_metrics_test}")
-    # eval_metrics_dis_val= trainer.evaluate(data["dis_val"])
-    # print(f"Disjoint validation metrics:\n{eval_metrics_dis_val}")
-    # eval_metrics_dis_lis_val= trainer.evaluate(data["dis_lis_val"])
-    # print(f"Disjoint listener validation metrics:\n{eval_metrics_dis_lis_val}")
-    # eval_metrics_dis_sys_val= trainer.evaluate(data["dis_sys_val"])
-    # print(f"Disjoint system validation metrics:\n{eval_metrics_dis_sys_val}")
-    # eval_metrics_dis_scene_val= trainer.evaluate(data["dis_scene_val"])
-    # print(f"Disjoint scene validation metrics:\n{eval_metrics_dis_scene_val}")
-    # eval_metrics_train = trainer.evaluate(data["train"])
-    # print(f"Training data metrics:\n{eval_metrics_train}")
-    # eval_metrics_all = trainer.evaluate(data)
-    # print(f"Training data metrics:\n{eval_metrics_all}")
-
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     
+    parser.add_argument(
+        "--processed_data_file", help="location of pre-processed datafile" , default="huggingface_data"
+    )
     parser.add_argument(
         "--resample_rate", help="wav resample rate" , default=16000
     )
@@ -257,16 +182,19 @@ if __name__ == "__main__":
 
     ## Training
     parser.add_argument(
-        "--train_json_file", help="JSON file containing the CPC2 test metadata", default = None
+        "--in_json_file", help="JSON file containing the CPC2 test metadata", default = None
     )
     parser.add_argument(
         "--do_train", help="do training", default=False, type=bool
     )
     parser.add_argument(
-        "--lr", help="learning rate", default=999, type=float
+        "--lr", help="learning rate", default=1e-5, type=float
     )
     parser.add_argument(
-        "--batch_size", help="batch size" , default=999, type=int
+        "--gradient_acc", help="learning rate", default=2, type=float
+    )
+    parser.add_argument(
+        "--batch_size", help="batch size" , default=8, type=int
     )
     parser.add_argument(
         "--n_epochs", help="number of epochs", default=0, type=int
@@ -283,7 +211,7 @@ if __name__ == "__main__":
 
     # General
     parser.add_argument(
-        "--exp_id", help="id for individual experiment"
+        "--exp_id", help="id for individual experiment", default = "000"
     )
     parser.add_argument(
         "--seed", help="torch seed" , default=1234,
@@ -299,9 +227,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Train data
-    args.train_json_file = f"{DATAROOT}/metadata/CEC1.train.{args.N}.json"
+    args.in_json_file = f"{DATAROOT}/metadata/CEC1.train.{args.N}.json"
+    args.processed_data_file = f"{DATAROOT}{args.processed_data_file}_N{args.N}"
 
-
+    args.run_name = f"{args.exp_id}_{args.N}_lr{args.lr}_bs{args.batch_size}_ga{args.gradient_acc}"
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     main(args)

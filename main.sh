@@ -1,6 +1,5 @@
 #!/bin/bash
-CUDA_VISIBLE_DEVICES=1 python MAIN_predict_intel_correctness.py /store/store1/data/clarity_CPC2_data/clarity_data/metadata/CEC1.train.1.json save/out.csv 1
-
-
-
-/store/store1/data/clarity_CPC2_data//clarity_data/HA_outputs/train.1/CEC1/S09226_L0200_E037.wav
+CUDA_VISIBLE_DEVICES=0 python MAIN_predict_intel_correctness_feats.py default_config --feats WhisperFull --model LSTM --exp_id 001 --batch_size 2 --layer 11 --n_epochs 1 --skip_wandb
+#CUDA_VISIBLE_DEVICES=0 python MAIN_predict_intel_correctness_feats.py default_config --feats WhisperFull --model LSTM --exp_id 002 --batch_size 2 --layer 10 --n_epochs 1 --skip_wandb
+#CUDA_VISIBLE_DEVICES=0 python MAIN_predict_intel_correctness_feats.py default_config --feats WhisperFull --model ExLSTM --exp_id test --batch_size 2 --layer 10 --n_epochs 1 --skip_wandb --ex_size 8
+#CUDA_VISIBLE_DEVICES=0 python MAIN_predict_intel_correctness_feats.py default_config --feats WhisperEncoder --model ExLSTM --exp_id test --batch_size 2 --layer 11 --n_epochs 1 --skip_wandb --ex_size 8

@@ -4,17 +4,17 @@ import pandas as pd
 import numpy as np
 import random
 
-def make_disjoint_train_set(
-    full_df: pd.DataFrame, test_df: pd.DataFrame
-) -> pd.DataFrame:
-    """Make a disjoint train set for given test samples."""
-    # make sure that the train and test sets are disjoint
-    # i.e. no signals, systems or listeners are shared
-    train_df = full_df[~full_df.signal.isin(test_df.signal)]
-    train_df = train_df[~train_df.system.isin(test_df.system)]
-    train_df = train_df[~train_df.listener.isin(test_df.listener)]
-    assert not set(train_df.signal).intersection(set(test_df.signal))
-    return train_df
+# def make_disjoint_train_set(
+#     full_df: pd.DataFrame, test_df: pd.DataFrame
+# ) -> pd.DataFrame:
+#     """Make a disjoint train set for given test samples."""
+#     # make sure that the train and test sets are disjoint
+#     # i.e. no signals, systems or listeners are shared
+#     train_df = full_df[~full_df.signal.isin(test_df.signal)]
+#     train_df = train_df[~train_df.system.isin(test_df.system)]
+#     train_df = train_df[~train_df.listener.isin(test_df.listener)]
+#     assert not set(train_df.signal).intersection(set(test_df.signal))
+#     return train_df
 
 
 
@@ -55,6 +55,11 @@ def get_disjoint_val_set(args, data):
 
     return data
 
+# def extract_whisper_spec(data, args, theset):
+
+
+
+
 def main(args):
 
     data = pd.read_json(args.in_json_file)
@@ -64,9 +69,9 @@ def main(args):
     data = pd.concat([data, data2])
     data["predicted"] = np.nan  # Add column to store intel predictions
 
-    # print(data[:50])
-
     data = get_disjoint_val_set(args, data)
+
+
 
 if __name__ == "__main__":
 

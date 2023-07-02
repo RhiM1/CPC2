@@ -1,5 +1,5 @@
 {
-  "in_json_file": "/store/store1/data/clarity_CPC2_data/clarity_data/metadata/CEC1.train.1.json",
+  "in_json_file": "metadata/CEC1.train.1.json",
   "N": 1,
   "test_json_file": null,
   "n_epochs": 50,
