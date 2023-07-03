@@ -82,7 +82,7 @@ class WhisperWrapper_encoder(nn.Module):
         self.model = model.encoder
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        print(self.model)
+        # print(self.model)
 
         
     def forward(self, data):
@@ -149,7 +149,7 @@ class WhisperWrapper_full(nn.Module):
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        print(self.model)    
+        # print(self.model)    
     
         
     def forward(self, data):
