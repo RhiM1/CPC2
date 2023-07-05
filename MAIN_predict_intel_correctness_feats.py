@@ -22,6 +22,9 @@ import json
 import csv
 from scipy.stats import spearmanr
 from data_handling import get_disjoint_val_set
+from process_cpc2_data import get_cpc2_dataset
+from transformers import WhisperProcessor
+import random
 
 # from models.huBERT_wrapper import HuBERTWrapper_full,HuBERTWrapper_extractor
 # from models.wav2vec2_wrapper import Wav2Vec2Wrapper_no_helper,Wav2Vec2Wrapper_encoder_only
@@ -90,7 +93,7 @@ def get_mean(scores):
     return torch.Tensor(out_list).unsqueeze(0)
 
 
-def extract_feats(feat_extractor, data, args, theset, combo = False):
+def extract_feats(feat_extractor, data, args, theset, combo = False, save_feats_file = None):
     feat_extractor.eval()
     name_list = data["signal"]
     correctness_list = data["correctness"]
@@ -178,6 +181,14 @@ def extract_feats(feat_extractor, data, args, theset, combo = False):
     else:
         data['feats_l'] = feats_list_l
         data['feats_r'] = feats_list_r
+
+    if save_feats_file is not None:
+        
+        with open(save_feats_file + "_l.txt", "w") as f:
+            f.write("\n".join(" ".join(map(str, feats.flatten())) for feats in feats_list_l))
+        with open(save_feats_file + "_r.txt", "w") as f:
+            f.write("\n".join(" ".join(map(str, feats.flatten())) for feats in feats_list_r))
+        
 
     return data
 
@@ -290,7 +301,7 @@ def validate_model(model,test_data,optimizer,criterion,args,combo,ex_data = None
     if args.exemplar:
         ex_set = get_dynamic_dataset(ex_data)
 
-    my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch)
+    my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
 
     if ex_data is not None:
         # ex_dataloader = iter(DataLoader(ex_data,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch))
@@ -328,7 +339,7 @@ def validate_model(model,test_data,optimizer,criterion,args,combo,ex_data = None
             if ex_data is not None:
                 ex_used += args.ex_size
                 if ex_used > len_ex:
-                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
                     ex_used = args.ex_size
 
                 exemplars = next(ex_dataloader)
@@ -406,7 +417,7 @@ def train_model(model,train_data,optimizer,criterion,args,combo=False,ex_data=No
     if args.exemplar:
         ex_set = get_dynamic_dataset(ex_data)
 
-    my_dataloader = DataLoader(train_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch)
+    my_dataloader = DataLoader(train_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
 
     if ex_data is not None:
         # ex_dataloader = iter(DataLoader(ex_data,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch))
@@ -550,10 +561,15 @@ def save_model(model,opt,epoch,args,val_loss):
 def main(args, config):
     #set up the torch objects
     print("creating model: %s"%args.feats)
+    torch.backends.cudnn.deterministic = True
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
+    random.seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    
     N = args.N
     combo = False
+    use_whisper = False
     if args.feats == "XLSREncoder":
         feat_extractor = XLSREncoder_feats()
         dim_extractor = 512
@@ -607,6 +623,7 @@ def main(args, config):
         hidden_size = 768//2
         activation = nn.LeakyReLU
         att_pool_dim = 768
+        use_whisper = True
 
     elif args.feats == "WhisperFull":  
         # feat_extractor = WhisperFull_feats()
@@ -619,6 +636,7 @@ def main(args, config):
         hidden_size = 768//2
         activation = nn.LeakyReLU
         att_pool_dim = 768
+        use_whisper = True
         
     else:
         print("Feats extractor not recognised")
@@ -636,11 +654,19 @@ def main(args, config):
         else:
             model = MetricPredictorAttenPool(att_pool_dim)
     elif args.model == "ExLSTM":
-        model = ExLSTM(dim_extractor, hidden_size, activation, att_pool_dim)
+        model = ExLSTM(dim_extractor, hidden_size, activation, att_pool_dim, p_factor = args.p_factor)
         args.exemplar = True
     else:
         print("Model not recognised")
         exit(1)
+
+    if args.restart_model is not None:
+        model.load_state_dict(torch.load(args.restart_model))
+
+    if args.restart_model is not None:
+        model.load_state_dict(torch.load(args.restart_model))
+
+
 
     feat_extractor.eval()
     feat_extractor.requires_grad_(False)
@@ -658,10 +684,17 @@ def main(args, config):
             project=args.wandb_project, 
             reinit = True, 
             name = model_name,
-            tags = [f"N{args.N}", f"lr{args.lr}", args.feats, args.model, f"bs{args.batch_size}"]
+            tags = [f"N{args.N}", f"lr{args.lr}", args.feats, args.model, f"bs{args.batch_size}",
+                    f"{'mono' if args.mono else 'stereo'}"]
         )
         if args.exemplar:
             run.tags = run.tags + ("exemplar", f"es{args.ex_size}")
+        if args.restart_model is not None:
+            run.tags = run.tags + ("resumed", )
+        if args.layer is not None:
+            run.tags = run.tags + (f"layer{args.layer}", )
+
+
     
     args.model_dir = model_dir
     if not os.path.exists(model_dir):
@@ -681,6 +714,27 @@ def main(args, config):
     #     data = pd.read_csv("data/xlsrencoder_feats.csv")
     # else:
 
+    # whisper_processor = WhisperProcessor.from_pretrained(
+    #     args.whisper_model, 
+    #     language = args.whisper_language, 
+    #     task = args.whisper_task
+    # )
+    # data = get_cpc2_dataset(args, processor = whisper_processor, save_to_disk = False, debug = True, mono = False)
+    # train_data = data["train"].to_pandas()
+    # # print(train_data.head)
+    # val_data = data["test"].to_pandas()
+    # # print(val_data.head)
+    # dis_val_data = data["dis_val"].to_pandas()
+
+    # for col in train_data.columns:
+    #     print(col)
+    # print(train_data.iloc[0]["signal"])
+
+    debug_data = False
+    save_feats = False
+    save_feats_file = f"{args.dataroot}{args.feats}_{args.layer}_N{args.N}"
+
+
     data = pd.read_json(args.in_json_file)
     data["subset"] = "CEC1"
     # data = data[0:10]
@@ -689,18 +743,57 @@ def main(args, config):
         data2["subset"] = "CEC2"
         # data2 = data2[0:10]
         data = pd.concat([data, data2])
+    data = data.drop_duplicates(subset = ['signal'], keep = 'last')
     data["predicted"] = np.nan  # Add column to store intel predictions
+    # for col in data.columns:
+    #     print(col)
+    # print(data.iloc[0]["signal"])
 
+
+    if debug_data:
+
+        _, data = train_test_split(data, test_size = 0.01)
     
-    # _, data = train_test_split(data, test_size = 0.01)
+    if os.path.exists(save_feats_file + "_l.txt"):
 
-    feat_extractor.to(args.device)
-    theset = "train_indep" if args.use_CPC1 else "train"
-    data = extract_feats(feat_extractor, data, args, theset, combo)
-    feat_extractor.to('cpu')
+        print("Loading feats from file...")
+        
+        with open(save_feats_file + "_l.txt", "r") as f:
+            feats_l = f.readlines()
+        with open(save_feats_file + "_r.txt", "r") as f:
+            feats_r = f.readlines()
+
+        feats_l = [np.fromstring(feats, dtype=float, sep=' ') for feats in feats_l]
+        feats_l = [feats.reshape(1, len(feats) // 768, 768) for feats in feats_l]
+        feats_r = [np.fromstring(feats, dtype=float, sep=' ') for feats in feats_r]
+        feats_r = [feats.reshape(1, len(feats) // 768, 768) for feats in feats_r]
+
+        data['feats_l'] = feats_l
+        data['feats_r'] = feats_r
+
+    else:
+        if not save_feats:
+            save_feats_file = None
+
+        feat_extractor.to(args.device)
+        theset = "train_indep" if args.use_CPC1 else "train"
+        data = extract_feats(feat_extractor, data, args, theset, combo, save_feats_file = save_feats_file)
+        feat_extractor.to('cpu')
+        # data.to_csv(save_feats_file)
+        
+
+        # if save_feats:
+        #     data.to_csv(save_feats_file)
+
+        
+    torch.backends.cudnn.deterministic = True
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    random.seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+
+
     data = get_disjoint_val_set(args, data)
-
-    # print(data[:50])
 
     # Split into train and val sets
     dis_val_data = data[data.validation == 7].copy()
@@ -708,6 +801,7 @@ def main(args, config):
     dis_sys_val_data = data[data.validation.isin([2, 3, 6, 7])].copy()
     dis_scene_val_data = data[data.validation.isin([4, 5, 6, 7])].copy()
     train_data,val_data = train_test_split(data[data.validation == 0],test_size=0.1)
+
     #TODO set up validation to partition on scene
     if args.test_json_file is not None:
         test_data = pd.read_json(args.test_json_file)
@@ -723,43 +817,6 @@ def main(args, config):
     print("Trainset: %s\nValset: %s\nDisValset: %s\nDisLisValset: %s\nDisSysValset: %s\nDisSceneValset: %s\nTestset: %s "%(train_data.shape[0],val_data.shape[0],dis_val_data.shape[0],dis_lis_val_data.shape[0],dis_sys_val_data.shape[0],dis_scene_val_data.shape[0],test_data.shape[0]))
     print("=====================================")
 
-    # shuffle the training data
-    # if args.exemplar:
-    #     ex_data = train_data.sample(n = config["minerva_config"]["num_ex"])
-    #     ex_data = get_dynamic_dataset(ex_data)
-    #     ex_dataloader = DataLoader(ex_data,config['minerva_config']['num_ex'],collate_fn=sb.dataio.batch.PaddedBatch)
-    #     for batch_id, batch in enumerate(ex_dataloader):
-    #         print(f"batch_id: {batch_id}")
-    #         ex_targets, ex_feats_l, ex_feats_r = batch
-    #         correctness = correctness.data
-    #         ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
-    #             ex_feats_l.data, 
-    #             (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
-    #             batch_first=True,
-    #             enforce_sorted = False
-    #         )
-    #         ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
-    #             ex_feats_r.data, 
-    #             (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
-    #             batch_first=True,
-    #             enforce_sorted = False
-    #         )
-    #         # correctness = correctness.data
-    #         # feats_l = feats_l.data
-    #         # feats_r = feats_r.data
-
-    #     print(f"correctness:\n{ex_targets}")
-    #     print(f"feats_l:\n{ex_feats_l}")
-    #     print(f"feats_r:\n{ex_feats_r}")
-
-    #     print(f"correctness.size: {ex_targets.size()}, feat_l.size: {ex_feats_l.data.size()}, feats_r.size: {ex_feats_r.data.size()}")
-
-    #     model.minerva.set_exemplars(
-    #         ex_features_l = ex_feats_l,
-    #         ex_features_r = ex_feats_r,
-    #         ex_targets = ex_targets
-    #     )
-
     if args.exemplar:
         ex_data = train_data
         print("Using training data for exemplars")
@@ -768,20 +825,12 @@ def main(args, config):
 
     train_data = train_data.sample(frac=1).reset_index(drop=True)
 
-
-
-      
-    # use this line for testing :) 
-    #train_data = train_data[:50]
-    #test_data = test_data[:50]
-    #val_data = val_data[:50]
-
     model = model.to(args.device)
 
     if args.do_train:
         print("Starting training of model: %s\nlearning rate: %s\nseed: %s\nepochs: %s\nsave location: %s/"%(args.model,args.lr,args.seed,args.n_epochs,args.model_dir))
         print("=====================================")
-        for epoch in range(args.n_epochs):
+        for epoch in range(args.restart_epoch, args.n_epochs + args.restart_epoch):
 
 
             model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,combo,ex_data=ex_data)
@@ -835,7 +884,7 @@ def main(args, config):
     val_s_corr = spearmanr(np.array(val_predictions),val_data["correctness"])[0]
     val_std = std_err(np.array(val_predictions), val_data["correctness"])
     val_data["predicted"] = val_predictions
-    val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file + "_val_preds.csv", index=False)
+    val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_val_preds.csv", index=False)
 
     dis_val_predictions,dis_val_loss = validate_model(model,dis_val_data,optimizer,criterion,args,combo,ex_data)
     dis_val_error = dis_val_loss**0.5
@@ -843,7 +892,7 @@ def main(args, config):
     dis_val_s_corr = spearmanr(np.array(dis_val_predictions),dis_val_data["correctness"])[0]
     dis_val_std = std_err(np.array(dis_val_predictions), dis_val_data["correctness"])
     dis_val_data["predicted"] = dis_val_predictions
-    dis_val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file + "_dis_val_preds.csv", index=False)
+    dis_val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_val_preds.csv", index=False)
 
     dis_lis_val_predictions,dis_lis_val_loss = validate_model(model,dis_lis_val_data,optimizer,criterion,args,combo,ex_data)
     dis_lis_val_error = dis_lis_val_loss**0.5
@@ -851,7 +900,7 @@ def main(args, config):
     dis_lis_val_s_corr = spearmanr(np.array(dis_lis_val_predictions),dis_lis_val_data["correctness"])[0]
     dis_lis_val_std = std_err(np.array(dis_lis_val_predictions), dis_lis_val_data["correctness"])
     dis_lis_val_data["predicted"] = dis_lis_val_predictions
-    dis_lis_val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file + "_dis_lis_val_preds.csv", index=False)
+    dis_lis_val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_lis_val_preds.csv", index=False)
 
     dis_sys_val_predictions,dis_sys_val_loss = validate_model(model,dis_sys_val_data,optimizer,criterion,args,combo,ex_data)
     dis_sys_val_error = dis_sys_val_loss**0.5
@@ -859,7 +908,7 @@ def main(args, config):
     dis_sys_val_s_corr = spearmanr(np.array(dis_sys_val_predictions),dis_sys_val_data["correctness"])[0]
     dis_sys_val_std = std_err(np.array(dis_sys_val_predictions), dis_sys_val_data["correctness"])
     dis_sys_val_data["predicted"] = dis_sys_val_predictions
-    dis_sys_val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file + "_dis_sys_val_preds.csv", index=False)
+    dis_sys_val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_sys_val_preds.csv", index=False)
 
     dis_scene_val_predictions,dis_scene_val_loss = validate_model(model,dis_scene_val_data,optimizer,criterion,args,combo,ex_data)
     dis_scene_val_error = dis_scene_val_loss**0.5
@@ -867,7 +916,7 @@ def main(args, config):
     dis_scene_val_s_corr = spearmanr(np.array(dis_scene_val_predictions),dis_scene_val_data["correctness"])[0]
     dis_scene_val_std = std_err(np.array(dis_scene_val_predictions), dis_scene_val_data["correctness"])
     dis_scene_val_data["predicted"] = dis_scene_val_predictions
-    dis_scene_val_data[["scene", "listener", "system", "predicted"]].to_csv(args.out_csv_file + "_dis_scene_val_preds.csv", index=False)
+    dis_scene_val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_scene_val_preds.csv", index=False)
 
     
     #normalise the predictions
@@ -956,6 +1005,12 @@ if __name__ == "__main__":
         "--pretrained_feats_model", help="model type" , default=None,
     )
     parser.add_argument(
+        "--restart_model", help="model type" , default=None,
+    )
+    parser.add_argument(
+        "--restart_epoch", help="model type" , default=0, type = int
+    )
+    parser.add_argument(
         "--seed", help="torch seed" , default=999,
     )
     parser.add_argument(
@@ -986,7 +1041,40 @@ if __name__ == "__main__":
         "--use_cmvn", help="include cepstral mean and variance normalisation" , default=False, type=bool
     )
     parser.add_argument(
-        "--ex_size", help="train split" , default=1, type=int
+        "--ex_size", help="train split" , default=8, type=int
+    )
+    parser.add_argument(
+        "--whisper_model", help="location of configuation json file", default = "openai/whisper-small"
+    )
+    parser.add_argument(
+        "--whisper_language", help="location of configuation json file", default = "English"
+    )
+    parser.add_argument(
+        "--whisper_task", help="location of configuation json file", default = "transcribe"
+    )
+    parser.add_argument(
+        "--processed_data_file", help="location of pre-processed datafile" , default=f"huggingface_data"
+    )
+    parser.add_argument(
+        "--mono", help="combine into mono" , default=False, type=bool
+    )
+    parser.add_argument(
+        "--p_factor", help="combine into mono" , default=1, type=int
+    )
+    parser.add_argument(
+        "--whisper_model", help="location of configuation json file", default = "openai/whisper-small"
+    )
+    parser.add_argument(
+        "--whisper_language", help="location of configuation json file", default = "English"
+    )
+    parser.add_argument(
+        "--whisper_task", help="location of configuation json file", default = "transcribe"
+    )
+    parser.add_argument(
+        "--processed_data_file", help="location of pre-processed datafile" , default=f"huggingface_data"
+    )
+    parser.add_argument(
+        "--mono", help="combine into mono" , default=False, type=bool
     )
 
     args = parser.parse_args()
@@ -999,6 +1087,8 @@ if __name__ == "__main__":
 
     config["N"] = args.N
     args.exemplar = config["exemplar"]
+    config["layer"] = args.layer
+    config["p_factor"] = args.p_factor
 
     if args.test_json_file is None:
         args.test_json_file = config["test_json_file"]
@@ -1072,6 +1162,7 @@ if __name__ == "__main__":
 
     args.out_csv_file = f"save/{args.exp_id}_N{args.N}_{args.feats}_{args.model}"
     config["out_csv_file"] = args.out_csv_file
+    args.processed_data_file = f"{DATAROOT}{args.processed_data_file}_N{args.N}"
     
     config["device"] = args.device
 

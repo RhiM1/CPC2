@@ -82,7 +82,7 @@ class WhisperWrapper_encoder(nn.Module):
         self.model = model.encoder
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        print(self.model)
+        # print(self.model)
 
         
     def forward(self, data):
@@ -134,7 +134,10 @@ class WhisperWrapper_full(nn.Module):
         super().__init__(*args, **kwargs)
 
         self.use_feat_extractor = use_feat_extractor
-        self.layer = layer
+        if layer is None:
+            self.layer = 12
+        else:
+            self.layer = layer
 
         if use_feat_extractor:
             self.feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-small")
@@ -145,11 +148,9 @@ class WhisperWrapper_full(nn.Module):
             self.model = WhisperModel.from_pretrained(pretrained_model)
             # self.model = WhisperForConditionalGeneration.from_pretrained(pretrained_model)
 
-        
-
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        print(self.model)    
+        # print(self.model)    
     
         
     def forward(self, data):
@@ -163,52 +164,78 @@ class WhisperWrapper_full(nn.Module):
 
         # print(f"wrapper feats:\n{data.size()}")
 
-        if self.layer is None:
-            data = self.model(
-                input_features = data, 
-                # attention_mask = data['attention_mask'],
-                return_dict = True
-            )
-            data = data[0]
-        else:
-            # transcript = self.model.generate(
-            #     input_features = data, 
-            #     # decoder_input_ids = torch.tensor([[1, 1]], device = self.device) * self.model.config.decoder_start_token_id,
-            #     # # attention_mask = data['attention_mask'],
-            #     # return_dict = True,
-            #     # output_hidden_states = True
-            # )
-            data = self.model(
-                input_features = data, 
-                decoder_input_ids = torch.tensor([[1, 1]], device = self.device) * self.model.config.decoder_start_token_id,
-                # attention_mask = data['attention_mask'],
-                return_dict = True,
-                output_hidden_states = True
-            )
-            # past_keys = data.past_key_values
+        outputs = self.model.generate(
+            input_features = data,
+            output_hidden_states = True,
+            return_dict_in_generate = True
+        )
 
-            # print("\nPast keys:")
-            # print(f"1st layer: {len(past_keys)}")
-            # print(f"2nd layer: {len(past_keys[0])}")
-            # print(past_keys[0][0].size())
-            # encoder_hidden = data.encoder_hidden_states[self.layer]
-            decoder_hidden = data.decoder_hidden_states[self.layer]
-            # print(f"wrapper encoder layer:\n{encoder_hidden.size()}")
-            # print(f"wrapper decoder layer:\n{decoder_hidden.size()}")
-            # print(f"wrapper transcript:\n{transcript}")
+        decoder_hidden = torch.stack([outputs.decoder_hidden_states[word][self.layer][0][0] for word in range(len(outputs.decoder_hidden_states))])
+        decoder_hidden = decoder_hidden.unsqueeze(0)
+        # print(outputs.sequences)
+        # print(decoder_hidden)
+        # print(decoder_hidden.size())
+        # quit()
+        # print(outputs.sequences)
+        # print(f"sequences[0]: {len(outputs.sequences[0])}")
+        # print(f"decoder_hidden_states: {len(outputs.decoder_hidden_states)}")
+        # # print(f"decoder_hidden_states[0]: {transcript.decoder_hidden_states[0]}")
+        # print(f"decoder_hidden_states[0]: {len(outputs.decoder_hidden_states[17])}")
+        # print(f"decoder_hidden_states[0][0]: {len(outputs.decoder_hidden_states[17][12])}")
+        # print(f"decoder_hidden_states[0][0][0]: {len(outputs.decoder_hidden_states[17][12][0])}")
+        # print(f"decoder_hidden_states[0][0][0][0]: {len(outputs.decoder_hidden_states[17][12][0][0])}")
 
-            # print(data)
+        # print(f"decoder_hidden_states[0][0][1]: {len(transcript.decoder_hidden_states[0][0][1])}")
+        # print(f"decoder_hidden_states[0]: {len(transcript.sequences[0])}")
+        # print(f"decoder_hidden_states[0][0]: {transcript.sequences[0][0]}")
+        # print(f"decoder_hidden_states[0][0]: {len(transcript.sequences[18])}")
+
+        # if self.layer is None:
+        #     data = self.model(
+        #         input_features = data, 
+        #         # attention_mask = data['attention_mask'],
+        #         return_dict = True
+        #     )
+        #     data = data[0]
+        # else:
+        #     # transcript = self.model.generate(
+        #     #     input_features = data, 
+        #     #     # decoder_input_ids = torch.tensor([[1, 1]], device = self.device) * self.model.config.decoder_start_token_id,
+        #     #     # # attention_mask = data['attention_mask'],
+        #     #     # return_dict = True,
+        #     #     # output_hidden_states = True
+        #     # )
+        #     data = self.model(
+        #         input_features = data, 
+        #         decoder_input_ids = torch.tensor([[1, 1]], device = self.device) * self.model.config.decoder_start_token_id,
+        #         # attention_mask = data['attention_mask'],
+        #         return_dict = True,
+        #         output_hidden_states = True
+        #     )
+        #     # past_keys = data.past_key_values
+
+        #     # print("\nPast keys:")
+        #     # print(f"1st layer: {len(past_keys)}")
+        #     # print(f"2nd layer: {len(past_keys[0])}")
+        #     # print(past_keys[0][0].size())
+        #     # encoder_hidden = data.encoder_hidden_states[self.layer]
+        #     decoder_hidden = data.decoder_hidden_states[self.layer]
+        #     # print(f"wrapper encoder layer:\n{encoder_hidden.size()}")
+        #     # print(f"wrapper decoder layer:\n{decoder_hidden.size()}")
+        #     # print(f"wrapper transcript:\n{transcript}")
+
+        #     # print(data)
 
 
-            # for layerID, layer in enumerate(data):
-            #     print(layerID, layer.size())
-            # quit()
-            # print(data)
-            # print(data["hidden_states"])
-            # print(f"\nnum hidden states:\n{len(data['hidden_states'])}\n")
-            # print(f"\nhidden state 0 size:\n{data['hidden_states'][0].size()}\n")
-            # quit()
-        # data = self.model(data)
+        #     # for layerID, layer in enumerate(data):
+        #     #     print(layerID, layer.size())
+        #     # quit()
+        #     # print(data)
+        #     # print(data["hidden_states"])
+        #     # print(f"\nnum hidden states:\n{len(data['hidden_states'])}\n")
+        #     # print(f"\nhidden state 0 size:\n{data['hidden_states'][0].size()}\n")
+        #     # quit()
+        # # data = self.model(data)
         return decoder_hidden
 
 

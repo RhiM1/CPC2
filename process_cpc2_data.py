@@ -3,41 +3,76 @@ import pandas as pd
 import argparse
 import torch
 import numpy as np
-from disjoint_val import get_disjoint_val_set
+from data_handling import get_disjoint_val_set
 from torch.utils.data import Dataset
 import datasets
 from datasets import load_dataset, Dataset, Audio
 import os
 from torchaudio.transforms import SlidingWindowCmn
+import torchaudio.transforms as T
+import speechbrain as sb
 
 from constants import DATAROOT, DATAROOT_CPC1
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+resampler = T.Resample(32000, 16000).to(device)
 
-def prepare_dataset(batch, processor, cmvn = None):
+def add_to_prepare_dataset(path):
+
+    wavs = sb.dataio.dataio.read_audio_multichannel() 
+
+    wavs_l = wavs[:,:,0]
+    wavs_r = wavs[:,:,1]
+    wavs_l = resampler(wavs_l)
+    wavs_r = resampler(wavs_r)
+    #print(wavs_l.shape,wavs_r.shape)
+    return wavs_l,wavs_r
+
+
+def prepare_dataset(batch, processor, mono = True):
     
     # load and resample audio data from 48 to 16kHz
     audio = batch["audio"]
     # print(f"audio shape: {audio['array'].shape}")
     # compute log-Mel input features from input audio array 
-    processed_audio = processor.feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"], return_attention_mask = True)
+    if mono:
+        print(audio["array"].shape)
+        # print(audio["array"])
+        # print(audio)
+        processed_audio = processor.feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"], return_attention_mask = True)
+        batch["input_features"] = processed_audio.input_features[0]
+        batch["attention_mask"] = processed_audio.attention_mask
+        print(processed_audio.input_features[0].shape)
+        # print(processed_audio.input_features.shape)
+        # print(processed_audio.shape)
+    else:
+        print(audio["array"].shape)
+        print(audio["array"][0].shape)
+        # print(audio["array"][0])
+        # print(audio["array"][1].shape)
+        # print(audio)
+        processed_audio_l = processor.feature_extractor(audio["array"][0], sampling_rate=audio["sampling_rate"], return_attention_mask = True)
+        # processed_audio_r = processor.feature_extractor(audio["array"][1], sampling_rate=audio["sampling_rate"], return_attention_mask = True)
+        batch["input_features"] = processed_audio_l.input_features[0]
+        # batch["input_features_r"] = processed_audio_r.input_features[0]
+        batch["attention_mask"] = processed_audio_l.attention_mask
+        print(processed_audio_l.input_features[0].shape)
+    
+    print(batch["input_features"])
+    
+
+
     # print(processed_audio)
     # print(f"attention_mask shape: {processed_audio.attention_mask.shape}")
-    batch["input_features"] = processed_audio.input_features[0]
-    batch["attention_mask"] = processed_audio.attention_mask
     # print(processed_audio.input_features.shape)
     # print(processed_audio.input_features[0])
     # print()
-    if cmvn is not None:
-        # print(f"new_audio 1 size: {new_audio.size()}")
-        batch["cmvn"] = cmvn(torch.tensor(batch["input_features"])).numpy()
-        # print(f"batch['cmvn']: {batch['cmvn'].shape}")
-        # print(f"input: {len(batch['input_features'])}, {batch['input_features'].shape}, {batch['input_features'].min()}, {batch['input_features'].max()}\n{batch['input_features']}")
-        # print(f"cmvn : {len(batch['cmvn'])}, {batch['cmvn'].shape}\n{batch['cmvn']}\n")
-    else:
-        new_audio = audio["array"]
+    # print("Done mono/stero bit")
 
     # encode target text to label ids 
     batch["labels"] = processor.tokenizer(batch["prompt"]).input_ids
+
+    print("prompt tokenized")
 
     return batch
 
@@ -45,7 +80,7 @@ def prepare_dataset(batch, processor, cmvn = None):
 
 
 
-def get_cpc2_dataset(args, processor, save_to_disk = False, return_pd = False, debug = False):
+def get_cpc2_dataset(args, processor, save_to_disk = False, return_pd = False, debug = False, mono = True):
 
     print(f"processed data file location: {args.processed_data_file}")
 
@@ -84,16 +119,10 @@ def get_cpc2_dataset(args, processor, save_to_disk = False, return_pd = False, d
             data_dict['dis_val'] = Dataset.from_dict(data_dict['dis_val'][0:10])
 
         # data = Dataset.from_pandas(data)
-        data_dict = data_dict.cast_column("audio", Audio(sampling_rate = 16000, mono = True))
+        data_dict = data_dict.cast_column("audio", Audio(sampling_rate = 16000, mono = mono))
 
-
-
-        if args.use_cmvn:
-            cmvn = SlidingWindowCmn(cmn_window = 10000, center = True, norm_vars = True)
-        else:
-            cmvn = None
-
-        fnKwargs = {"processor": processor, "cmvn": cmvn}
+        # fnKwargs = {"processor": processor, "cmvn": cmvn, "mono": mono}
+        fnKwargs = {"processor": processor, "mono": mono}
         data_dict = data_dict.map(prepare_dataset, num_proc = 1, fn_kwargs = fnKwargs)
 
         data_dict = data_dict.remove_columns(['audio'])

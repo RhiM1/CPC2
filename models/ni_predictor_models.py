@@ -18,7 +18,7 @@ class Minerva(torch.nn.Module):
     '''
     PoolAttFF: Attention-Pooling module with additonal feed-forward network.
     '''         
-    def __init__(self, input_dim, rep_dim = None):
+    def __init__(self, input_dim, p_factor = 1, rep_dim = None):
         super().__init__()
 
         if rep_dim is None:
@@ -26,6 +26,7 @@ class Minerva(torch.nn.Module):
 
         self.Wx = nn.Linear(input_dim, rep_dim)
         self.Wd = nn.Linear(input_dim, rep_dim)
+        self.p_factor = p_factor
 
         self.Wr = nn.Linear(1,1)
         
@@ -42,19 +43,38 @@ class Minerva(torch.nn.Module):
         
         # a has dim (batch_size, num_ex)
         a = torch.matmul(Xw, torch.transpose(Dw, dim0 = -2, dim1 = -1))
+        print(f"a:\n{a}\n")
+        # print(f"a size: {a.size()}")
+        a = self.activation(a)
+        print(f"a:\n{a}\n")
+        # print(f"a size: {a.size()}")
+        a = nn.functional.normalize(a, dim = 1, p = 1)
+        print(f"a:\n{a}\n")
+        # print(f"a size: {a.size()}")
 
         # print(f"Xw size: {Xw.size()}")
         # print(f"Dw size: {Dw.size()}")
-        # print(f"a size: {a.size()}")
 
         # R has dim (num_ex, 1)
         # R = r.unsqueeze(1)
 
         # print(f"R size: {R.size()}")
         # predicts has dim (batch_size, 1)
-        predicts = torch.matmul(a, R)
+        echo = torch.matmul(a, R) / R.sum()
+        print(f"echo:\n{echo}\n")
+        print(f"R:\n{R}\n")
+        # echo = torch.clamp(echo, min = 0, max = 1)
+        # print(f"echo: {echo}")
+        # print(f"echo size: {echo.size()}")
         
-        return self.Wr(predicts)
+        return echo
+    
+    def activation(self, s, p_factor = None):
+
+        if p_factor is None:
+            p_factor = self.p_factor
+
+        return torch.mul(torch.pow(torch.abs(s), p_factor), torch.sign(s))
 
 
 
@@ -75,7 +95,7 @@ class ExLSTM(nn.Module):
     """
 
     def __init__(
-        self, dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU, att_pool_dim=512, use_lstm = True
+        self, dim_extractor=512, hidden_size=512//2, activation=nn.LeakyReLU, att_pool_dim=512, use_lstm = True, p_factor = 1
     ):
         super().__init__()
 
@@ -94,7 +114,7 @@ class ExLSTM(nn.Module):
             )
         
         self.attenPool = PoolAttFF(att_pool_dim, output_dim = att_pool_dim)
-        self.minerva = Minerva(att_pool_dim)
+        self.minerva = Minerva(att_pool_dim, p_factor = p_factor)
         
         self.sigmoid = nn.Sigmoid()
 
