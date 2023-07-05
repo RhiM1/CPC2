@@ -1062,6 +1062,27 @@ if __name__ == "__main__":
         "--p_factor", help="combine into mono" , default=1, type=int
     )
     parser.add_argument(
+        "--processed_data_file", help="location of pre-processed datafile" , default=f"huggingface_data"
+    )
+    parser.add_argument(
+        "--mono", help="combine into mono" , default=False, type=bool
+    )
+    parser.add_argument(
+        "--whisper_model", help="location of configuation json file", default = "openai/whisper-small"
+    )
+    parser.add_argument(
+        "--whisper_language", help="location of configuation json file", default = "English"
+    )
+    parser.add_argument(
+        "--whisper_task", help="location of configuation json file", default = "transcribe"
+    )
+    parser.add_argument(
+        "--processed_data_file", help="location of pre-processed datafile" , default=f"huggingface_data"
+    )
+    parser.add_argument(
+        "--mono", help="combine into mono" , default=False, type=bool
+    )
+    parser.add_argument(
         "--whisper_model", help="location of configuation json file", default = "openai/whisper-small"
     )
     parser.add_argument(
