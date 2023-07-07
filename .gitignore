@@ -1,7 +1,5 @@
 data/*
-save/*model*
-save/*opt*
-save_*/
+save/*
 models/__pycache__*
 whisper/*
 exp*
