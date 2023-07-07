@@ -1,3 +1,7 @@
 data/*
 save/*model*
 save/*opt*
+save_*/
+models/__pycache__*
+whisper/*
+exp*
