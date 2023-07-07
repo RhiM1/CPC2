@@ -2,4 +2,4 @@ data/*
 save/*
 models/__pycache__*
 whisper/*
-exp*
+exp/*
