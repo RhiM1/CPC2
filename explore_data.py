@@ -3,6 +3,7 @@ import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from constants import DATAROOT, DATAROOT_CPC1
 
 def plot_correctness_histogram(args, data):
 
@@ -129,17 +130,16 @@ def get_listener_stats(args, data):
     #         print(f"unique scenes for CEC{CEC} N{N}:\n{unique_scenes}")
 
 
-    
-
-
-
 
 def main(args):
     
     datas = []
     for CEC in args.CEC:
         for N in args.N:
-            json_in = f"{args.train_dir}CEC{CEC}.train.{N}.json"
+            if args.eval_data:
+                json_in = f"{args.meta_dir}CEC{CEC}.test.{N}.json"
+            else:
+                json_in = f"{args.meta_dir}CEC{CEC}.train.{N}.json"
             data = pd.read_json(json_in)
             data["CEC"] = f"CEC{CEC}"
             data["N"] = f"N{N}"
@@ -154,7 +154,7 @@ def main(args):
     # plot_listener_boxplots(args, data)
 
     # get_listener_stats(args, data)
-    plot_scene_boxplots(args, data)
+    # plot_scene_boxplots(args, data)
 
     # fig, axs = plt.subplots(nrows=2, ncols=2)
     # datas[0].boxplot(column = "correctness", by = "listener", ax = axs[0, 0])
@@ -171,9 +171,10 @@ if __name__ == "__main__":
         "--model", help="model type" , default="999", type=str
     )
     parser.add_argument(
-        # "--json_dir", help="Directory of metadata json files" , default="/store/store1/data/clarity_CPC2_data/clarity_data/metadata/", type=str
-        # "--train_dir", help="Directory of metadata json files" , default="~/data/clarity_CPC2_data/clarity_data/metadata/", type=str
-        "--train_dir", help="Directory of metadata json files" , default="/home/acp20rm/exp/data/clarity_CPC2_data/clarity_data/metadata/", type=str
+        "--meta_dir", help="Directory of metadata json files" , default=DATAROOT + "metadata/", type=str
+    )
+    parser.add_argument(
+        "--eval_data", help="Explore evaluation set rather than test set", default=False, action='store_true'
     )
     parser.add_argument(
         # "--json_dir", help="Directory of metadata json files" , default="/store/store1/data/clarity_CPC2_data/clarity_data/metadata/", type=str

@@ -1,0 +1,141 @@
+{
+    "os": "Linux-5.10.60.1-microsoft-standard-WSL2-x86_64-with-glibc2.17",
+    "python": "3.8.16",
+    "heartbeatAt": "2023-07-08T07:42:01.331770",
+    "startedAt": "2023-07-08T07:42:00.525479",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--feats",
+        "WhisperFull",
+        "--model",
+        "LSTM_layers",
+        "--N",
+        "1",
+        "--exp_id",
+        "test",
+        "--batch_size",
+        "2",
+        "--layer",
+        "-1",
+        "--n_epochs",
+        "1",
+        "--debug"
+    ],
+    "state": "running",
+    "program": "MAIN_predict_intel_correctness_feats.py",
+    "codePath": "MAIN_predict_intel_correctness_feats.py",
+    "git": {
+        "remote": "https://github.com/RhiM1/CPC2.git",
+        "commit": "542469b6c488aba6a873fb5e1867538012a86825"
+    },
+    "email": "rmogridg1@sheffield.ac.uk",
+    "root": "/home/acp20rm/exp/CPC2",
+    "host": "RhiBot",
+    "username": "acp20rm",
+    "executable": "/home/acp20rm/miniconda3/envs/whisper/bin/python",
+    "cpu_count": 8,
+    "cpu_count_logical": 16,
+    "cpu_freq": {
+        "current": 3791.997000000001,
+        "min": 0.0,
+        "max": 0.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3791.997,
+            "min": 0.0,
+            "max": 0.0
+        }
+    ],
+    "disk": {
+        "total": 250.98248672485352,
+        "used": 217.81048202514648
+    },
+    "gpu": "NVIDIA GeForce RTX 3080",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3080",
+            "memory_total": 10737418240
+        }
+    ],
+    "memory": {
+        "total": 15.557411193847656
+    }
+}

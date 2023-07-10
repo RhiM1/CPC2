@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 # try: #look in two places for the HuBERT wrapper
-from models.huBERT_wrapper import HuBERTWrapper_full,HuBERTWrapper_extractor, WhisperWrapper_encoder, WhisperWrapper_full
+from models.huBERT_wrapper import HuBERTWrapper_full,HuBERTWrapper_extractor, WhisperWrapper_encoder, WhisperWrapper_full, WhisperWrapperBase
 from models.wav2vec2_wrapper import Wav2Vec2Wrapper_no_helper,Wav2Vec2Wrapper_encoder_only
 from models.llama_wrapper import LlamaWrapper
 # except:
@@ -120,6 +120,25 @@ class WhisperFull_feats(nn.Module):
         super().__init__()
         
         self.feat_extract = WhisperWrapper_full(
+            layer = layer,
+            pretrained_model = pretrained_model,
+            use_feat_extractor = use_feat_extractor
+        )
+
+    def forward(self, x):
+
+        x = self.feat_extract(x)#.permute(0,2,1)
+        # print(f"whisperencoder_feats: {x.size()}")
+
+        return x
+    
+
+class WhisperBase_feats(nn.Module):
+
+    def __init__(self, layer = None, use_feat_extractor = False, pretrained_model = None):
+        super().__init__()
+        
+        self.feat_extract = WhisperWrapperBase(
             layer = layer,
             pretrained_model = pretrained_model,
             use_feat_extractor = use_feat_extractor

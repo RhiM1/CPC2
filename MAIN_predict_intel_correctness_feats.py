@@ -25,9 +25,11 @@ from data_handling import get_disjoint_val_set
 from process_cpc2_data import get_cpc2_dataset
 from transformers import WhisperProcessor
 import random
-from models.ni_predictor_models import MetricPredictorLSTM, MetricPredictorAttenPool, ExLSTM, MetricPredictorLSTM_layers
+from models.ni_predictor_models import MetricPredictorLSTM, MetricPredictorAttenPool, ExLSTM, \
+    MetricPredictorLSTM_layers, ExLSTM_layers
 from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, \
-    HuBERTEncoder_feats, HuBERTFull_feats, WhisperEncoder_feats, WhisperFull_feats
+    HuBERTEncoder_feats, HuBERTFull_feats, WhisperEncoder_feats, WhisperFull_feats, WhisperBase_feats
+from exemplar import get_ex_set
 
 from constants import DATAROOT, DATAROOT_CPC1
 
@@ -177,13 +179,30 @@ def extract_feats(feat_extractor, data, args, theset, save_feats_file = None):
     data['feats_l'] = feats_list_l
     data['feats_r'] = feats_list_r
 
+    # print(f"size 0 l: {feats_list_l[0]}")
+    # print(f"size 0 r: {feats_list_r[0]}")
+    print(f"size 0 l: {feats_list_l[0].shape}")
+    print(f"size 0 r: {feats_list_r[0].shape}")
+    # print(f"one layer size 0 l: {feats_list_l[0][:, :, :, 0].shape}")
+    # print(f"one layer size 0 r: {feats_list_r[0][:, :, :, 0].shape}")
+
+
     if save_feats_file is not None:
-        
-        with open(save_feats_file + "_l.txt", "w") as f:
-            f.write("\n".join(" ".join(map(str, feats.flatten())) for feats in feats_list_l))
-        with open(save_feats_file + "_r.txt", "w") as f:
-            f.write("\n".join(" ".join(map(str, feats.flatten())) for feats in feats_list_r))
-        
+        if args.layer == -1:
+            for layer in range(args.num_layers):
+                # print(f"{save_feats_file}{layer}_l.txt")
+                with open(f"{save_feats_file}{layer}_l.txt", "w") as f:
+                    f.write("\n".join(" ".join(map(str, feats[:, :, :, layer].flatten())) for feats in feats_list_l))
+                with open(f"{save_feats_file}{layer}_r.txt", "w") as f:
+                    f.write("\n".join(" ".join(map(str, feats[:, :, :, layer].flatten())) for feats in feats_list_r))
+
+        else:
+            print(f"{save_feats_file}_l.txt")
+            with open(f"{save_feats_file}_l.txt", "w") as f:
+                f.write("\n".join(" ".join(map(str, feats.flatten())) for feats in feats_list_l))
+            with open(f"{save_feats_file}_r.txt", "w") as f:
+                f.write("\n".join(" ".join(map(str, feats.flatten())) for feats in feats_list_r))
+
     return data
 
 
@@ -231,8 +250,9 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
 
     # Get exemplar data loader if using exemplars
     if ex_data is not None:
-        ex_set = get_dynamic_dataset(ex_data)
-        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
+        ex_set = get_ex_set(ex_data, args)
+        ex_set = get_dynamic_dataset(ex_set)
+        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
         len_ex = len(ex_dataloader)
         ex_used = 0
         ex_dataloader = iter(ex_dataloader)
@@ -262,7 +282,9 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
         if ex_data is not None:
             ex_used += args.ex_size
             if ex_used > len_ex:
-                ex_dataloader = iter(DataLoader(ex_set,args.ex_size, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                ex_set = get_ex_set(ex_data, args)
+                ex_set = get_dynamic_dataset(ex_data)
+                ex_dataloader = iter(DataLoader(ex_set,args.ex_size, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
                 ex_used = args.ex_size
 
             exemplars = next(ex_dataloader)
@@ -327,6 +349,8 @@ def format_audiogram(audiogram):
 
 def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
     model.train()
+
+    print(ex_data)
         
     running_loss = 0.0
     loss_list = []
@@ -336,8 +360,10 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
 
     # Set up exemplar data loader if using exemplars
     if ex_data is not None:
-        ex_set = get_dynamic_dataset(ex_data)
-        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
+        ex_set = get_ex_set(ex_data, args)
+        print(ex_set)
+        ex_set = get_dynamic_dataset(ex_set)
+        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
         len_ex = len(ex_dataloader)
         ex_used = 0
         ex_dataloader = iter(ex_dataloader)
@@ -368,13 +394,19 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
 
         # Get the exemplars for the minibatch, if using exemplar model
         if ex_data is not None:
-            ex_used += args.ex_size
+            # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
+            ex_used += 1
             if ex_used > len_ex:
-                ex_dataloader = iter(DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
-                ex_used = args.ex_size
+                # print("Reloading exemplars...")
+                ex_set = get_ex_set(ex_data, args)
+                ex_set = get_dynamic_dataset(ex_set)
+                ex_dataloader = iter(DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+                ex_used = 1
 
             exemplars = next(ex_dataloader)
+            # print(exemplars)
             ex_correct, ex_feats_l, ex_feats_r = exemplars
+            # print(f"\nexemplar correctness:\n{ex_correct}\n")
             ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
                 ex_feats_l.data, 
                 (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
@@ -413,7 +445,7 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
         loss_list.append(loss.item())
         running_loss += loss.item()
 
-    if args.model == "LSTM_layers":
+    if args.model == "LSTM_layers" or args.model == "ExLSTM_layers":
         print(f"\nlayer weights sm:\n{model.sm(model.layer_weights)}\n")
         print(f"\nlayer weights:\n{model.layer_weights}\n")
         print(f"layer weights sum: {model.sm(model.layer_weights).sum().item()}\n")
@@ -509,6 +541,17 @@ def main(args, config):
         activation = nn.LeakyReLU
         att_pool_dim = 768
         
+    elif args.feats_model == "WhisperBase":  
+        feat_extractor = WhisperBase_feats(
+            pretrained_model=args.pretrained_feats_model, 
+            use_feat_extractor = True,
+            layer = args.layer
+        )
+        dim_extractor = 512
+        hidden_size = 512//2
+        activation = nn.LeakyReLU
+        att_pool_dim = 512
+        
     else:
         print("Feats extractor not recognised")
         exit(1)
@@ -517,11 +560,14 @@ def main(args, config):
     if args.model == "LSTM":
         model = MetricPredictorLSTM(dim_extractor, hidden_size, activation, att_pool_dim)
     elif args.model == "LSTM_layers":
-        model = MetricPredictorLSTM_layers(dim_extractor, hidden_size, activation, att_pool_dim, num_layers = 12)
+        model = MetricPredictorLSTM_layers(dim_extractor, hidden_size, activation, att_pool_dim, num_layers = args.num_layers)
     elif args.model == "AttenPool":
         model = MetricPredictorAttenPool(att_pool_dim)
     elif args.model == "ExLSTM":
         model = ExLSTM(dim_extractor, hidden_size, activation, att_pool_dim, p_factor = args.p_factor)
+        args.exemplar = True
+    elif args.model == "ExLSTM_layers":
+        model = ExLSTM_layers(dim_extractor, hidden_size, activation, att_pool_dim, p_factor = args.p_factor, num_layers = args.num_layers)
         args.exemplar = True
     else:
         print("Model not recognised")
@@ -570,7 +616,7 @@ def main(args, config):
 
     # You can save the feats extracted to disk so it doesn't have to be done 
     # again for future test runs (takes up space though)
-    save_feats_file = f"{args.dataroot}{args.feats_model}_{'all' if args.layer == -1 else args.layer}_N{args.N}"
+    save_feats_file = f"{args.dataroot}{args.feats_model}_N{args.N}_{'debug_' if args.debug else ''}{'' if args.layer == -1 else args.layer}"
 
     data = pd.read_json(args.in_json_file)
     data["subset"] = "CEC1"
@@ -583,9 +629,20 @@ def main(args, config):
 
     if args.debug:
         _, data = train_test_split(data, test_size = 0.01)
+
+
+    if args.extract_feats:
+        files_exist = False
+    elif args.layer == -1:
+        files_exist = True
+        for layer in range(args.num_layers):
+            files_exist = files_exist if os.path.exists(f"{save_feats_file}{layer}_l.txt") else False
+            files_exist = files_exist if os.path.exists(f"{save_feats_file}{layer}_r.txt") else False
+    else:
+        files_exist = os.path.exists(save_feats_file + "_l.txt") and os.path.exists(save_feats_file + "_r.txt")
     
     # Load feats from file if they exist (only works for Whisper decoder)
-    if os.path.exists(save_feats_file + "_l.txt"):
+    if args.layer != -1 and files_exist:
         print("Loading feats from file...")
         
         with open(save_feats_file + "_l.txt", "r") as f:
@@ -595,15 +652,42 @@ def main(args, config):
 
         feats_l = [np.fromstring(feats, dtype=float, sep=' ') for feats in feats_l]
         feats_r = [np.fromstring(feats, dtype=float, sep=' ') for feats in feats_r]
-        if args.layer == -1:
-            feats_l = [feats.reshape(1, -1, 768, 12) for feats in feats_l]
-            feats_r = [feats.reshape(1, -1, 768, 12) for feats in feats_r]
-        else:
-            feats_l = [feats.reshape(1, len(feats) // 768, 768) for feats in feats_l]
-            feats_r = [feats.reshape(1, len(feats) // 768, 768) for feats in feats_r]
+        feats_l = [feats.reshape(1, len(feats) // 768, 768) for feats in feats_l]
+        feats_r = [feats.reshape(1, len(feats) // 768, 768) for feats in feats_r]
 
         data['feats_l'] = feats_l
         data['feats_r'] = feats_r
+
+    elif args.layer == -1 and files_exist:
+        print("Loading feats from file...")
+        
+        feats_l = []
+        feats_r = []
+        for layer in range(args.num_layers):
+            print(f"Loading layer {layer}...")
+            with open(f"{save_feats_file}{layer}_l.txt", "r") as f:
+                feats_l_layer = f.readlines()
+            with open(f"{save_feats_file}{layer}_r.txt", "r") as f:
+                feats_r_layer = f.readlines()
+            feats_l.append([np.fromstring(feats, dtype=float, sep=' ') for feats in feats_l_layer])
+            feats_r.append([np.fromstring(feats, dtype=float, sep=' ') for feats in feats_r_layer])
+            feats_l[layer] = [feats.reshape(1, -1, 768) for feats in feats_l[layer]]
+            feats_r[layer] = [feats.reshape(1, -1, 768) for feats in feats_r[layer]]
+
+        feats_l_all = []
+        feats_r_all = []
+        for row in range(len(feats_l[0])):
+            temp_feats_l = []
+            temp_feats_r = []
+            for layer in range(len(feats_l)):
+                temp_feats_l.append(feats_l[layer][row])
+                temp_feats_r.append(feats_r[layer][row])
+            feats_l_all.append(np.stack(temp_feats_l, axis = -1))
+            feats_r_all.append(np.stack(temp_feats_r, axis = -1))
+
+        data['feats_l'] = feats_l_all
+        data['feats_r'] = feats_r_all
+        # feats_l = np.stack([feats_l[layer][row] for row in feats_l[layer] for layer in len(feats_l)])
 
     else:
         # Extract feats
@@ -648,7 +732,7 @@ def main(args, config):
     print("=====================================")
 
     if args.exemplar:
-        ex_data = train_data
+        ex_data = train_data[train_data.subset == "CEC2"].copy()
         print("Using training data for exemplars")
     else:
         ex_data = None
@@ -702,6 +786,13 @@ def main(args, config):
             print("\tDisjoint system validation Loss: %s"%(dis_sys_val['loss']**0.5))
             print("\tDisjoint scene validation Loss: %s"%(dis_scene_val['loss']**0.5))
             print("=====================================")    
+
+            if args.model == "LSTM_layers" or args.model == "ExLSTM_layers":
+                with open(f"{model_dir}/layer_weights.txt", 'a') as f:
+                    f.write(" ".join([str(weight) for weight in model.sm(model.layer_weights).tolist()]))
+                    f.write("\n")
+
+
     print(model_dir)
     model_files = os.listdir(model_dir)
 
@@ -723,13 +814,13 @@ def main(args, config):
 
     # Write a csv file of restults for each data split:
     dis_val_data[["scene", "listener", "system", "validation", "correctness", "predicted"]].to_csv(args.out_csv_file + "_all_dis_val_preds.csv", index=False)
-    temp_data = data[data.validation == 7].copy()
+    temp_data = dis_val_data[data.validation == 7].copy()
     temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_val_preds.csv", index=False)
-    temp_data = data[data.validation.isin([1, 3, 5, 7])].copy()
+    temp_data = dis_val_data[data.validation.isin([1, 3, 5, 7])].copy()
     temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_lis_val_preds.csv", index=False)
-    temp_data = data[data.validation.isin([2, 3, 6, 7])].copy()
+    temp_data = dis_val_data[data.validation.isin([2, 3, 6, 7])].copy()
     temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_sys_val_preds.csv", index=False)
-    temp_data = data[data.validation.isin([4, 5, 6, 7])].copy()
+    temp_data = dis_val_data[data.validation.isin([4, 5, 6, 7])].copy()
     temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_scene_val_preds.csv", index=False)
 
     dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
@@ -794,6 +885,7 @@ def main(args, config):
         run.finish()
 
 if __name__ == "__main__":
+    
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -822,6 +914,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--save_feats", help="save extracted feats to disk for future use", default=False, action='store_true'
+    )
+    parser.add_argument(
+        "--extract_feats", help="extract feats rather than loading from file", default=False, action='store_true'
     )
 
 
@@ -853,6 +948,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--layer", help="layer of feat extractor to use" , default=None, type = int
+    )
+    parser.add_argument(
+        "--num_layers", help="layer of feat extractor to use" , default=12, type = int
     )
     parser.add_argument(
         "--whisper_model", help="location of configuation json file", default = "openai/whisper-small"

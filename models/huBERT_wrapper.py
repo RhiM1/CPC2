@@ -117,8 +117,61 @@ class WhisperWrapper_full(nn.Module):
         else:
             decoder_hidden = torch.stack([outputs.decoder_hidden_states[word][self.layer][0][0] for word in range(len(outputs.decoder_hidden_states))])
             decoder_hidden = decoder_hidden.unsqueeze(0)
-        print(f"decoder_hidden size: {decoder_hidden.size()}")
-        quit()
+        # print(f"decoder_hidden size: {decoder_hidden.size()}")
+
+        # print(decoder_hidden.size())
+        return decoder_hidden
+
+
+
+class WhisperWrapperBase(nn.Module):
+    def __init__(self, layer = None, use_feat_extractor = False, pretrained_model = None, num_layers = 6, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # using layer = -1 returns all layers in form (1, time, feat_dim, layers)
+        # otherwise single layer in form (1, time, feat_dim)
+
+        self.num_layers = num_layers
+        self.use_feat_extractor = use_feat_extractor
+        if layer is None:
+            self.layer = 12
+        else:
+            self.layer = layer
+
+        if use_feat_extractor:
+            self.feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-base")
+        if pretrained_model is None:
+            self.model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-base")
+        else:
+            self.model = WhisperForConditionalGeneration.from_pretrained(pretrained_model)
+
+        print(self.model)
+
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        
+    def forward(self, data):
+
+        if self.use_feat_extractor:
+            data = self.feature_extractor(data[0].to('cpu'), sampling_rate = 16000, return_tensors = 'pt')
+            data = data.input_features.to(self.device)
+
+        outputs = self.model.generate(
+            input_features = data,
+            output_hidden_states = True,
+            return_dict_in_generate = True
+        )
+
+        if self.layer == -1:
+            decoder_hidden = []
+            for layer in range(self.num_layers):
+                hidden = torch.stack([outputs.decoder_hidden_states[word][layer][0][0] for word in range(len(outputs.decoder_hidden_states))])
+                decoder_hidden.append(hidden.unsqueeze(0))
+            decoder_hidden = torch.stack(decoder_hidden, dim = -1)
+        else:
+            decoder_hidden = torch.stack([outputs.decoder_hidden_states[word][self.layer][0][0] for word in range(len(outputs.decoder_hidden_states))])
+            decoder_hidden = decoder_hidden.unsqueeze(0)
+        # print(f"decoder_hidden size: {decoder_hidden.size()}")
 
         # print(decoder_hidden.size())
         return decoder_hidden
