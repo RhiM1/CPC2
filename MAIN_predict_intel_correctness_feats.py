@@ -26,7 +26,7 @@ from process_cpc2_data import get_cpc2_dataset
 from transformers import WhisperProcessor
 import random
 from models.ni_predictor_models import MetricPredictorLSTM, MetricPredictorAttenPool, ExLSTM, \
-    MetricPredictorLSTM_layers, ExLSTM_layers
+    MetricPredictorLSTM_layers, ExLSTM_layers, ExLSTM_std
 from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, \
     HuBERTEncoder_feats, HuBERTFull_feats, WhisperEncoder_feats, WhisperFull_feats, WhisperBase_feats
 from exemplar import get_ex_set
@@ -81,7 +81,6 @@ def get_stats(predictions, correctness):
 def get_dis_val_set_losses(dis_val_preds, correct, validation, criterion, include_stats = False):
     
     # Urgh, ugly
-
     # 1: disjoint validation set (listener) note: actually [1, 3, 5, 7]
     # 2: disjoint validation set (system) note: actually [2, 3, 6, 7]
     # 3: disjoint validation set (listener, system) note: actually [3, 7]
@@ -246,14 +245,19 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
     loss_list = []
 
     test_set = get_dynamic_dataset(test_data)
-    my_dataloader = DataLoader(test_set,1,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
+    my_dataloader = DataLoader(test_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
 
     # Get exemplar data loader if using exemplars
     if ex_data is not None:
-        ex_set = get_ex_set(ex_data, args)
-        ex_set = get_dynamic_dataset(ex_set)
-        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
-        len_ex = len(ex_dataloader)
+        if args.random_exemplars:
+            len_ex = len(test_data)
+            ex_set = get_dynamic_dataset(test_data)
+            ex_dataloader = DataLoader(ex_set,args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
+        else:
+            ex_set = get_ex_set(ex_data, args)
+            len_ex = len(ex_set)
+            ex_set = get_dynamic_dataset(ex_set)
+            ex_dataloader = DataLoader(ex_set,args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
         ex_used = 0
         ex_dataloader = iter(ex_dataloader)
 
@@ -280,15 +284,19 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
 
         # Get exemplar for this minibatch, if using exemplar model
         if ex_data is not None:
-            ex_used += args.ex_size
+            ex_used += args.num_minervas * args.ex_size
             if ex_used > len_ex:
-                ex_set = get_ex_set(ex_data, args)
-                ex_set = get_dynamic_dataset(ex_data)
-                ex_dataloader = iter(DataLoader(ex_set,args.ex_size, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
-                ex_used = args.ex_size
+                if args.random_exemplars:
+                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size*args.num_minervas, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                else:
+                    ex_set = get_ex_set(ex_data, args)
+                    ex_set = get_dynamic_dataset(ex_data)
+                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size*args.num_minervas, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+                ex_used = args.num_minervas * args.ex_size
 
             exemplars = next(ex_dataloader)
             ex_correct, ex_feats_l, ex_feats_r = exemplars
+            # print(f"ex_correct:\n{ex_correct}")
             ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
                 ex_feats_l.data, 
                 (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
@@ -314,11 +322,12 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
             output_l,_ = model(feats_l)
             output_r,_ = model(feats_r)
 
-        #     
-        output = max(output_l,output_r)
+        output = torch.maximum(output_l,output_r)
         loss = criterion(output,target_scores)
 
-        out_list.append(output.detach().cpu().numpy()[0][0]*100)
+        for out_val in output:
+            # print(out_val)
+            out_list.append(out_val.detach().cpu().numpy()[0]*100)
 
         loss_list.append(loss.item())
         # print statistics
@@ -350,7 +359,7 @@ def format_audiogram(audiogram):
 def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
     model.train()
 
-    print(ex_data)
+    # print(ex_data)
         
     running_loss = 0.0
     loss_list = []
@@ -360,11 +369,16 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
 
     # Set up exemplar data loader if using exemplars
     if ex_data is not None:
-        ex_set = get_ex_set(ex_data, args)
-        print(ex_set)
-        ex_set = get_dynamic_dataset(ex_set)
-        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
-        len_ex = len(ex_dataloader)
+        if args.random_exemplars:
+            ex_set = get_dynamic_dataset(ex_data)
+            len_ex = len(ex_set)
+            ex_dataloader = DataLoader(ex_set,args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
+        else:
+            ex_set = get_ex_set(ex_data, args)
+            len_ex = len(ex_set)
+            ex_set = get_dynamic_dataset(ex_set)
+            ex_dataloader = DataLoader(ex_set,args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
+            # len_ex = len(ex_dataloader)
         ex_used = 0
         ex_dataloader = iter(ex_dataloader)
 
@@ -395,17 +409,23 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
         # Get the exemplars for the minibatch, if using exemplar model
         if ex_data is not None:
             # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
-            ex_used += 1
+            ex_used += args.ex_size * args.num_minervas
             if ex_used > len_ex:
+                if args.random_exemplars:
+                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                else:
                 # print("Reloading exemplars...")
-                ex_set = get_ex_set(ex_data, args)
-                ex_set = get_dynamic_dataset(ex_set)
-                ex_dataloader = iter(DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
-                ex_used = 1
+                    ex_set = get_ex_set(ex_data, args)
+                    ex_set = get_dynamic_dataset(ex_set)
+                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+                ex_used = args.ex_size * args.num_minervas
+                
+            # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
 
             exemplars = next(ex_dataloader)
             # print(exemplars)
             ex_correct, ex_feats_l, ex_feats_r = exemplars
+            # print(f"ex_correct:\n{ex_correct}")
             # print(f"\nexemplar correctness:\n{ex_correct}\n")
             ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
                 ex_feats_l.data, 
@@ -441,6 +461,8 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
         loss = loss_l + loss_r
 
         loss.backward()
+        if args.grad_clipping is not None:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clipping)
         optimizer.step()
         loss_list.append(loss.item())
         running_loss += loss.item()
@@ -564,10 +586,20 @@ def main(args, config):
     elif args.model == "AttenPool":
         model = MetricPredictorAttenPool(att_pool_dim)
     elif args.model == "ExLSTM":
-        model = ExLSTM(dim_extractor, hidden_size, activation, att_pool_dim, p_factor = args.p_factor)
+        model = ExLSTM(dim_extractor, hidden_size, att_pool_dim, p_factor = args.p_factor, minerva_dim = args.minerva_dim)
         args.exemplar = True
     elif args.model == "ExLSTM_layers":
-        model = ExLSTM_layers(dim_extractor, hidden_size, activation, att_pool_dim, p_factor = args.p_factor, num_layers = args.num_layers)
+        model = ExLSTM_layers(dim_extractor, hidden_size, att_pool_dim, p_factor = args.p_factor, minerva_dim = args.minerva_dim, num_layers = args.num_layers)
+        args.exemplar = True
+    elif args.model == "ExLSTM_std":
+        model = ExLSTM_std(
+            dim_extractor, 
+            hidden_size, 
+            att_pool_dim, 
+            p_factor = args.p_factor, 
+            minerva_dim = args.minerva_dim, 
+            num_minervas = args.num_minervas,
+            num_layers = args.num_layers)
         args.exemplar = True
     else:
         print("Model not recognised")
@@ -598,6 +630,11 @@ def main(args, config):
             run.tags = run.tags + ("resumed", )
         if args.layer is not None:
             run.tags = run.tags + (f"layer{args.layer}", )
+        if args.minerva_dim is not None:
+            run.tags = run.tags + (f"min_dim{args.minerva_dim}", )
+        if args.random_exemplars:
+            run.tags = run.tags + (f"random_ex", )
+
 
     # Make a model directory (if it doesn't exist) and write out config for future reference
     args.model_dir = model_dir
@@ -607,7 +644,20 @@ def main(args, config):
         f.write(json.dumps(dict(config)))
         
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(),lr=args.lr,weight_decay=args.weight_decay)
+
+    optParams = []
+    for param_name, param in model.named_parameters():
+        if param_name == "layer_weights":
+            optParams.append(
+                {'params': param, 'weight_decay': 0}
+            )
+        else:
+            optParams.append(
+                {'params': param, 'weight_decay': args.weight_decay}
+            )
+
+
+    optimizer = optim.Adam(optParams,lr=args.lr)
     if not args.use_CPC1:
         if int(args.in_json_file.split("/")[-1].split(".")[-2]) != int(args.N):
             print("Warning: N does not match dataset:")
@@ -617,7 +667,7 @@ def main(args, config):
     # You can save the feats extracted to disk so it doesn't have to be done 
     # again for future test runs (takes up space though)
     save_feats_file = f"{args.dataroot}{args.feats_model}_N{args.N}_{'debug_' if args.debug else ''}{'' if args.layer == -1 else args.layer}"
-
+    print(f"save_feats_file:\n{save_feats_file}")
     data = pd.read_json(args.in_json_file)
     data["subset"] = "CEC1"
     if not args.use_CPC1:
@@ -652,8 +702,8 @@ def main(args, config):
 
         feats_l = [np.fromstring(feats, dtype=float, sep=' ') for feats in feats_l]
         feats_r = [np.fromstring(feats, dtype=float, sep=' ') for feats in feats_r]
-        feats_l = [feats.reshape(1, len(feats) // 768, 768) for feats in feats_l]
-        feats_r = [feats.reshape(1, len(feats) // 768, 768) for feats in feats_r]
+        feats_l = [feats.reshape(1, -1, dim_extractor) for feats in feats_l]
+        feats_r = [feats.reshape(1, -1, dim_extractor) for feats in feats_r]
 
         data['feats_l'] = feats_l
         data['feats_r'] = feats_r
@@ -671,8 +721,8 @@ def main(args, config):
                 feats_r_layer = f.readlines()
             feats_l.append([np.fromstring(feats, dtype=float, sep=' ') for feats in feats_l_layer])
             feats_r.append([np.fromstring(feats, dtype=float, sep=' ') for feats in feats_r_layer])
-            feats_l[layer] = [feats.reshape(1, -1, 768) for feats in feats_l[layer]]
-            feats_r[layer] = [feats.reshape(1, -1, 768) for feats in feats_r[layer]]
+            feats_l[layer] = [feats.reshape(1, -1, dim_extractor) for feats in feats_l[layer]]
+            feats_r[layer] = [feats.reshape(1, -1, dim_extractor) for feats in feats_r[layer]]
 
         feats_l_all = []
         feats_r_all = []
@@ -732,10 +782,16 @@ def main(args, config):
     print("=====================================")
 
     if args.exemplar:
-        ex_data = train_data[train_data.subset == "CEC2"].copy()
+        if args.matching_exemplars:
+            train_ex_data = train_data.copy()
+            val_ex_data = train_data[train_data.subset == "CEC2"].copy()
+        else:
+            train_ex_data = train_data[train_data.subset == "CEC2"].copy()
+            val_ex_data = train_data[train_data.subset == "CEC2"].copy()
         print("Using training data for exemplars")
     else:
-        ex_data = None
+        train_ex_data = None
+        val_ex_data = None
 
     train_data = train_data.sample(frac=1).reset_index(drop=True)
 
@@ -746,10 +802,10 @@ def main(args, config):
         print("=====================================")
         for epoch in range(args.restart_epoch, args.n_epochs + args.restart_epoch):
 
-            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,ex_data=ex_data)
+            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,ex_data=train_ex_data)
 
-            _, val_loss = validate_model(model,val_data,optimizer,criterion,args,ex_data)
-            preds, _ = validate_model(model,dis_val_data,optimizer,criterion,args,ex_data)
+            _, val_loss = validate_model(model,val_data,optimizer,criterion,args,val_ex_data)
+            preds, _ = validate_model(model,dis_val_data,optimizer,criterion,args,val_ex_data)
 
             # Get losses for the various disjoint subsets held within dis_val_data
             dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
@@ -760,7 +816,7 @@ def main(args, config):
             )
 
             if args.test_json_file is not None:
-                _,eval_loss = validate_model(model,test_data,optimizer,criterion,args,ex_data)
+                _,eval_loss = validate_model(model,test_data,optimizer,criterion,args,val_ex_data)
 
             if not args.skip_wandb:
                 log_dict = {
@@ -803,24 +859,24 @@ def main(args, config):
     model.load_state_dict(torch.load("%s/%s"%(model_dir,model_file)))
     
     # get validation predictions
-    val_predictions,val_loss = validate_model(model,val_data,optimizer,criterion,args,ex_data)
+    val_predictions,val_loss = validate_model(model,val_data,optimizer,criterion,args,val_ex_data)
     val_error = val_loss**0.5
     val_stats = get_stats(val_predictions, val_data.correctness.values)
     val_data["predicted"] = val_predictions
     val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_val_preds.csv", index=False)
 
-    dis_val_predictions, _ = validate_model(model,dis_val_data,optimizer,criterion,args,ex_data)
+    dis_val_predictions, _ = validate_model(model,dis_val_data,optimizer,criterion,args,val_ex_data)
     dis_val_data["predicted"] = dis_val_predictions
 
     # Write a csv file of restults for each data split:
     dis_val_data[["scene", "listener", "system", "validation", "correctness", "predicted"]].to_csv(args.out_csv_file + "_all_dis_val_preds.csv", index=False)
-    temp_data = dis_val_data[data.validation == 7].copy()
+    temp_data = dis_val_data[dis_val_data.validation == 7].copy()
     temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_val_preds.csv", index=False)
-    temp_data = dis_val_data[data.validation.isin([1, 3, 5, 7])].copy()
+    temp_data = dis_val_data[dis_val_data.validation.isin([1, 3, 5, 7])].copy()
     temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_lis_val_preds.csv", index=False)
-    temp_data = dis_val_data[data.validation.isin([2, 3, 6, 7])].copy()
+    temp_data = dis_val_data[dis_val_data.validation.isin([2, 3, 6, 7])].copy()
     temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_sys_val_preds.csv", index=False)
-    temp_data = dis_val_data[data.validation.isin([4, 5, 6, 7])].copy()
+    temp_data = dis_val_data[dis_val_data.validation.isin([4, 5, 6, 7])].copy()
     temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(args.out_csv_file + "_dis_scene_val_preds.csv", index=False)
 
     dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
@@ -846,7 +902,7 @@ def main(args, config):
     # Test the model
     if args.test_json_file is not None:
         print("Testing model on test set")
-        predictions,test_loss = validate_model(model,test_data,optimizer,criterion,args,ex_data)
+        predictions,test_loss = validate_model(model,test_data,optimizer,criterion,args,val_ex_data)
         predictions_fitted = np.asarray(predictions)/100
         #apply the logistic mapping
         predictions_fitted = logit_func(predictions_fitted,a,b)
@@ -986,6 +1042,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--weight_decay", help="weight decay", default=None, type=float
     )
+    parser.add_argument(
+        "--grad_clipping", help="gradient clipping", default=None, type=float
+    )
 
     # Exemplar bits
     parser.add_argument(
@@ -994,6 +1053,21 @@ if __name__ == "__main__":
     parser.add_argument(
         "--p_factor", help="exemplar model p_factor" , default=None, type=int
     )
+    parser.add_argument(
+        "--minerva_dim", help="exemplar model feat transformation dimnesion" , default=None, type=int
+    )
+    parser.add_argument(
+        "--num_minervas", help="number of minerva models to use for system combinations or the std model" , default=None, type=int
+    )
+    parser.add_argument(
+        "--random_exemplars", help="use randomly selected exemplars, rather than stratified exemplars", default=False, action='store_true'
+    )
+    parser.add_argument(
+        "--matching_exemplars", help="use CEC 1 & 2 exemplars for training and CEC 2 exemplars for vliadation", default=False, action='store_true'
+    )
+
+
+
 
     args = parser.parse_args()
 
@@ -1070,6 +1144,17 @@ if __name__ == "__main__":
     if args.p_factor is None:
         args.p_factor = config["p_factor"] if "p_factor" in config else 1
     config["p_factor"] = args.p_factor
+
+    if args.minerva_dim is None:
+        args.minerva_dim = config["minerva_dim"] if "minerva_dim" in config else None
+    config["minerva_dim"] = args.minerva_dim
+    
+    if args.num_minervas is None:
+        args.num_minervas = config["num_minervas"] if "num_minervas" in config else 1
+    config["num_minervas"] = args.num_minervas
+    
+    config["random_exemplars"] = args.random_exemplars
+    config["matching_exemplars"] = args.matching_exemplars
 
     if args.use_CPC1:
         args.wandb_project = "CPC1" if args.wandb_project is None else args.wandb_project
