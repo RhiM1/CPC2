@@ -3,3 +3,4 @@ save/*
 models/__pycache__*
 whisper/*
 exp/*
+val/
