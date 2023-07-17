@@ -8,10 +8,11 @@ class Minerva(torch.nn.Module):
     '''
     PoolAttFF: Attention-Pooling module with additonal feed-forward network.
     '''         
-    def __init__(self, input_dim, p_factor = 1, rep_dim = None):
+    def __init__(self, input_dim, p_factor = 1, rep_dim = None, use_sm = False):
         super().__init__()
             
         rep_dim = input_dim if rep_dim is None else rep_dim
+        self.use_sm = use_sm
 
         self.Wx = nn.Linear(input_dim, rep_dim)
         self.Wd = nn.Linear(input_dim, rep_dim)
@@ -24,19 +25,30 @@ class Minerva(torch.nn.Module):
     def forward(self, X: Tensor, D: Tensor, R: Tensor):
 
         # X has dim (batch_size, input_dim)
-        # D has dim (num_minervas, num_ex, input_dim)
+        # D has dim (*, num_ex, input_dim)
+
+        # print(f"X size: {X.size()}")
+        # print(f"D size: {D.size()}")
         
         # Xw has dim (batch_size, rep_dim)
-        # Dw has dim (num_minervas, num_ex, rep_dim)        
+        # Dw has dim (*, num_ex, rep_dim)        
         Xw = self.Wx(X)
         Dw = self.Wd(D)
+        # print(f"Xw size: {Xw.size()}")
+        # print(f"Dw size: {Dw.size()}")
         
-        # a has dim (batch_size, )
+        # a has dim (*, batch_size, num_ex)
         a = torch.matmul(Xw, torch.transpose(Dw, dim0 = -2, dim1 = -1))
-        # a = self.activation(a)
-        # a = self.sm(a)
-        # a = nn.functional.normalize(a, dim = 1, p = 1)
+        a = self.activation(a)
+        # print(f"a size: {a.size()}")
+        if self.use_sm:
+            a = self.sm(a)
+
+        # R has dim (*, num_ex, 1)
+        # print(f"R size: {R.size()}")
+        # R has dim (*, num_ex, 1)
         echo = torch.matmul(a, R)
+        # print(f"echo size: {echo.size()}")
         
         return self.Wr(echo)
     
@@ -70,12 +82,14 @@ class Minerva2(torch.nn.Module):
     def forward(self, X: Tensor, D: Tensor, R: Tensor):
 
         # X has dim (batch_size, input_dim)
-        # D has dim (num_minervas, num_ex, input_dim)
+        # D has dim (*, num_ex, input_dim)
         
         # Xw has dim (batch_size, rep_dim)
         # Dw has dim (num_minervas, num_ex, rep_dim)        
         Xw = self.Wx(X)
         Dw = self.Wd(D)
+
+        # R has dim (num_minervas, num_ex, 1)
         
         # a has dim (num_minervas, num_ex, batch_size)
         a = torch.matmul(Dw, torch.transpose(Xw, dim0 = -2, dim1 = -1))
@@ -83,7 +97,6 @@ class Minerva2(torch.nn.Module):
         a = torch.transpose(a, dim0 = -2, dim1 = -1)
         a = self.activation(a)
         
-        # R has dim (num_minervas, num_ex, 1)
         # echo has dim (num_minervas, batch_size)
         # print(f"a.size: {a.size()}")
         # print(f"R.size: {R.size()}")
@@ -214,11 +227,6 @@ class MetricPredictorLSTM_layers(nn.Module):
         return X, None
 
 
-
-
-
-
-
 class ExLSTM_layers(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -254,6 +262,7 @@ class ExLSTM_layers(nn.Module):
         minerva_dim = dim_extractor if minerva_dim is None else minerva_dim
 
         self.layer_weights = nn.Parameter(torch.ones(num_layers, dtype = torch.float))
+        self.att_pool_dim = att_pool_dim
         self.sm = nn.Softmax(dim = 0)
 
         if use_lstm:
@@ -271,7 +280,107 @@ class ExLSTM_layers(nn.Module):
         
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, X, D, r, packed_sequence = True):
+    def forward(self, X, D, r, packed_sequence = True, num_minervas = 1):
+
+        # X has dim (batch size, time (padded), input_dim, layers)
+        X, X_len = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+        # D has dim (ex size, time (padded), input_dim, layers)
+        D, D_len = nn.utils.rnn.pad_packed_sequence(D, batch_first = True)
+
+        # X has new dim (batch size, time (padded), input_dim)
+        X = X @ self.sm(self.layer_weights)
+        # D has new dim (ex size, time (padded), input_dim)
+        D = D @ self.sm(self.layer_weights)
+
+        X = nn.utils.rnn.pack_padded_sequence(X, lengths = X_len, batch_first = True, enforce_sorted = False)
+        D = nn.utils.rnn.pack_padded_sequence(D, lengths = D_len, batch_first = True, enforce_sorted = False)
+
+        if self.use_lstm:
+            X, _ = self.blstm(X)
+            D, _ = self.blstm(D)
+        if packed_sequence:
+            X, _ = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+            D, _ = nn.utils.rnn.pad_packed_sequence(D, batch_first = True)
+        
+        # X has new dim (batch_size, att_pool_dim)
+        X = self.attenPool(X)
+        # X has new dim (ex_size, att_pool_dim)
+        D = self.attenPool(D)
+
+        if num_minervas > 1:
+            # X has new dim (num_minervas, ex_size, att_pool_dim)
+            D = D.view(num_minervas, -1, self.att_pool_dim)
+            # X has new dim (num_minervas, ex_size, 1)
+            r = r.view(num_minervas, -1, 1)
+
+        # full_echos has dim (*, batch_size, 1)
+        full_echo = self.minerva(X, D, r)
+        if num_minervas > 1:
+            echo = full_echo.mean(dim = 0)
+        else:
+            echo = full_echo
+        # print(f"echo size: {echo.size()}")
+
+        return self.sigmoid(echo), full_echo
+    
+
+
+
+class ExLSTM_log(nn.Module):
+    """Metric estimator for enhancement training.
+
+    Consists of:
+     * four 2d conv layers
+     * channel averaging
+     * three linear layers
+
+    Arguments
+    ---------
+    kernel_size : tuple
+        The dimensions of the 2-d kernel used for convolution.
+    base_channels : int
+        Number of channels used in each conv layer.
+    """
+
+    def __init__(
+        self, 
+        dim_extractor=512, 
+        hidden_size=512//2, 
+        # activation=nn.LeakyReLU, 
+        att_pool_dim=512, 
+        use_lstm = True, 
+        num_layers = 12, 
+        p_factor = 1,
+        minerva_dim = None,
+        log_corr = 0.1
+    ):
+        super().__init__()
+
+        self.use_lstm = use_lstm
+        # self.activation = activation(negative_slope=0.3)
+
+        minerva_dim = dim_extractor if minerva_dim is None else minerva_dim
+        self.log_corr = log_corr
+
+        self.layer_weights = nn.Parameter(torch.ones(num_layers, dtype = torch.float))
+        self.sm = nn.Softmax(dim = 0)
+
+        if use_lstm:
+            self.blstm = nn.LSTM(
+                input_size=dim_extractor,
+                hidden_size=hidden_size,
+                num_layers=2,
+                dropout=0.1,
+                bidirectional=True,
+                batch_first=True,
+            )
+        
+        self.attenPool = PoolAttFF(att_pool_dim, output_dim = att_pool_dim)
+        self.minerva = Minerva(att_pool_dim, p_factor = p_factor, rep_dim = minerva_dim)
+        
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, X, D, r, packed_sequence = True, num_minervas = None):
 
         # X has dim (batch size, time (padded), input_dim, layers)
         X, X_len = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
@@ -284,6 +393,11 @@ class ExLSTM_layers(nn.Module):
         D = D @ self.sm(self.layer_weights)
         # print(f"X size: {X.size()}")
         # X = X.squeeze(-1)
+
+        # r has dim (ex_size)
+        # inverse sigmoid
+        r = torch.clamp(r, min = self.log_corr, max = 1 - self.log_corr)
+        r = torch.log(r / (1 - r))
 
         X = nn.utils.rnn.pack_padded_sequence(X, lengths = X_len, batch_first = True, enforce_sorted = False)
         D = nn.utils.rnn.pack_padded_sequence(D, lengths = D_len, batch_first = True, enforce_sorted = False)
@@ -305,8 +419,99 @@ class ExLSTM_layers(nn.Module):
         # print(self.sigmoid(echo))
 
         return self.sigmoid(echo), None
-    
 
+
+class ExLSTM_div(nn.Module):
+    """Metric estimator for enhancement training.
+
+    Consists of:
+     * four 2d conv layers
+     * channel averaging
+     * three linear layers
+
+    Arguments
+    ---------
+    kernel_size : tuple
+        The dimensions of the 2-d kernel used for convolution.
+    base_channels : int
+        Number of channels used in each conv layer.
+    """
+
+    def __init__(
+        self, 
+        dim_extractor=512, 
+        hidden_size=512//2, 
+        # activation=nn.LeakyReLU, 
+        att_pool_dim=512, 
+        use_lstm = True, 
+        num_layers = 12, 
+        p_factor = 1,
+        minerva_dim = None,
+        log_corr = 0.1
+    ):
+        super().__init__()
+
+        self.use_lstm = use_lstm
+        # self.activation = activation(negative_slope=0.3)
+
+        minerva_dim = dim_extractor if minerva_dim is None else minerva_dim
+        self.log_corr = log_corr
+
+        self.layer_weights = nn.Parameter(torch.ones(num_layers, dtype = torch.float))
+        self.sm = nn.Softmax(dim = 0)
+
+        if use_lstm:
+            self.blstm = nn.LSTM(
+                input_size=dim_extractor,
+                hidden_size=hidden_size,
+                num_layers=2,
+                dropout=0.1,
+                bidirectional=True,
+                batch_first=True,
+            )
+        
+        self.attenPool = PoolAttFF(att_pool_dim, output_dim = att_pool_dim)
+        self.minerva = Minerva(att_pool_dim, p_factor = p_factor, rep_dim = minerva_dim, use_sm = True)
+        
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, X, D, r, packed_sequence = True):
+
+        # X has dim (batch size, time (padded), input_dim, layers)
+        X, X_len = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+        # D has dim (ex size, time (padded), input_dim, layers)
+        D, D_len = nn.utils.rnn.pad_packed_sequence(D, batch_first = True)
+
+        # X has new dim (batch size, time (padded), input_dim)
+        X = X @ self.sm(self.layer_weights)
+        # D has new dim (ex size, time (padded), input_dim)
+        D = D @ self.sm(self.layer_weights)
+        # print(f"X size: {X.size()}")
+        # X = X.squeeze(-1)
+
+        # r has dim (ex_size)
+        r = r * 2 - 1
+
+        X = nn.utils.rnn.pack_padded_sequence(X, lengths = X_len, batch_first = True, enforce_sorted = False)
+        D = nn.utils.rnn.pack_padded_sequence(D, lengths = D_len, batch_first = True, enforce_sorted = False)
+
+        if self.use_lstm:
+            X, _ = self.blstm(X)
+            D, _ = self.blstm(D)
+        if packed_sequence:
+            X, _ = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+            D, _ = nn.utils.rnn.pad_packed_sequence(D, batch_first = True)
+        X = self.attenPool(X)
+        D = self.attenPool(D)
+
+        echo = self.minerva(X, D, r)
+
+        # echo = torch.clamp(echo, min = 0, max = 1)
+
+        # print(echo)
+        # print(self.sigmoid(echo))
+
+        return self.sigmoid(echo), None
 
 
 class ExLSTM_std(nn.Module):
@@ -574,3 +779,144 @@ class MetricPredictorAttenPool(nn.Module):
         out = self.sigmoid(out)
 
         return out, None
+    
+
+class ffnn(nn.Module):
+    # Exemplar model incorporating multi-head attention for exemplar weighting, 
+    # with separate attention for the acoustic and phonetic information.
+    def __init__(
+            self,
+            input_dim = 768, 
+            embed_dim = 768,
+            output_dim = 768,
+            dropout = 0.0,
+            activation = nn.ReLU()
+            ):
+        super(ffnn, self).__init__()
+
+        # self.input_dim = input_dim
+        # self.output_dim = output_dim
+        # self.dropout = dropout
+        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
+        # Neural network f
+        self.fnn_stack = nn.Sequential(
+            nn.Linear(input_dim, embed_dim),
+            nn.Dropout(p = dropout),
+            activation,
+            nn.Linear(embed_dim, embed_dim),
+            nn.Dropout(p = dropout),
+            activation,
+            nn.Linear(embed_dim, output_dim)
+        )
+
+    def forward(self, features):
+        
+        return self.fnn_stack(features), None
+
+    
+
+class wordLSTM(nn.Module):
+    """Metric estimator for enhancement training.
+
+    Consists of:
+     * four 2d conv layers
+     * channel averaging
+     * three linear layers
+
+    Arguments
+    ---------
+    kernel_size : tuple
+        The dimensions of the 2-d kernel used for convolution.
+    base_channels : int
+        Number of channels used in each conv layer.
+    """
+
+    def __init__(
+        self, 
+        dim_extractor=512, 
+        hidden_size=512//2, 
+        # activation=nn.LeakyReLU, 
+        att_pool_dim=512, 
+        use_lstm = True, 
+        num_layers = 12, 
+        p_factor = 1,
+        minerva_dim = None
+    ):
+        super().__init__()
+        
+        self.layer_weights = nn.Parameter(torch.ones(num_layers, dtype = torch.float))
+
+        self.blstm = nn.LSTM(
+            input_size=dim_extractor,
+            hidden_size=hidden_size,
+            num_layers=2,
+            dropout=0.1,
+            bidirectional=True,
+            batch_first=True,
+        )
+        self.f = nn.Linear(att_pool_dim, 1)
+        self.sm = nn.Softmax(dim = 0)
+        self.sigmoid = nn.Sigmoid()
+
+        
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    def forward(self, X, D, r, packed_sequence = True):
+
+        # X has dim (batch size, num_words (padded), input_dim, layers)
+        X, X_len = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+        print(f"X_len: {X_len}")
+
+        # # D has dim (ex size, num_words (padded), input_dim, layers)
+        # D, D_len = nn.utils.rnn.pad_packed_sequence(D, batch_first = True)
+
+        # X has new dim (batch size, num_words (padded), input_dim)
+        X = X @ self.sm(self.layer_weights)
+        print(f"X size: {X.size()}")
+        X = nn.utils.rnn.pack_padded_sequence(X, lengths = X_len, batch_first = True, enforce_sorted = False)
+        X, _ = self.blstm(X)
+        X, _ = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+        # X has new dim (batch size, num_words (padded), 1)
+        print(f"X size post lstm: {X.size()}")
+        X = self.f(X)
+        X = self.sigmoid(X)
+        print(f"X size post class: {X.size()}")
+        # X_mask = torch.zeros_like(X, dtype = torch.bool)
+        X_mask = (torch.arange(X_len.max())[None, :] < X_len[:, None]).unsqueeze(-1).to(self.device)
+        print(f"X_mask size: {X_mask.size()}")
+        print(f"X_mask: {X_mask}")
+        print(f"X_len: {X_len}")
+        # correct_words has dim batch_size
+        correct_words = (X * X_mask).sum(dim = -2)
+        print(f"correct_words: {correct_words}")
+        print(f"correct_words size: {correct_words.size()}")
+        # prop_correct has dim ()
+        prop_correct = correct_words / X_len.unsqueeze(-1).to(self.device)
+        print(f"prop_correct: {prop_correct}")
+        print(f"prop_correct size: {prop_correct.size()}")
+
+        # # D has new dim (ex size, num_words (padded), input_dim)
+        # D = D @ self.sm(self.layer_weights)
+        # print(f"X size: {X.size()}")
+        # X = X.squeeze(-1)
+
+
+        # D = nn.utils.rnn.pack_padded_sequence(D, lengths = D_len, batch_first = True, enforce_sorted = False)
+
+        # if self.use_lstm:
+        #     D, _ = self.blstm(D)
+        # if packed_sequence:
+        #     D, _ = nn.utils.rnn.pad_packed_sequence(D, batch_first = True)
+        # X = self.attenPool(X)
+        # D = self.attenPool(D)
+
+        # echo = self.minerva(X, D, r)
+        # print(echo)
+
+        # echo = torch.clamp(echo, min = 0, max = 1)
+
+        # print(echo)
+        # print(self.sigmoid(echo))
+
+        return prop_correct, None

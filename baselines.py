@@ -222,7 +222,7 @@ if __name__ == "__main__":
         "--random_exemplars", help="use randomly selected exemplars, rather than stratified exemplars", default=False, action='store_true'
     )
     parser.add_argument(
-        "--matching_exemplars", help="use CEC 1 & 2 exemplars for training and CEC 2 exemplars for vliadation", default=False, action='store_true'
+        "--exemplar_source", help="one of CEC1, CEC2 or matched", default="CEC2"
     )
 
 
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     config["num_minervas"] = args.num_minervas
     
     config["random_exemplars"] = args.random_exemplars
-    config["matching_exemplars"] = args.matching_exemplars
+    config["exemplar_source"] = args.exemplar_source
 
     if args.use_CPC1:
         args.wandb_project = "CPC1" if args.wandb_project is None else args.wandb_project
