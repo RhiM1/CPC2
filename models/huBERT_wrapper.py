@@ -28,7 +28,7 @@ class HuBERTWrapper_full(nn.Module):
         
     def forward(self, data: Tensor):
         
-        my_output =self.model(data)
+        my_output = self.model(data)
         return my_output[0]
     
 

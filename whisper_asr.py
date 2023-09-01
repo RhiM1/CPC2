@@ -20,11 +20,8 @@ from typing import Any, Dict, List, Union
 import evaluate
 from process_cpc2_data import get_cpc2_dataset
 from constants import DATAROOT
+import random
 
-# DATAROOT = "/store/store1/data/clarity_CPC2_data/clarity_data/"
-# DATAROOT = "/home/acp20rm/exp/data/clarity_CPC2_data/clarity_data/"
-# DATAROOT = "~/exp/data/clarity_CPC2_data/clarity_data/"
-# DATAROOT = "~/exp/data/clarity_CPC2_data/clarity_data/"
 
 def get_training_args(args):
     training_args = Seq2SeqTrainingArguments(
@@ -33,17 +30,14 @@ def get_training_args(args):
         gradient_accumulation_steps=args.gradient_acc,  # increase by 2x for every 2x decrease in batch size
         learning_rate=args.lr,
         warmup_steps=500,
-        max_steps=6000,
-        # max_steps=2,
+        max_steps=args.max_steps,
         gradient_checkpointing=True,
         fp16=True,
         evaluation_strategy="steps",
         per_device_eval_batch_size=8,
         predict_with_generate=True,
         generation_max_length=225,
-        # save_steps=1,
         save_steps=1000,
-        # eval_steps=1,
         eval_steps=1000,
         logging_steps=25,
         report_to=["wandb"],
@@ -107,6 +101,8 @@ def main(args):
     
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
+    random.seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
     
     processor = WhisperProcessor.from_pretrained(
         args.whisper_model, 
@@ -118,7 +114,8 @@ def main(args):
     model.config.forced_decoder_ids = None
     model.config.suppress_tokens = []
     
-    data = get_cpc2_dataset(args, processor = processor)
+    data = get_cpc2_dataset(args, processor = processor, save_to_disk = True)
+    # print(data)
 
     # data_dict = data.filter(lambda row: row['validation'] == 0).train_test_split(test_size = 0.1)
     # data_dict['dis_val'] = data.filter(lambda row: row['validation'] > 0)
@@ -129,7 +126,6 @@ def main(args):
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
     metric = evaluate.load("wer")
-
 
     training_args = get_training_args(args)
 
@@ -191,15 +187,14 @@ if __name__ == "__main__":
         "--lr", help="learning rate", default=1e-5, type=float
     )
     parser.add_argument(
-        "--gradient_acc", help="learning rate", default=2, type=float
+        "--gradient_acc", help="gradient accumulation", default=2, type=int
     )
     parser.add_argument(
         "--batch_size", help="batch size" , default=8, type=int
     )
     parser.add_argument(
-        "--n_epochs", help="number of epochs", default=0, type=int
+        "--max_steps", help="number of steps", default=6000, type=int
     )
-
 
     # Test data
     parser.add_argument(
@@ -219,9 +214,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--skip_wandb", help="skip logging via WandB", default=False, action='store_true'
     )
-
     parser.add_argument(
-        "--summ_file", help="train and evaluate on CPC1 data" , default=None
+        "--summ_file", help="location of output summary file" , default=None
     )
 
     args = parser.parse_args()

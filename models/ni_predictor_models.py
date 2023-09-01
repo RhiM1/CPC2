@@ -4,23 +4,45 @@ from torch import Tensor, nn
 from models.ni_predictors import PoolAttFF
 
 
-class Minerva(torch.nn.Module):
+
+
+class Minerva_with_encoding(torch.nn.Module):
     '''
     PoolAttFF: Attention-Pooling module with additonal feed-forward network.
     '''         
-    def __init__(self, input_dim, p_factor = 1, rep_dim = None, use_sm = False):
+    def __init__(self, input_dim, p_factor = 1, rep_dim = None, R_dim = None, use_sm = False):
         super().__init__()
             
         rep_dim = input_dim if rep_dim is None else rep_dim
+        self.R_dim = R_dim if R_dim is not None else 4
         self.use_sm = use_sm
 
         self.Wx = nn.Linear(input_dim, rep_dim)
         self.Wd = nn.Linear(input_dim, rep_dim)
         self.p_factor = p_factor
 
-        self.Wr = nn.Linear(1,1)
+        # self.Wr = nn.Linear(1, self.R_dim)
+        self.We = nn.Linear(self.R_dim, 1)
         
         self.sm = nn.Softmax(dim = -1)
+
+        self.encoding_ids = torch.arange(20).repeat(1, 20)
+        encoding_ids = []
+        for i in range(1, 21):
+            for j in range(i + 1):
+                encoding_ids.append(j / i)
+
+        encoding_ids = torch.tensor(encoding_ids, dtype = torch.float).unique()
+        encoding_ids, _ = torch.sort(encoding_ids)
+        self.encoding_ids = nn.Parameter(encoding_ids, requires_grad = False)
+        pos_encoding = self.getPositionEncoding(len(encoding_ids), self.R_dim)
+        self.pos_encoding = nn.Parameter(pos_encoding, requires_grad = False)
+        # print(self.encoding_ids)
+        # print(self.encoding_ids.size())
+        # print(self.pos_encoding)
+        # print(self.pos_encoding.size())
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
         
     def forward(self, X: Tensor, D: Tensor, R: Tensor):
 
@@ -29,7 +51,24 @@ class Minerva(torch.nn.Module):
 
         # print(f"X size: {X.size()}")
         # print(f"D size: {D.size()}")
-        
+
+
+        # print(f"R: {R}")
+        encoding_ids = self.encoding_ids.repeat(R.size(0), 1)#.to(self.device)
+        # print(f"encoding_ids.size: {encoding_ids.size()}")
+        R = R.repeat(1, encoding_ids.size(1))
+        # print(f"R.size: {R.size()}")
+        # print(torch.argmin(torch.abs(R - encoding_ids), dim = 1))
+        pos_ids = torch.argmin(torch.abs(R - encoding_ids), dim = 1)
+        # print(f"pos_ids: {pos_ids}")
+        R_encoding = self.pos_encoding[pos_ids]
+        # print(f"R_encoding: {R_encoding}")
+        # R = encoding_ids[0][torch.argmin(torch.abs(R - encoding_ids), dim = 1)]
+        # print(f"R: {R}")
+        # print(f"encoding_ids: {encoding_ids}")
+        # r_range = torch.arange(len(self.encoding_ids), dtype = torch.long, device = self.device)
+        # pos_ids = a_range()
+
         # Xw has dim (batch_size, rep_dim)
         # Dw has dim (*, num_ex, rep_dim)        
         Xw = self.Wx(X)
@@ -47,10 +86,87 @@ class Minerva(torch.nn.Module):
         # R has dim (*, num_ex, 1)
         # print(f"R size: {R.size()}")
         # R has dim (*, num_ex, 1)
-        echo = torch.matmul(a, R)
+        echo = torch.matmul(a, R_encoding)
         # print(f"echo size: {echo.size()}")
         
-        return self.Wr(echo)
+        return self.We(echo)
+    
+    
+    def getPositionEncoding(self, seq_len, d, n = 10000):
+        P = torch.zeros((seq_len, d), dtype = torch.float)
+        # print(f"seq_len: {seq_len}")
+        # print(f"d: {d}")
+        for k in range(seq_len):
+            for i in torch.arange(int(d / 2)):
+                # print(f"i: {i}")
+                denominator = torch.pow(n, 2 * i / d)
+                P[k, 2 * i] = torch.sin(k / denominator)
+                P[k, 2 * i + 1] = torch.cos(k / denominator)
+                # print(f"k: {k}, i: {i}, P[k, 2 * i]: {P[k, 2 * i]}, P[k, 2 * i + 1]: {P[k, 2 * i + 1]}")
+        return P
+
+    
+    def activation(self, s, p_factor = None):
+
+        if p_factor is None:
+            p_factor = self.p_factor
+
+        return torch.mul(torch.pow(torch.abs(s), p_factor), torch.sign(s))
+
+
+
+class Minerva(torch.nn.Module):
+    '''
+    PoolAttFF: Attention-Pooling module with additonal feed-forward network.
+    '''         
+    def __init__(self, input_dim, p_factor = 1, rep_dim = None, R_dim = None, use_sm = False):
+        super().__init__()
+            
+        rep_dim = input_dim if rep_dim is None else rep_dim
+        R_dim = R_dim if R_dim is not None else 1
+        self.use_sm = use_sm
+
+        self.Wx = nn.Linear(input_dim, rep_dim)
+        self.Wd = nn.Linear(input_dim, rep_dim)
+        self.p_factor = p_factor
+
+        self.Wr = nn.Linear(1, R_dim)
+        self.We = nn.Linear(R_dim, 1)
+        
+        self.sm = nn.Softmax(dim = -1)
+        
+    def forward(self, X: Tensor, D: Tensor, R: Tensor):
+
+        # X has dim (batch_size, input_dim)
+        # D has dim (*, num_ex, input_dim)
+
+        # print(f"X size: {X.size()}")
+        # print(f"D size: {D.size()}")
+        
+        # Xw has dim (batch_size, rep_dim)
+        # Dw has dim (*, num_ex, rep_dim)        
+        Xw = self.Wx(X)
+        Dw = self.Wd(D)
+        Rw = self.Wr(R)
+        # print(f"Xw size: {Xw.size()}")
+        # print(f"Dw size: {Dw.size()}")
+        
+        # a has dim (*, batch_size, num_ex)
+        # print(f"Xw.size: {Xw.size()}")
+        # print(f"Dw.size: {Dw.size()}")
+        a = torch.matmul(Xw, torch.transpose(Dw, dim0 = -2, dim1 = -1))
+        a = self.activation(a)
+        # print(f"a size: {a.size()}")
+        if self.use_sm:
+            a = self.sm(a)
+
+        # R has dim (*, num_ex, 1)
+        # print(f"R size: {R.size()}")
+        # R has dim (*, num_ex, 1)
+        echo = torch.matmul(a, Rw)
+        # print(f"echo size: {echo.size()}")
+        
+        return self.We(echo)
     
     def activation(self, s, p_factor = None):
 
@@ -252,7 +368,9 @@ class ExLSTM_layers(nn.Module):
         use_lstm = True, 
         num_layers = 12, 
         p_factor = 1,
-        minerva_dim = None
+        minerva_dim = None,
+        minerva_R_dim = None,
+        use_r_encoding = False
     ):
         super().__init__()
 
@@ -260,6 +378,7 @@ class ExLSTM_layers(nn.Module):
         # self.activation = activation(negative_slope=0.3)
 
         minerva_dim = dim_extractor if minerva_dim is None else minerva_dim
+        minerva_R_dim = minerva_R_dim if minerva_R_dim is not None else 1
 
         self.layer_weights = nn.Parameter(torch.ones(num_layers, dtype = torch.float))
         self.att_pool_dim = att_pool_dim
@@ -276,7 +395,21 @@ class ExLSTM_layers(nn.Module):
             )
         
         self.attenPool = PoolAttFF(att_pool_dim, output_dim = att_pool_dim)
-        self.minerva = Minerva(att_pool_dim, p_factor = p_factor, rep_dim = minerva_dim)
+
+        if use_r_encoding:
+            self.minerva = Minerva_with_encoding(
+            att_pool_dim, 
+            p_factor = p_factor, 
+            rep_dim = minerva_dim, 
+            R_dim = minerva_R_dim
+        )
+        else:
+            self.minerva = Minerva(
+                att_pool_dim, 
+                p_factor = p_factor, 
+                rep_dim = minerva_dim, 
+                R_dim = minerva_R_dim
+            )
         
         self.sigmoid = nn.Sigmoid()
 
@@ -673,7 +806,7 @@ class ExLSTM(nn.Module):
         
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, X, D, r,  packed_sequence = True):
+    def forward(self, X, D, r,  packed_sequence = True, num_minervas = None):
 
         if self.use_lstm:
             X, _ = self.blstm(X)
@@ -782,8 +915,7 @@ class MetricPredictorAttenPool(nn.Module):
     
 
 class ffnn(nn.Module):
-    # Exemplar model incorporating multi-head attention for exemplar weighting, 
-    # with separate attention for the acoustic and phonetic information.
+
     def __init__(
             self,
             input_dim = 768, 
@@ -792,14 +924,8 @@ class ffnn(nn.Module):
             dropout = 0.0,
             activation = nn.ReLU()
             ):
-        super(ffnn, self).__init__()
+        super().__init__()
 
-        # self.input_dim = input_dim
-        # self.output_dim = output_dim
-        # self.dropout = dropout
-        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
-        # Neural network f
         self.fnn_stack = nn.Sequential(
             nn.Linear(input_dim, embed_dim),
             nn.Dropout(p = dropout),
@@ -812,7 +938,7 @@ class ffnn(nn.Module):
 
     def forward(self, features):
         
-        return self.fnn_stack(features), None
+        return self.fnn_stack(features)
 
     
 

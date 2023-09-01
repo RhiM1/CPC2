@@ -5,14 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from constants import DATAROOT, DATAROOT_CPC1
 
-def plot_correctness_histogram(args, datas):
+def plot_correctness_histogram(args, data):
 
-    # data.hist(column = 'correctness', by = ['N', 'CEC'], sharex = True, sharey = True, density = True)
-    data = pd.concat(datas)
-    count, division = np.histogram(data.correctness)
-    print(count / np.sum(count)) 
-    print(division)
-    data.hist(column = 'correctness', density = True)
+    data.hist(column = 'correctness', by = ['N', 'CEC'], sharex = True, sharey = True, density = True)
     plt.show()
 
 def plot_listener_boxplots(args, data):
@@ -138,23 +133,58 @@ def get_listener_stats(args, data):
 
 def main(args):
     
+    test_datas = []
     datas = []
-    for CEC in args.CEC:
-        for N in args.N:
-            if args.eval_data:
-                json_in = f"{args.meta_dir}CEC{CEC}.test.{N}.json"
-            else:
-                json_in = f"{args.meta_dir}CEC{CEC}.train.{N}.json"
-            data = pd.read_json(json_in)
-            data["CEC"] = f"CEC{CEC}"
-            data["N"] = f"N{N}"
-            # data[["signal", "correctness"]].to_csv(f"{args.out_csv_file}_{N}.csv", index=False)
-            datas.append(data)
+    for N in args.N:
+        json_in = f"{args.meta_dir}CEC2.test.{N}.json"
+        test_datas.append(pd.read_json(json_in))
+        test_datas[N-1]["CEC"] = f"CEC2"
+        json_in = f"{args.meta_dir}CEC1.train.{N}.json"
+        data = pd.read_json(json_in)
+        data["CEC"] = f"CEC1"
+        json_in = f"{args.meta_dir}CEC2.train.{N}.json"
+        data2 = pd.read_json(json_in)
+        data2["CEC"] = f"CEC2"
+        datas.append(pd.concat([data, data2]))
+        # for CEC in args.CEC:
+        #     json_in = f"{args.meta_dir}CEC{CEC}.train.{N}.json"
+        #     data = pd.read_json(json_in)
+        #     data["CEC"] = f"CEC{CEC}"
+        #     data["N"] = f"N{N}"
+        #     datas.append(data)
 
-    # print(datas[0])
-    # print(datas[1])
-    # print(datas[2])
+    for data in datas:
+        print(data)
 
+    for data in test_datas:
+        print(data)
+
+    # for N in range(3):
+    #     lis_test = test_datas[N].listener.unique()
+    #     lis_train = datas[N].listener.unique()
+    #     sys_test = test_datas[N].system.unique()
+    #     sys_train = datas[N].system.unique()
+    #     scene_test = test_datas[N].scene.unique()
+    #     scene_train = datas[N].scene.unique()
+        # print(lis_test)
+        # print(list_train)
+        # for listener in lis_test:
+        #     if listener in lis_train:
+        #         print(listener)
+        #     else:
+        #         print("not in train!")
+        # for system in sys_test:
+        #     if system in sys_train:
+        #         print(system)
+        #     else:
+        #         print("not in train!")
+        # for scene in scene_test:
+        #     if scene in scene_train:
+        #         print(scene)
+        #     else:
+        #         print("not in train!")
+    
+    
     # data = pd.concat(datas)
     # unique_corr = data.correctness.unique()
     # print(unique_corr)
@@ -165,7 +195,7 @@ def main(args):
 
     # compare_testCPC1_to_trainCPC2(args, datas, cpc1_eval_data)
 
-    plot_correctness_histogram(args, datas)
+    # plot_correctness_histogram(args, data)
     # plot_listener_boxplots(args, data)
 
     # get_listener_stats(args, data)
@@ -179,9 +209,9 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--N", help="partion to explore", default=0, type=int
-    )
+    # parser.add_argument(
+    #     "--N", help="partion to explore", default=0, type=int
+    # )
     parser.add_argument(
         "--model", help="model type" , default="999", type=str
     )
@@ -189,28 +219,16 @@ if __name__ == "__main__":
         "--meta_dir", help="Directory of metadata json files" , default=DATAROOT + "metadata/", type=str
     )
     parser.add_argument(
-        "--out_csv_file", help="Name of ouput CSV files" , default=DATAROOT + "eval_correctness", type=str
-    )
-    parser.add_argument(
-        "--eval_data", help="Explore evaluation set rather than test set", default=False, action='store_true'
-    )
-    parser.add_argument(
         # "--json_dir", help="Directory of metadata json files" , default="/store/store1/data/clarity_CPC2_data/clarity_data/metadata/", type=str
         # "--cpc1_eval_dir", help="Directory of metadata json files" , default="~/data/clarity_CPC1_eval_data/metadata/", type=str
         "--cpc1_eval_dir", help="Directory of metadata json files" , default="/home/acp20rm/exp/data/clarity_CPC1_eval_data/metadata/", type=str
     )
-    parser.add_argument(
-        "--CEC", help="CEC 1 or 2; leave blank for both" , default=0, type=int
-    )
+    # parser.add_argument(
+    #     "--CEC", help="CEC 1 or 2; leave blank for both" , default=0, type=int
+    # )
 
     args = parser.parse_args()
-    if args.CEC == 0:
-        args.CEC = [1, 2]
-    else:
-        args.CEC = [args.CEC]
-    
-    if args.N == 0:
-        args.N = [1, 2, 3]
-    else:
-        args.N = [args.N]
+    args.CEC = [1, 2]
+    args.N = [1, 2, 3]
+
     main(args)

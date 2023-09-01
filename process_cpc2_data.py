@@ -33,46 +33,18 @@ def prepare_dataset(batch, processor, mono = True):
     
     # load and resample audio data from 48 to 16kHz
     audio = batch["audio"]
-    # print(f"audio shape: {audio['array'].shape}")
     # compute log-Mel input features from input audio array 
     if mono:
-        print(audio["array"].shape)
-        # print(audio["array"])
-        # print(audio)
         processed_audio = processor.feature_extractor(audio["array"], sampling_rate=audio["sampling_rate"], return_attention_mask = True)
         batch["input_features"] = processed_audio.input_features[0]
         batch["attention_mask"] = processed_audio.attention_mask
-        print(processed_audio.input_features[0].shape)
-        # print(processed_audio.input_features.shape)
-        # print(processed_audio.shape)
     else:
-        print(audio["array"].shape)
-        print(audio["array"][0].shape)
-        # print(audio["array"][0])
-        # print(audio["array"][1].shape)
-        # print(audio)
         processed_audio_l = processor.feature_extractor(audio["array"][0], sampling_rate=audio["sampling_rate"], return_attention_mask = True)
-        # processed_audio_r = processor.feature_extractor(audio["array"][1], sampling_rate=audio["sampling_rate"], return_attention_mask = True)
         batch["input_features"] = processed_audio_l.input_features[0]
-        # batch["input_features_r"] = processed_audio_r.input_features[0]
         batch["attention_mask"] = processed_audio_l.attention_mask
-        print(processed_audio_l.input_features[0].shape)
-    
-    print(batch["input_features"])
-    
-
-
-    # print(processed_audio)
-    # print(f"attention_mask shape: {processed_audio.attention_mask.shape}")
-    # print(processed_audio.input_features.shape)
-    # print(processed_audio.input_features[0])
-    # print()
-    # print("Done mono/stero bit")
 
     # encode target text to label ids 
     batch["labels"] = processor.tokenizer(batch["prompt"]).input_ids
-
-    print("prompt tokenized")
 
     return batch
 

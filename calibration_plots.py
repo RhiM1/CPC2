@@ -76,6 +76,43 @@ def do_hist_plot(df_list):
 
     plt.show()
 
+    
+def do_neg_hist_plot(df_list, neg_df_list):
+
+    bins = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    fig, axs = plt.subplots(len(df_list), 3, sharey = True, sharex = True)
+    for i, df in enumerate(df_list):
+        axs[i, 0].hist(df["correctness"], bins = bins, density = True)
+        axs[i, 1].hist(df["predicted"], bins = bins, density = True)
+        axs[i, 2].hist(100 - neg_df_list[i]["predicted"], bins = bins, density = True)
+        # axs[i, 3].hist(df["predicted_iso"], bins = bins, density = True)
+        # axs[i, 4].hist(df["predicted_quant"], bins = bins, density = True)
+    axs[0, 0].set_title("Truth")
+    axs[0, 1].set_title("Predicted")
+    axs[0, 2].set_title("Neg predicted")
+    axs[0, 0].set_ylabel("Val density")
+    axs[1, 0].set_ylabel("Dis density")
+    axs[2, 0].set_ylabel("Dis lis density")
+    axs[3, 0].set_ylabel("Dis sys density")
+    axs[4, 0].set_ylabel("Dis scene density")
+    axs[4, 0].set_xlabel("Correctness")
+    axs[4, 1].set_xlabel("Correctness")
+    axs[4, 2].set_xlabel("Correctness")
+    # for CEC in args.CEC:
+    #     for N in args.N:
+    #         this_data = data.loc[(data['CEC'] == CEC) & (data['N'] == N)]
+    #         this_data.boxplot(column = "correctness", by = "listener", ax = axs[N - 1, CEC - 1], rot = 45)
+    #         axs[N - 1, CEC - 1].set(xlabel = "listener", ylabel = "correctness (%)", title = "")
+    #         axs
+            # axs[N - 1, CEC - 1].hist(data["correctness"], density = True)
+            # axs[N - 1, CEC - 1].set_title(f"N{N} CEC{CEC}")
+            # axs[N - 1, CEC - 1].set(xlabel = "correctness (%)", ylabel = "frequency density")
+            # axs[N - 1, CEC - 1].label_outer()
+            # print(f"N: {N}, CEC: {CEC}\n{datas[(CEC - 1) * 3 + N - 1]}\n")
+    # data.boxplot(column = 'correctness', by = ['N', 'CEC', 'listener'], rot = 45)
+
+    plt.show()
+
 
 def calibrate(df_list):
 
@@ -240,19 +277,47 @@ def main(args):
     dis_scene_df = pd.read_csv(args.data_file_dis_scene)
 
     df_list = [val_df, dis_df, dis_lis_df, dis_sys_df, dis_scene_df]
-
-    # for df in df_list:
-    #     print(df)
-
     df_list = calibrate(df_list)
     df_list = isotonic_regression(df_list)
     df_list = silly_correction(df_list)
     rmse, rmse_fitted, rmse_iso, rmse_quant = get_rmse(df_list)
-
+    
+    print()
     print(rmse)
     print(rmse_fitted)
     print(rmse_iso)
     print(rmse_quant)
+    print()
+
+    if args.neg_data_file is not None:
+        neg_val_df = pd.read_csv(args.neg_data_file_val)
+        neg_dis_df = pd.read_csv(args.neg_data_file_dis)
+        neg_dis_lis_df = pd.read_csv(args.neg_data_file_lis)
+        neg_dis_sys_df = pd.read_csv(args.neg_data_file_sys)
+        neg_dis_scene_df = pd.read_csv(args.neg_data_file_scene)
+
+        # neg_val_df["correctness"] = 100 - neg_val_df["correctness"]
+        # neg_dis_df["correctness"] = 100 - neg_dis_df["correctness"]
+        # neg_dis_lis_df["correctness"] = 100 - neg_dis_lis_df["correctness"]
+        # neg_dis_sys_df["correctness"] = 100 - neg_dis_sys_df["correctness"]
+        # neg_dis_scene_df["correctness"] = 100 - neg_dis_scene_df["correctness"]
+
+        neg_df_list = [neg_val_df, neg_dis_df, neg_dis_lis_df, neg_dis_sys_df, neg_dis_scene_df]
+        neg_df_list = calibrate(neg_df_list)
+        neg_df_list = isotonic_regression(neg_df_list)
+        neg_df_list = silly_correction(neg_df_list)
+        neg_rmse, neg_rmse_fitted, neg_rmse_iso, neg_rmse_quant = get_rmse(neg_df_list)
+
+        print()
+        print(neg_rmse)
+        print(neg_rmse_fitted)
+        print(neg_rmse_iso)
+        print(neg_rmse_quant)
+        print()
+
+    # for df in df_list:
+    #     print(df)
+
 
 
     # for df in df_list:
@@ -261,7 +326,8 @@ def main(args):
 
     # do_scatter_plots(df_list)
 
-    # do_hist_plot(df_list)    
+    do_hist_plot(df_list)    
+    # do_neg_hist_plot(df_list, neg_df_list)
 
     # do_cal_plot(df_list)
 
@@ -275,9 +341,13 @@ if __name__ == "__main__":
         "--data_dir", help="save directory", default = "save/"
     )
     parser.add_argument(
-        # "--data_file", help="file to plot", default = "001_N1_WhisperFull_ExLSTM_log"
-        # "--data_file", help="file to plot", default = "004_N3_WhisperFull_LSTM_layers"
-        "--data_file", help="file to plot", default = "011_N3_WhisperFull_ExLSTM_layers"
+        # "--data_file", help="file to plot", default = "007_N3_WhisperFull_LSTM_layers"
+        # "--data_file", help="file to plot", default = "015_N3_WhisperFull_ExLSTM_layers"
+        # "--data_file", help="file to plot", default = "021test2_N3_WhisperFull_ExLSTM_layers"
+        "--data_file", help="file to plot", default = "004_N1_WhisperFull_ExLSTM_layers"
+    )
+    parser.add_argument(
+        "--neg_data_file", help="file to plot", default = None
     )
     # parser.add_argument(
     #     "--skip_wandb", help="skip logging via WandB", default=False, action='store_true'
@@ -287,10 +357,15 @@ if __name__ == "__main__":
     
     args.data_file_val = f"{args.data_dir}{args.data_file}_val_preds.csv"
     args.data_file_dis = f"{args.data_dir}{args.data_file}_dis_val_preds.csv"
-    args.data_file_dis_lis= f"{args.data_dir}{args.data_file}_dis_lis_val_preds.csv"
+    args.data_file_dis_lis = f"{args.data_dir}{args.data_file}_dis_lis_val_preds.csv"
     args.data_file_dis_sys = f"{args.data_dir}{args.data_file}_dis_sys_val_preds.csv"
     args.data_file_dis_scene = f"{args.data_dir}{args.data_file}_dis_scene_val_preds.csv"
-
     
+    if args.neg_data_file is not None:
+        args.neg_data_file_val = f"{args.data_dir}{args.neg_data_file}_val_preds.csv"
+        args.neg_data_file_dis = f"{args.data_dir}{args.neg_data_file}_dis_val_preds.csv"
+        args.neg_data_file_lis = f"{args.data_dir}{args.neg_data_file}_dis_lis_val_preds.csv"
+        args.neg_data_file_sys = f"{args.data_dir}{args.neg_data_file}_dis_sys_val_preds.csv"
+        args.neg_data_file_scene = f"{args.data_dir}{args.neg_data_file}_dis_scene_val_preds.csv"
 
     main(args)
