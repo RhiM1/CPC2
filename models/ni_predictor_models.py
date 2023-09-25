@@ -458,6 +458,105 @@ class ExLSTM_layers(nn.Module):
     
 
 
+class ExAttenPool_layers(nn.Module):
+    """Metric estimator for enhancement training.
+
+    Consists of:
+     * four 2d conv layers
+     * channel averaging
+     * three linear layers
+
+    Arguments
+    ---------
+    kernel_size : tuple
+        The dimensions of the 2-d kernel used for convolution.
+    base_channels : int
+        Number of channels used in each conv layer.
+    """
+
+    def __init__(
+        self, 
+        dim_extractor=512, 
+        hidden_size=512//2, 
+        # activation=nn.LeakyReLU, 
+        att_pool_dim=512, 
+        num_layers = 12, 
+        p_factor = 1,
+        minerva_dim = None,
+        minerva_R_dim = None,
+        use_r_encoding = False
+    ):
+        super().__init__()
+
+        minerva_dim = dim_extractor if minerva_dim is None else minerva_dim
+        minerva_R_dim = minerva_R_dim if minerva_R_dim is not None else 1
+
+        self.layer_weights = nn.Parameter(torch.ones(num_layers, dtype = torch.float))
+        self.att_pool_dim = att_pool_dim
+        self.sm = nn.Softmax(dim = 0)
+        
+        self.attenPool = PoolAttFF(att_pool_dim, output_dim = att_pool_dim)
+
+        if use_r_encoding:
+            self.minerva = Minerva_with_encoding(
+            att_pool_dim, 
+            p_factor = p_factor, 
+            rep_dim = minerva_dim, 
+            R_dim = minerva_R_dim
+        )
+        else:
+            self.minerva = Minerva(
+                att_pool_dim, 
+                p_factor = p_factor, 
+                rep_dim = minerva_dim, 
+                R_dim = minerva_R_dim
+            )
+        
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, X, D, r, packed_sequence = True, num_minervas = 1):
+
+        # X has dim (batch size, time (padded), input_dim, layers)
+        X, X_len = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+        # D has dim (ex size, time (padded), input_dim, layers)
+        D, D_len = nn.utils.rnn.pad_packed_sequence(D, batch_first = True)
+
+        # X has new dim (batch size, time (padded), input_dim)
+        X = X @ self.sm(self.layer_weights)
+        # D has new dim (ex size, time (padded), input_dim)
+        D = D @ self.sm(self.layer_weights)
+
+        # X = nn.utils.rnn.pack_padded_sequence(X, lengths = X_len, batch_first = True, enforce_sorted = False)
+        # D = nn.utils.rnn.pack_padded_sequence(D, lengths = D_len, batch_first = True, enforce_sorted = False)
+
+        # if self.use_lstm:
+        #     X, _ = self.blstm(X)
+        #     D, _ = self.blstm(D)
+        # if packed_sequence:
+        #     X, _ = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+        #     D, _ = nn.utils.rnn.pad_packed_sequence(D, batch_first = True)
+        
+        # X has new dim (batch_size, att_pool_dim)
+        X = self.attenPool(X)
+        # X has new dim (ex_size, att_pool_dim)
+        D = self.attenPool(D)
+
+        if num_minervas > 1:
+            # X has new dim (num_minervas, ex_size, att_pool_dim)
+            D = D.view(num_minervas, -1, self.att_pool_dim)
+            # X has new dim (num_minervas, ex_size, 1)
+            r = r.view(num_minervas, -1, 1)
+
+        # full_echos has dim (*, batch_size, 1)
+        full_echo = self.minerva(X, D, r)
+        if num_minervas > 1:
+            echo = full_echo.mean(dim = 0)
+        else:
+            echo = full_echo
+        # print(f"echo size: {echo.size()}")
+
+        return self.sigmoid(echo), full_echo
+
 
 class ExLSTM_log(nn.Module):
     """Metric estimator for enhancement training.
@@ -912,6 +1011,99 @@ class MetricPredictorAttenPool(nn.Module):
         out = self.sigmoid(out)
 
         return out, None
+    
+    
+class MetricPredictorAttenPool_layers(nn.Module):
+    """Metric estimator for enhancement training.
+
+    Consists of:
+     * four 2d conv layers
+     * channel averaging
+     * three linear layers
+
+    Arguments
+    ---------
+    kernel_size : tuple
+        The dimensions of the 2-d kernel used for convolution.
+    base_channels : int
+        Number of channels used in each conv layer.
+    """
+
+    def __init__(
+        self, att_pool_dim=512, num_layers = 12
+    ):
+        super().__init__()
+        
+        self.layer_weights = nn.Parameter(torch.ones(num_layers, dtype = torch.float))
+
+        self.attenPool = PoolAttFF(att_pool_dim)
+        
+        self.sm = nn.Sigmoid()
+        
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, X):
+
+        
+        X, X_len = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+
+        X = X @ self.sm(self.layer_weights)
+        
+        X = nn.utils.rnn.pack_padded_sequence(X, lengths = X_len, batch_first = True, enforce_sorted = False)
+
+        X = self.attenPool(X)
+        X = self.sigmoid(X)
+
+        return X, None
+    
+    
+class ExAttenPool_layers(nn.Module):
+    """Metric estimator for enhancement training.
+
+    Consists of:
+     * four 2d conv layers
+     * channel averaging
+     * three linear layers
+
+    Arguments
+    ---------
+    kernel_size : tuple
+        The dimensions of the 2-d kernel used for convolution.
+    base_channels : int
+        Number of channels used in each conv layer.
+    """
+
+    def __init__(
+        self, att_pool_dim=512, num_layers = 12
+    ):
+        super().__init__()
+        
+        self.layer_weights = nn.Parameter(torch.ones(num_layers, dtype = torch.float))
+
+
+
+        self.attenPool = PoolAttFF(att_pool_dim)
+
+
+
+
+        
+
+        self.sm = nn.Sigmoid()
+        
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, X):
+
+        
+        X, X_len = nn.utils.rnn.pad_packed_sequence(X, batch_first = True)
+
+        X = X @ self.sm(self.layer_weights)
+
+        X = self.attenPool(X)
+        X = self.sigmoid(X)
+
+        return X, None
     
 
 class ffnn(nn.Module):

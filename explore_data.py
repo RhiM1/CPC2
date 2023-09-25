@@ -151,6 +151,8 @@ def main(args):
             # data[["signal", "correctness"]].to_csv(f"{args.out_csv_file}_{N}.csv", index=False)
             datas.append(data)
 
+    get_listener_stats(args, datas[0])
+
     # print(datas[0])
     # print(datas[1])
     # print(datas[2])
@@ -165,7 +167,7 @@ def main(args):
 
     # compare_testCPC1_to_trainCPC2(args, datas, cpc1_eval_data)
 
-    plot_correctness_histogram(args, datas)
+    # plot_correctness_histogram(args, datas)
     # plot_listener_boxplots(args, data)
 
     # get_listener_stats(args, data)

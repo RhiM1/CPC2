@@ -41,9 +41,14 @@ def get_ex_set(data, args):
     data = data.sort_values('ex_set_id')
     data = data[data.ex_set_id != -9999]
 
-    # print(data)
-
     return data
+
+def get_listener_ex_set(data, args):
+
+    unique_listeners = data.listener.unique()
+
+    # for listener in unique_listeners:
+
 
 
 
