@@ -233,7 +233,7 @@ def get_dynamic_dataset(data):
         ]
 
     ddata = sb.dataio.dataset.DynamicItemDataset(data_dict,dynamic_items)
-    ddata.set_output_keys(["formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
+    ddata.set_output_keys(["listener", "formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
 
     return ddata
 
@@ -264,7 +264,10 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
     print("starting validation...")
     for batch in tqdm(my_dataloader):
        
-        correctness, feats_l, feats_r = batch
+        listener, correctness, feats_l, feats_r = batch
+
+        print(listener)
+        quit()
 
         # Use packed sequences for batches
         feats_l = torch.nn.utils.rnn.pack_padded_sequence(
@@ -463,7 +466,14 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
     
     for batch in tqdm(my_dataloader, total=len(my_dataloader)):
 
-        correctness, feats_l, feats_r = batch
+        listener, correctness, feats_l, feats_r = batch
+
+        unique_listeners = set(listener)
+
+        for listener in unique_listeners
+
+        print(listener)
+        quit()
 
         # Use packed sequences for variable-length
         # (not needed for Whisper, but needed for some others)
@@ -740,9 +750,6 @@ def main(args, config):
             run.tags = run.tags + (f"r_encoding", )
         if args.train_disjoint:
             run.tags = run.tags + (f"train_disjoint", )
-
-
-
 
 
     # Make a model directory (if it doesn't exist) and write out config for future reference
