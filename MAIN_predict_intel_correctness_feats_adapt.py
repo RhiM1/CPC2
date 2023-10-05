@@ -56,14 +56,26 @@ def audio_pipeline(path,fs=32000):
 
 
 def format_correctness(y):
+    # print(f"format_correctness y: {y}")
     y = torch.tensor([y])
     y = y/100
+    # print(f"format_correctness 2 y: {y}")
     return y
 
 
 def format_feats(y):
     y = torch.from_numpy(y).to(torch.float)
     return y[0]
+
+def get_listener_id(listener, listener_to_id):
+    # print(f"listener_list: {listener_list}")
+    # lis_ids = []
+    # for listener in listener_list:
+    # print(f"listener_to_id: {listener_to_id}")
+    # print(f"listener: {listener}")
+    # lis_ids.append(listener_to_id[listener])
+    # return torch.tensor(lis_ids, dtype = torch.long)
+    return listener_to_id[listener]
 
 
 def get_stats(predictions, correctness):
@@ -205,7 +217,7 @@ def extract_feats(feat_extractor, data, args, theset, save_feats_file = None):
     return data
 
 
-def get_dynamic_dataset(data):
+def get_dynamic_dataset(data, listener_to_id):
 
     name_list = data["signal"]
     correctness_list = data["correctness"]
@@ -219,7 +231,6 @@ def get_dynamic_dataset(data):
     for sub,name,corr,scene,lis, f_l, f_r in  zip(subset_list,name_list,correctness_list,scene_list,listener_list, feats_l_list, feats_r_list):
         data_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_l":f_l, "feats_r": f_r}
     
-
         dynamic_items = [
             {"func": lambda l: format_correctness(l),
             "takes": "correctness",
@@ -229,116 +240,18 @@ def get_dynamic_dataset(data):
             "provides": "formatted_feats_l"},
             {"func": lambda l: format_feats(l),
             "takes": "feats_r",
-            "provides": "formatted_feats_r"}
+            "provides": "formatted_feats_r"},
+            {"func": lambda l: get_listener_id(l, listener_to_id),
+             "takes": "listener",
+             "provides": "listener_id"}
         ]
 
     ddata = sb.dataio.dataset.DynamicItemDataset(data_dict,dynamic_items)
-    ddata.set_output_keys(["listener", "formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
+    ddata.set_output_keys(["listener_id", "formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
 
     return ddata
 
 
-def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
-    out_list = []
-    model.eval()
-    running_loss = 0.0
-    loss_list = []
-
-    test_set = get_dynamic_dataset(test_data)
-    my_dataloader = DataLoader(test_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
-
-    # Get exemplar data loader if using exemplars
-    if ex_data is not None:
-        if args.random_exemplars:
-            len_ex = len(test_data)
-            ex_set = get_dynamic_dataset(test_data)
-            ex_dataloader = DataLoader(ex_set,args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
-        else:
-            ex_set = get_ex_set(ex_data, args)
-            len_ex = len(ex_set)
-            ex_set = get_dynamic_dataset(ex_set)
-            ex_dataloader = DataLoader(ex_set,args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
-        ex_used = 0
-        ex_dataloader = iter(ex_dataloader)
-
-    print("starting validation...")
-    for batch in tqdm(my_dataloader):
-       
-        listener, correctness, feats_l, feats_r = batch
-
-        print(listener)
-        quit()
-
-        # Use packed sequences for batches
-        feats_l = torch.nn.utils.rnn.pack_padded_sequence(
-            feats_l.data, 
-            (feats_l.lengths * feats_l.data.size(1)).to(torch.int64), 
-            batch_first=True,
-            enforce_sorted = False
-        )
-        feats_r = torch.nn.utils.rnn.pack_padded_sequence(
-            feats_r.data, 
-            (feats_r.lengths * feats_r.data.size(1)).to(torch.int64), 
-            batch_first=True,
-            enforce_sorted = False
-        )
-        feats_l = feats_l.to(args.device)
-        feats_r = feats_r.to(args.device)
-
-        # Get exemplar for this minibatch, if using exemplar model
-        if ex_data is not None:
-            ex_used += args.num_minervas * args.ex_size
-            if ex_used > len_ex:
-                if args.random_exemplars:
-                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size*args.num_minervas, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
-                else:
-                    ex_set = get_ex_set(ex_data, args)
-                    ex_set = get_dynamic_dataset(ex_data)
-                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size*args.num_minervas, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
-                ex_used = args.num_minervas * args.ex_size
-
-            exemplars = next(ex_dataloader)
-            ex_correct, ex_feats_l, ex_feats_r = exemplars
-            # print(f"ex_correct:\n{ex_correct}")
-            ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
-                ex_feats_l.data, 
-                (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
-                batch_first=True,
-                enforce_sorted = False
-            )
-            ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
-                ex_feats_r.data, 
-                (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
-                batch_first=True,
-                enforce_sorted = False
-            )
-            ex_feats_l = ex_feats_l.to(args.device)
-            ex_feats_r = ex_feats_r.to(args.device)
-            ex_correct = ex_correct.data.to(args.device)
-            
-        target_scores = correctness.data.to(args.device)
-
-        if ex_data is not None:
-            output_l, _ = model(feats_l, ex_feats_l, ex_correct, num_minervas = args.num_minervas)
-            output_r, _ = model(feats_r, ex_feats_r, ex_correct, num_minervas = args.num_minervas)
-        else:
-            output_l,_ = model(feats_l)
-            output_r,_ = model(feats_r)
-
-        if args.learn_incorrect:
-            output = torch.minimum(output_l,output_r)
-        else:
-            output = torch.maximum(output_l,output_r)
-        loss = criterion(output,target_scores)
-
-        for out_val in output:
-            # print(out_val)
-            out_list.append(out_val.detach().cpu().numpy()[0]*100)
-
-        loss_list.append(loss.item())
-        # print statistics
-        running_loss += loss.item()
-    return out_list,sum(loss_list)/len(loss_list)
 
 def get_feats(data, save_feats_file, dim_extractor, feat_extractor, theset, args):
     
@@ -435,117 +348,300 @@ def format_audiogram(audiogram):
     return audiogram
     
 
-def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
-    model.train()
 
-    # print(ex_data)
-        
+
+def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
+    out_list = []
+    model.eval()
     running_loss = 0.0
     loss_list = []
 
-    train_set = get_dynamic_dataset(train_data)
-    my_dataloader = DataLoader(train_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
 
-    # Set up exemplar data loader if using exemplars
+    listener_to_id = {}
+    unique_test_listeners = list(set(test_data.listener.values))
+    for i, test_listener in enumerate(unique_test_listeners):
+        listener_to_id[test_listener] = i
+
+    
     if ex_data is not None:
-        if args.random_exemplars:
-            ex_set = get_dynamic_dataset(ex_data)
-            len_ex = len(ex_set)
-            ex_dataloader = DataLoader(ex_set,args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
+        unique_ex_listeners = list(set(ex_data.listener.values))
+        print(unique_test_listeners)
+        print(unique_ex_listeners)
+        for test_listener in unique_test_listeners:
+            if test_listener not in unique_ex_listeners:
+                print(f"Listener {test_listener} not present in the exemplar set.")
+                
+        ex_datas = []
+        ex_sets = []
+        lens_ex = []
+        ex_loaders = []
+        
+        for i, unique_listener in enumerate(unique_test_listeners):
+            ex_datas.append(ex_data[ex_data['listener'] == unique_listener])
+            if args.random_exemplars:
+                ex_sets.append(get_dynamic_dataset(ex_datas[i]), listener_to_id)
+                lens_ex.append(len(ex_sets[-1]))
+                ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+            else:
+                # print(ex_datas[i])
+                ex_sets.append(get_ex_set(ex_datas[i], args))
+                lens_ex.append(len(ex_sets[i]))
+                # print(ex_sets[i])
+                ex_sets[i] = get_dynamic_dataset(ex_sets[i], listener_to_id)
+                ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+                ex_loaders[i] = iter(ex_loaders[i])
+
+        ex_used = [0] * len(lens_ex)
+
+
+    test_set = get_dynamic_dataset(test_data, listener_to_id)
+    my_dataloader = DataLoader(test_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
+
+    print("starting validation...")
+    for batch in tqdm(my_dataloader):
+       
+        al_listener_id, correctness, al_feats_l, al_feats_r = batch
+
+        unique_listener_ids = al_listener_id.unique()
+
+        output_l = torch.zeros(len(al_listener_id), 1, dtype = torch.float, device = args.device)
+        output_r = torch.zeros(len(al_listener_id), 1, dtype = torch.float, device = args.device)
+
+
+        for unique_listener_id in unique_listener_ids:
+
+            # Use packed sequences for variable-length
+            # (not needed for Whisper, but needed for some others)
+            feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                al_feats_l.data[al_listener_id == unique_listener_id], 
+                (al_feats_l.lengths[al_listener_id == unique_listener_id] * al_feats_l.data[al_listener_id == unique_listener_id].size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                al_feats_r.data[al_listener_id == unique_listener_id], 
+                (al_feats_r.lengths[al_listener_id == unique_listener_id] * al_feats_r.data[al_listener_id == unique_listener_id].size(1)).to(torch.int64), 
+                batch_first=True,
+                enforce_sorted = False
+            )
+            feats_l = feats_l.to(args.device)
+            feats_r = feats_r.to(args.device)
+
+            # Get the exemplars for the minibatch, if using exemplar model
+            if ex_data is not None:
+                # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
+                ex_used[unique_listener_id] += args.ex_size * args.num_minervas
+                if ex_used[unique_listener_id] > lens_ex[unique_listener_id]:
+                    if args.random_exemplars:
+                        ex_loaders[unique_listener_id] = iter(DataLoader(ex_sets[unique_listener_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                    else:
+                    # print("Reloading exemplars...")
+                        ex_sets[unique_listener_id] = get_ex_set(ex_datas[unique_listener_id], args)
+                        ex_sets[unique_listener_id] = get_dynamic_dataset(ex_sets[unique_listener_id])
+                        ex_loaders[unique_listener_id] = iter(DataLoader(ex_sets[unique_listener_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+                    ex_used[unique_listener_id] = args.ex_size * args.num_minervas
+                    
+                # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
+
+                exemplars = next(ex_loaders[unique_listener_id])
+                # print(exemplars)
+                ex_listener, ex_correct, ex_feats_l, ex_feats_r = exemplars
+                # print(f"ex_correct:\n{ex_correct}")
+                # print(f"\nexemplar correctness:\n{ex_correct}\n")
+                ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                    ex_feats_l.data, 
+                    (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
+                    batch_first=True,
+                    enforce_sorted = False
+                )
+                ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                    ex_feats_r.data, 
+                    (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
+                    batch_first=True,
+                    enforce_sorted = False
+                )
+                ex_feats_l = ex_feats_l.to(args.device)
+                ex_feats_r = ex_feats_r.to(args.device)
+                ex_correct = ex_correct.data.to(args.device)
+
+        
+
+            if ex_data is not None:
+                lis_output_l, _ = model(feats_l, ex_feats_l, ex_correct, num_minervas = args.num_minervas)
+                lis_output_r, _ = model(feats_r, ex_feats_r, ex_correct, num_minervas = args.num_minervas)
+
+                output_l[al_listener_id == unique_listener_id] = lis_output_l
+                output_r[al_listener_id == unique_listener_id] = lis_output_r
+            else:
+                output_l[al_listener_id == unique_listener_id],_ = model(feats_l)
+                output_r[al_listener_id == unique_listener_id],_ = model(feats_r)
+
+            
+        target_scores = correctness.data.to(args.device)
+
+        # if ex_data is not None:
+        #     output_l, _ = model(feats_l, ex_feats_l, ex_correct, num_minervas = args.num_minervas)
+        #     output_r, _ = model(feats_r, ex_feats_r, ex_correct, num_minervas = args.num_minervas)
+        # else:
+        #     output_l,_ = model(feats_l)
+        #     output_r,_ = model(feats_r)
+
+        if args.learn_incorrect:
+            output = torch.minimum(output_l,output_r)
         else:
-            ex_set = get_ex_set(ex_data, args)
-            len_ex = len(ex_set)
-            ex_set = get_dynamic_dataset(ex_set)
-            ex_dataloader = DataLoader(ex_set,args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
-            # len_ex = len(ex_dataloader)
-        ex_used = 0
-        ex_dataloader = iter(ex_dataloader)
+            output = torch.maximum(output_l,output_r)
+        loss = criterion(output,target_scores)
+
+        for out_val in output:
+            # print(out_val)
+            out_list.append(out_val.detach().cpu().numpy()[0]*100)
+
+        loss_list.append(loss.item())
+        # print statistics
+        running_loss += loss.item()
+    return out_list,sum(loss_list)/len(loss_list)
+
+
+def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
+    model.train()
+
+    running_loss = 0.0
+    loss_list = []
+
+    listener_to_id = {}
+    unique_train_listeners = list(set(train_data.listener.values))
+    for i, train_listener in enumerate(unique_train_listeners):
+        listener_to_id[train_listener] = i
+
+    # print(listener_to_id)
+
+    if ex_data is not None:
+        unique_ex_listeners = list(set(ex_data.listener.values))
+        print(unique_train_listeners)
+        print(unique_ex_listeners)
+        for train_listener in unique_train_listeners:
+            if train_listener not in unique_ex_listeners:
+                print(f"Listener {train_listener} not present in the exemplar set.")
+                
+        ex_datas = []
+        ex_sets = []
+        lens_ex = []
+        ex_loaders = []
+        
+        for i, unique_listener in enumerate(unique_train_listeners):
+            ex_datas.append(ex_data[ex_data['listener'] == unique_listener])
+            if args.random_exemplars:
+                ex_sets.append(get_dynamic_dataset(ex_datas[i]), listener_to_id)
+                lens_ex.append(len(ex_sets[-1]))
+                ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+            else:
+                # print(ex_datas[i])
+                ex_sets.append(get_ex_set(ex_datas[i], args))
+                lens_ex.append(len(ex_sets[i]))
+                # print(ex_sets[i])
+                ex_sets[i] = get_dynamic_dataset(ex_sets[i], listener_to_id)
+                ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+                ex_loaders[i] = iter(ex_loaders[i])
+
+        ex_used = [0] * len(lens_ex)
+
+    train_set = get_dynamic_dataset(train_data, listener_to_id)
+    my_dataloader = DataLoader(train_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
 
     print(f"batch_size: {args.batch_size}")
     print("starting training...")
     
     for batch in tqdm(my_dataloader, total=len(my_dataloader)):
 
-        listener, correctness, feats_l, feats_r = batch
+        al_listener_id, correctness, al_feats_l, al_feats_r = batch
 
-        unique_listeners = set(listener)
+        unique_listener_ids = al_listener_id.unique()
 
-        for listener in unique_listeners
+        output_l = torch.zeros(len(al_listener_id), 1, dtype = torch.float, device = args.device)
+        output_r = torch.zeros(len(al_listener_id), 1, dtype = torch.float, device = args.device)
 
-        print(listener)
-        quit()
 
-        # Use packed sequences for variable-length
-        # (not needed for Whisper, but needed for some others)
-        feats_l = torch.nn.utils.rnn.pack_padded_sequence(
-            feats_l.data, 
-            (feats_l.lengths * feats_l.data.size(1)).to(torch.int64), 
-            batch_first=True,
-            enforce_sorted = False
-        )
-        feats_r = torch.nn.utils.rnn.pack_padded_sequence(
-            feats_r.data, 
-            (feats_r.lengths * feats_r.data.size(1)).to(torch.int64), 
-            batch_first=True,
-            enforce_sorted = False
-        )
-        feats_l = feats_l.to(args.device)
-        feats_r = feats_r.to(args.device)
+        for unique_listener_id in unique_listener_ids:
 
-        # Get the exemplars for the minibatch, if using exemplar model
-        if ex_data is not None:
-            # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
-            ex_used += args.ex_size * args.num_minervas
-            if ex_used > len_ex:
-                if args.random_exemplars:
-                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
-                else:
-                # print("Reloading exemplars...")
-                    ex_set = get_ex_set(ex_data, args)
-                    ex_set = get_dynamic_dataset(ex_set)
-                    ex_dataloader = iter(DataLoader(ex_set,args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
-                ex_used = args.ex_size * args.num_minervas
-                
-            # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
-
-            exemplars = next(ex_dataloader)
-            # print(exemplars)
-            ex_correct, ex_feats_l, ex_feats_r = exemplars
-            # print(f"ex_correct:\n{ex_correct}")
-            # print(f"\nexemplar correctness:\n{ex_correct}\n")
-            ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
-                ex_feats_l.data, 
-                (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
+            # Use packed sequences for variable-length
+            # (not needed for Whisper, but needed for some others)
+            feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                al_feats_l.data[al_listener_id == unique_listener_id], 
+                (al_feats_l.lengths[al_listener_id == unique_listener_id] * al_feats_l.data[al_listener_id == unique_listener_id].size(1)).to(torch.int64), 
                 batch_first=True,
                 enforce_sorted = False
             )
-            ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
-                ex_feats_r.data, 
-                (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
+            feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                al_feats_r.data[al_listener_id == unique_listener_id], 
+                (al_feats_r.lengths[al_listener_id == unique_listener_id] * al_feats_r.data[al_listener_id == unique_listener_id].size(1)).to(torch.int64), 
                 batch_first=True,
                 enforce_sorted = False
             )
-            ex_feats_l = ex_feats_l.to(args.device)
-            ex_feats_r = ex_feats_r.to(args.device)
-            ex_correct = ex_correct.data.to(args.device)
+            feats_l = feats_l.to(args.device)
+            feats_r = feats_r.to(args.device)
+
+            # Get the exemplars for the minibatch, if using exemplar model
+            if ex_data is not None:
+                # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
+                ex_used[unique_listener_id] += args.ex_size * args.num_minervas
+                if ex_used[unique_listener_id] > lens_ex[unique_listener_id]:
+                    if args.random_exemplars:
+                        ex_loaders[unique_listener_id] = iter(DataLoader(ex_sets[unique_listener_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                    else:
+                    # print("Reloading exemplars...")
+                        ex_sets[unique_listener_id] = get_ex_set(ex_datas[unique_listener_id], args)
+                        ex_sets[unique_listener_id] = get_dynamic_dataset(ex_sets[unique_listener_id])
+                        ex_loaders[unique_listener_id] = iter(DataLoader(ex_sets[unique_listener_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+                    ex_used[unique_listener_id] = args.ex_size * args.num_minervas
+                    
+                # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
+
+                exemplars = next(ex_loaders[unique_listener_id])
+                # print(exemplars)
+                ex_listener, ex_correct, ex_feats_l, ex_feats_r = exemplars
+                # print(f"ex_correct:\n{ex_correct}")
+                # print(f"\nexemplar correctness:\n{ex_correct}\n")
+                ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
+                    ex_feats_l.data, 
+                    (ex_feats_l.lengths * ex_feats_l.data.size(1)).to(torch.int64), 
+                    batch_first=True,
+                    enforce_sorted = False
+                )
+                ex_feats_r = torch.nn.utils.rnn.pack_padded_sequence(
+                    ex_feats_r.data, 
+                    (ex_feats_r.lengths * ex_feats_r.data.size(1)).to(torch.int64), 
+                    batch_first=True,
+                    enforce_sorted = False
+                )
+                ex_feats_l = ex_feats_l.to(args.device)
+                ex_feats_r = ex_feats_r.to(args.device)
+                ex_correct = ex_correct.data.to(args.device)
+
+        
+
+            if ex_data is not None:
+                lis_output_l, _ = model(feats_l, ex_feats_l, ex_correct, num_minervas = args.num_minervas)
+                lis_output_r, _ = model(feats_r, ex_feats_r, ex_correct, num_minervas = args.num_minervas)
+
+                output_l[al_listener_id == unique_listener_id] = lis_output_l
+                output_r[al_listener_id == unique_listener_id] = lis_output_r
+            else:
+                output_l[al_listener_id == unique_listener_id],_ = model(feats_l)
+                output_r[al_listener_id == unique_listener_id],_ = model(feats_r)
+
 
         target_scores = correctness.data.to(args.device)
-        
-        optimizer.zero_grad()
-
-        if ex_data is not None:
-            output_l, _ = model(feats_l, ex_feats_l, ex_correct, num_minervas = args.num_minervas)
-            output_r, _ = model(feats_r, ex_feats_r, ex_correct, num_minervas = args.num_minervas)
-        else:
-            output_l,_ = model(feats_l)
-            output_r,_ = model(feats_r)
         loss_l = criterion(output_l,target_scores)
         loss_r = criterion(output_r,target_scores)
+
+
+
 
         # Sum the right and left losses - note that training loss is
         # therefore doubled compared to evaluation loss
         loss = loss_l + loss_r
 
+        optimizer.zero_grad()
         loss.backward()
         if args.grad_clipping is not None:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clipping)
@@ -856,7 +952,7 @@ def main(args, config):
         train_ex_data = None
         dis_val_ex_data = None
 
-    train_data = train_data.sample(frac=1).reset_index(drop=True)
+    # train_data = train_data.sample(frac=1).reset_index(drop=True)
 
     model = model.to(args.device)
 
@@ -1262,7 +1358,7 @@ if __name__ == "__main__":
         else:
             args.test_json_file = f"{DATAROOT}/metadata/CEC2.test.{args.N}.json"
             config["test_json_file"] = args.test_json_file
-        
+    
     if args.summ_file is None:
         if args.use_CPC1:
             args.summ_file = "save/CPC1_metrics.csv"
