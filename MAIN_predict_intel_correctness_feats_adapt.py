@@ -67,15 +67,10 @@ def format_feats(y):
     y = torch.from_numpy(y).to(torch.float)
     return y[0]
 
-def get_listener_id(listener, listener_to_id):
-    # print(f"listener_list: {listener_list}")
-    # lis_ids = []
-    # for listener in listener_list:
-    # print(f"listener_to_id: {listener_to_id}")
-    # print(f"listener: {listener}")
-    # lis_ids.append(listener_to_id[listener])
-    # return torch.tensor(lis_ids, dtype = torch.long)
-    return listener_to_id[listener]
+def get_object_id(obj, object_to_id):
+    # print(f"objL {obj}")
+    # print(f"obj_to_id: {object_to_id}")
+    return object_to_id[obj]
 
 
 def get_stats(predictions, correctness):
@@ -217,19 +212,20 @@ def extract_feats(feat_extractor, data, args, theset, save_feats_file = None):
     return data
 
 
-def get_dynamic_dataset(data, listener_to_id):
+def get_dynamic_dataset(data, object_to_id, args):
 
     name_list = data["signal"]
     correctness_list = data["correctness"]
     scene_list = data["scene"]
     listener_list = data["listener"]
+    system_list = data["system"]
     subset_list = data["subset"]
     feats_l_list = data["feats_l"]
     feats_r_list = data["feats_r"]
    
     data_dict = {}
-    for sub,name,corr,scene,lis, f_l, f_r in  zip(subset_list,name_list,correctness_list,scene_list,listener_list, feats_l_list, feats_r_list):
-        data_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis, "feats_l":f_l, "feats_r": f_r}
+    for sub, name, corr, scene, lis, sys, f_l, f_r in  zip(subset_list,name_list,correctness_list,scene_list,listener_list, system_list, feats_l_list, feats_r_list):
+        data_dict[name] = {"subset":sub,"signal": name,"correctness":corr,"scene": scene,"listener":lis, "system": sys, "feats_l":f_l, "feats_r": f_r}
     
         dynamic_items = [
             {"func": lambda l: format_correctness(l),
@@ -240,14 +236,24 @@ def get_dynamic_dataset(data, listener_to_id):
             "provides": "formatted_feats_l"},
             {"func": lambda l: format_feats(l),
             "takes": "feats_r",
-            "provides": "formatted_feats_r"},
-            {"func": lambda l: get_listener_id(l, listener_to_id),
-             "takes": "listener",
-             "provides": "listener_id"}
+            "provides": "formatted_feats_r"}
         ]
+        if args.ex_match_lis:
+            dynamic_items.append(
+                {"func": lambda l: get_object_id(l, object_to_id),
+                "takes": "listener",
+                "provides": "object_id"},
+            )
+        elif args.ex_match_sys:
+            dynamic_items.append(
+                {"func": lambda l: get_object_id(l, object_to_id),
+                "takes": "system",
+                "provides": "object_id"}
+            )
+
 
     ddata = sb.dataio.dataset.DynamicItemDataset(data_dict,dynamic_items)
-    ddata.set_output_keys(["listener_id", "formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
+    ddata.set_output_keys(["object_id", "formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
 
     return ddata
 
@@ -347,6 +353,35 @@ def format_audiogram(audiogram):
     audiogram = audiogram[:-1]
     return audiogram
     
+def get_ex_for_test(ex_data, args):
+
+    ex_data.ex = np.nan
+    arang = np.arange(len(ex_data))
+    ex = np.zeros(len(ex_data))
+
+    if args.ex_match_lis:
+        objects = ex_data.listener.values
+    if args.ex_match_sys:
+        objects = ex_data.system.values
+
+    unique_objects = list(set(objects))
+    print(f"unique_objects: {unique_objects}")
+
+    for obj in unique_objects:
+        lis_arang = arang[objects == obj]
+        lis_arang = np.random.permutation(lis_arang)
+        lis_arang = lis_arang[0:args.ex_size]
+        ex[lis_arang] = 1
+    ex_data.ex = ex
+    test_data = ex_data[ex_data.ex == 0].copy() 
+    ex_data = ex_data[ex_data.ex == 1].copy() 
+    non_ex_idx = ex == 0
+    print(f"ex: {ex}")
+    print(f"len ex: {len(ex)}")
+    print(f"non_ex_idx: {non_ex_idx}")
+    print(f"len non_ex_idx: {len(non_ex_idx)}")
+
+    return test_data, ex_data, non_ex_idx
 
 
 
@@ -356,30 +391,47 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
     running_loss = 0.0
     loss_list = []
 
+    # if test_data.equals(ex_data):
+    #     print("ex_data same as data")
+    #     ex_data = get_ex_for_test(test_data, args)
+    #     print(f"test_data: \n{test_data}\n")
+    #     print(f"ex_data: \n{ex_data}\n")
+    # else:
+    #     print("ex_data different from data")
 
-    listener_to_id = {}
-    unique_test_listeners = list(set(test_data.listener.values))
-    for i, test_listener in enumerate(unique_test_listeners):
-        listener_to_id[test_listener] = i
 
+    object_to_id = {}
+    if args.ex_match_lis:
+        unique_test_objects = list(set(test_data.listener.values))
+    elif args.ex_match_sys:
+        unique_test_objects = list(set(test_data.system.values))
+
+    for i, test_object in enumerate(unique_test_objects):
+        object_to_id[test_object] = i
     
     if ex_data is not None:
-        unique_ex_listeners = list(set(ex_data.listener.values))
-        print(unique_test_listeners)
-        print(unique_ex_listeners)
-        for test_listener in unique_test_listeners:
-            if test_listener not in unique_ex_listeners:
-                print(f"Listener {test_listener} not present in the exemplar set.")
+        if args.ex_match_lis:
+            unique_ex_objects = list(set(ex_data.listener.values))
+            objects = ex_data.listener.values
+        elif args.ex_match_sys:
+            unique_ex_objects = list(set(ex_data.system.values))
+            objects = ex_data.system.values
+
+        print(unique_test_objects)
+        print(unique_ex_objects)
+        for test_object in unique_test_objects:
+            if test_object not in unique_ex_objects:
+                print(f"Listener/system {test_object} not present in the exemplar set.")
                 
         ex_datas = []
         ex_sets = []
         lens_ex = []
         ex_loaders = []
         
-        for i, unique_listener in enumerate(unique_test_listeners):
-            ex_datas.append(ex_data[ex_data['listener'] == unique_listener])
+        for i, unique_object in enumerate(unique_test_objects):
+            ex_datas.append(ex_data[objects == unique_object])
             if args.random_exemplars:
-                ex_sets.append(get_dynamic_dataset(ex_datas[i]), listener_to_id)
+                ex_sets.append(get_dynamic_dataset(ex_datas[i]), object_to_id, args)
                 lens_ex.append(len(ex_sets[-1]))
                 ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
             else:
@@ -387,40 +439,39 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
                 ex_sets.append(get_ex_set(ex_datas[i], args))
                 lens_ex.append(len(ex_sets[i]))
                 # print(ex_sets[i])
-                ex_sets[i] = get_dynamic_dataset(ex_sets[i], listener_to_id)
+                ex_sets[i] = get_dynamic_dataset(ex_sets[i], object_to_id, args)
                 ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
                 ex_loaders[i] = iter(ex_loaders[i])
 
         ex_used = [0] * len(lens_ex)
 
 
-    test_set = get_dynamic_dataset(test_data, listener_to_id)
+    test_set = get_dynamic_dataset(test_data, object_to_id, args)
     my_dataloader = DataLoader(test_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
 
     print("starting validation...")
     for batch in tqdm(my_dataloader):
        
-        al_listener_id, correctness, al_feats_l, al_feats_r = batch
+        al_object_id, correctness, al_feats_l, al_feats_r = batch
+        unique_object_ids = al_object_id.unique()
 
-        unique_listener_ids = al_listener_id.unique()
-
-        output_l = torch.zeros(len(al_listener_id), 1, dtype = torch.float, device = args.device)
-        output_r = torch.zeros(len(al_listener_id), 1, dtype = torch.float, device = args.device)
+        output_l = torch.zeros(len(al_object_id), 1, dtype = torch.float, device = args.device)
+        output_r = torch.zeros(len(al_object_id), 1, dtype = torch.float, device = args.device)
 
 
-        for unique_listener_id in unique_listener_ids:
+        for unique_object_id in unique_object_ids:
 
             # Use packed sequences for variable-length
             # (not needed for Whisper, but needed for some others)
             feats_l = torch.nn.utils.rnn.pack_padded_sequence(
-                al_feats_l.data[al_listener_id == unique_listener_id], 
-                (al_feats_l.lengths[al_listener_id == unique_listener_id] * al_feats_l.data[al_listener_id == unique_listener_id].size(1)).to(torch.int64), 
+                al_feats_l.data[al_object_id == unique_object_id], 
+                (al_feats_l.lengths[al_object_id == unique_object_id] * al_feats_l.data[al_object_id == unique_object_id].size(1)).to(torch.int64), 
                 batch_first=True,
                 enforce_sorted = False
             )
             feats_r = torch.nn.utils.rnn.pack_padded_sequence(
-                al_feats_r.data[al_listener_id == unique_listener_id], 
-                (al_feats_r.lengths[al_listener_id == unique_listener_id] * al_feats_r.data[al_listener_id == unique_listener_id].size(1)).to(torch.int64), 
+                al_feats_r.data[al_object_id == unique_object_id], 
+                (al_feats_r.lengths[al_object_id == unique_object_id] * al_feats_r.data[al_object_id == unique_object_id].size(1)).to(torch.int64), 
                 batch_first=True,
                 enforce_sorted = False
             )
@@ -430,22 +481,22 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
             # Get the exemplars for the minibatch, if using exemplar model
             if ex_data is not None:
                 # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
-                ex_used[unique_listener_id] += args.ex_size * args.num_minervas
-                if ex_used[unique_listener_id] > lens_ex[unique_listener_id]:
+                ex_used[unique_object_id] += args.ex_size * args.num_minervas
+                if ex_used[unique_object_id] > lens_ex[unique_object_id]:
                     if args.random_exemplars:
-                        ex_loaders[unique_listener_id] = iter(DataLoader(ex_sets[unique_listener_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                        ex_loaders[unique_object_id] = iter(DataLoader(ex_sets[unique_object_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
                     else:
                     # print("Reloading exemplars...")
-                        ex_sets[unique_listener_id] = get_ex_set(ex_datas[unique_listener_id], args)
-                        ex_sets[unique_listener_id] = get_dynamic_dataset(ex_sets[unique_listener_id])
-                        ex_loaders[unique_listener_id] = iter(DataLoader(ex_sets[unique_listener_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
-                    ex_used[unique_listener_id] = args.ex_size * args.num_minervas
+                        ex_sets[unique_object_id] = get_ex_set(ex_datas[unique_object_id], args)
+                        ex_sets[unique_object_id] = get_dynamic_dataset(ex_sets[unique_object_id], object_to_id, args)
+                        ex_loaders[unique_object_id] = iter(DataLoader(ex_sets[unique_object_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+                    ex_used[unique_object_id] = args.ex_size * args.num_minervas
                     
                 # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
 
-                exemplars = next(ex_loaders[unique_listener_id])
+                exemplars = next(ex_loaders[unique_object_id])
                 # print(exemplars)
-                ex_listener, ex_correct, ex_feats_l, ex_feats_r = exemplars
+                ex_object, ex_correct, ex_feats_l, ex_feats_r = exemplars
                 # print(f"ex_correct:\n{ex_correct}")
                 # print(f"\nexemplar correctness:\n{ex_correct}\n")
                 ex_feats_l = torch.nn.utils.rnn.pack_padded_sequence(
@@ -470,11 +521,11 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
                 lis_output_l, _ = model(feats_l, ex_feats_l, ex_correct, num_minervas = args.num_minervas)
                 lis_output_r, _ = model(feats_r, ex_feats_r, ex_correct, num_minervas = args.num_minervas)
 
-                output_l[al_listener_id == unique_listener_id] = lis_output_l
-                output_r[al_listener_id == unique_listener_id] = lis_output_r
+                output_l[al_object_id == unique_object_id] = lis_output_l
+                output_r[al_object_id == unique_object_id] = lis_output_r
             else:
-                output_l[al_listener_id == unique_listener_id],_ = model(feats_l)
-                output_r[al_listener_id == unique_listener_id],_ = model(feats_r)
+                output_l[al_object_id == unique_object_id],_ = model(feats_l)
+                output_r[al_object_id == unique_object_id],_ = model(feats_r)
 
             
         target_scores = correctness.data.to(args.device)
@@ -502,36 +553,82 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
     return out_list,sum(loss_list)/len(loss_list)
 
 
-def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
-    model.train()
 
-    running_loss = 0.0
-    loss_list = []
+# def get_training_ex_old(train_data, ex_data, args):
 
-    listener_to_id = {}
-    unique_train_listeners = list(set(train_data.listener.values))
-    for i, train_listener in enumerate(unique_train_listeners):
-        listener_to_id[train_listener] = i
+    
+#     if ex_data is not None:
+#         ex_datas = []
+#         ex_sets = []
+#         lens_ex = []
+#         ex_loaders = []
 
-    # print(listener_to_id)
+#         if args.ex_match_lis:
+#             listener_to_id = {}
+#             unique_train_listeners = list(set(train_data.listener.values))
+#             for i, train_listener in enumerate(unique_train_listeners):
+#                 listener_to_id[train_listener] = i
+
+#             unique_ex_listeners = list(set(ex_data.listener.values))
+#             print(f"training listeners: {unique_train_listeners}")
+#             print(f"exemplar listeners: {unique_ex_listeners}")
+#             for train_listener in unique_train_listeners:
+#                 if train_listener not in unique_ex_listeners:
+#                     print(f"Listener {train_listener} not present in the exemplar set.")
+                
+#             for i, unique_listener in enumerate(unique_train_listeners):
+#                 ex_datas.append(ex_data[ex_data['listener'] == unique_listener])
+#                 if args.random_exemplars:
+#                     ex_sets.append(get_dynamic_dataset(ex_datas[i]), listener_to_id)
+#                     lens_ex.append(len(ex_sets[-1]))
+#                     ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+#                 else:
+#                     # print(ex_datas[i])
+#                     ex_sets.append(get_ex_set(ex_datas[i], args))
+#                     lens_ex.append(len(ex_sets[i]))
+#                     # print(ex_sets[i])
+#                     ex_sets[i] = get_dynamic_dataset(ex_sets[i], listener_to_id)
+#                     ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+#                     ex_loaders[i] = iter(ex_loaders[i])
+
+#         ex_used = [0] * len(lens_ex)
+
+#         return listener_to_id, ex_used, lens_ex, 
+
+
+def get_training_ex(train_data, ex_data, args):
 
     if ex_data is not None:
-        unique_ex_listeners = list(set(ex_data.listener.values))
-        print(unique_train_listeners)
-        print(unique_ex_listeners)
-        for train_listener in unique_train_listeners:
-            if train_listener not in unique_ex_listeners:
-                print(f"Listener {train_listener} not present in the exemplar set.")
-                
         ex_datas = []
         ex_sets = []
         lens_ex = []
         ex_loaders = []
-        
-        for i, unique_listener in enumerate(unique_train_listeners):
-            ex_datas.append(ex_data[ex_data['listener'] == unique_listener])
+
+        object_to_id = {}
+        if args.ex_match_lis:
+            unique_train_objects = list(set(train_data.listener.values))
+            unique_ex_objects = list(set(ex_data.listener.values))
+            objects = train_data.listener.values
+            print(f"training listeners: {unique_train_objects}")
+            print(f"exemplar listeners: {unique_ex_objects}")
+        elif args.ex_match_sys:
+            unique_train_objects = list(set(train_data.system.values))
+            unique_ex_objects = list(set(ex_data.system.values))
+            objects = train_data.system.values
+            print(f"training systens: {unique_train_objects}")
+            print(f"exemplar systens: {unique_ex_objects}")
+            
+        for i, train_object in enumerate(unique_train_objects):
+            object_to_id[train_object] = i
+
+        for train_object in unique_train_objects:
+            if train_object not in unique_ex_objects:
+                print(f"Listener/system {train_object} not present in the exemplar set.")
+            
+        for i, unique_object in enumerate(unique_train_objects):
+            ex_datas.append(ex_data[objects == unique_object])
             if args.random_exemplars:
-                ex_sets.append(get_dynamic_dataset(ex_datas[i]), listener_to_id)
+                ex_sets.append(get_dynamic_dataset(ex_datas[i]), object_to_id, args)
                 lens_ex.append(len(ex_sets[-1]))
                 ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
             else:
@@ -539,13 +636,24 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
                 ex_sets.append(get_ex_set(ex_datas[i], args))
                 lens_ex.append(len(ex_sets[i]))
                 # print(ex_sets[i])
-                ex_sets[i] = get_dynamic_dataset(ex_sets[i], listener_to_id)
+                ex_sets[i] = get_dynamic_dataset(ex_sets[i], object_to_id, args)
                 ex_loaders.append(DataLoader(ex_sets[i],args.ex_size*args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
                 ex_loaders[i] = iter(ex_loaders[i])
 
         ex_used = [0] * len(lens_ex)
 
-    train_set = get_dynamic_dataset(train_data, listener_to_id)
+        return object_to_id, ex_used, lens_ex, ex_loaders, ex_sets, ex_datas
+
+
+def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
+    model.train()
+
+    running_loss = 0.0
+    loss_list = []
+
+    object_to_id, ex_used, lens_ex, ex_loaders, ex_sets, ex_datas = get_training_ex(train_data, ex_data, args)
+
+    train_set = get_dynamic_dataset(train_data, object_to_id, args)
     my_dataloader = DataLoader(train_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
 
     print(f"batch_size: {args.batch_size}")
@@ -553,27 +661,27 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
     
     for batch in tqdm(my_dataloader, total=len(my_dataloader)):
 
-        al_listener_id, correctness, al_feats_l, al_feats_r = batch
+        al_object_id, correctness, al_feats_l, al_feats_r = batch
 
-        unique_listener_ids = al_listener_id.unique()
+        unique_object_ids = al_object_id.unique()
 
-        output_l = torch.zeros(len(al_listener_id), 1, dtype = torch.float, device = args.device)
-        output_r = torch.zeros(len(al_listener_id), 1, dtype = torch.float, device = args.device)
+        output_l = torch.zeros(len(al_object_id), 1, dtype = torch.float, device = args.device)
+        output_r = torch.zeros(len(al_object_id), 1, dtype = torch.float, device = args.device)
 
 
-        for unique_listener_id in unique_listener_ids:
+        for unique_object_id in unique_object_ids:
 
             # Use packed sequences for variable-length
             # (not needed for Whisper, but needed for some others)
             feats_l = torch.nn.utils.rnn.pack_padded_sequence(
-                al_feats_l.data[al_listener_id == unique_listener_id], 
-                (al_feats_l.lengths[al_listener_id == unique_listener_id] * al_feats_l.data[al_listener_id == unique_listener_id].size(1)).to(torch.int64), 
+                al_feats_l.data[al_object_id == unique_object_id], 
+                (al_feats_l.lengths[al_object_id == unique_object_id] * al_feats_l.data[al_object_id == unique_object_id].size(1)).to(torch.int64), 
                 batch_first=True,
                 enforce_sorted = False
             )
             feats_r = torch.nn.utils.rnn.pack_padded_sequence(
-                al_feats_r.data[al_listener_id == unique_listener_id], 
-                (al_feats_r.lengths[al_listener_id == unique_listener_id] * al_feats_r.data[al_listener_id == unique_listener_id].size(1)).to(torch.int64), 
+                al_feats_r.data[al_object_id == unique_object_id], 
+                (al_feats_r.lengths[al_object_id == unique_object_id] * al_feats_r.data[al_object_id == unique_object_id].size(1)).to(torch.int64), 
                 batch_first=True,
                 enforce_sorted = False
             )
@@ -583,20 +691,20 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
             # Get the exemplars for the minibatch, if using exemplar model
             if ex_data is not None:
                 # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
-                ex_used[unique_listener_id] += args.ex_size * args.num_minervas
-                if ex_used[unique_listener_id] > lens_ex[unique_listener_id]:
+                ex_used[unique_object_id] += args.ex_size * args.num_minervas
+                if ex_used[unique_object_id] > lens_ex[unique_object_id]:
                     if args.random_exemplars:
-                        ex_loaders[unique_listener_id] = iter(DataLoader(ex_sets[unique_listener_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
+                        ex_loaders[unique_object_id] = iter(DataLoader(ex_sets[unique_object_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
                     else:
                     # print("Reloading exemplars...")
-                        ex_sets[unique_listener_id] = get_ex_set(ex_datas[unique_listener_id], args)
-                        ex_sets[unique_listener_id] = get_dynamic_dataset(ex_sets[unique_listener_id])
-                        ex_loaders[unique_listener_id] = iter(DataLoader(ex_sets[unique_listener_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
-                    ex_used[unique_listener_id] = args.ex_size * args.num_minervas
+                        ex_sets[unique_object_id] = get_ex_set(ex_datas[unique_object_id], args)
+                        ex_sets[unique_object_id] = get_dynamic_dataset(ex_sets[unique_object_id], object_to_id, args)
+                        ex_loaders[unique_object_id] = iter(DataLoader(ex_sets[unique_object_id],args.ex_size * args.num_minervas,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
+                    ex_used[unique_object_id] = args.ex_size * args.num_minervas
                     
                 # print(f"ex_used: {ex_used}, len_ex: {len_ex}")
 
-                exemplars = next(ex_loaders[unique_listener_id])
+                exemplars = next(ex_loaders[unique_object_id])
                 # print(exemplars)
                 ex_listener, ex_correct, ex_feats_l, ex_feats_r = exemplars
                 # print(f"ex_correct:\n{ex_correct}")
@@ -623,19 +731,16 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
                 lis_output_l, _ = model(feats_l, ex_feats_l, ex_correct, num_minervas = args.num_minervas)
                 lis_output_r, _ = model(feats_r, ex_feats_r, ex_correct, num_minervas = args.num_minervas)
 
-                output_l[al_listener_id == unique_listener_id] = lis_output_l
-                output_r[al_listener_id == unique_listener_id] = lis_output_r
+                output_l[al_object_id == unique_object_id] = lis_output_l
+                output_r[al_object_id == unique_object_id] = lis_output_r
             else:
-                output_l[al_listener_id == unique_listener_id],_ = model(feats_l)
-                output_r[al_listener_id == unique_listener_id],_ = model(feats_r)
+                output_l[al_object_id == unique_object_id],_ = model(feats_l)
+                output_r[al_object_id == unique_object_id],_ = model(feats_r)
 
 
         target_scores = correctness.data.to(args.device)
         loss_l = criterion(output_l,target_scores)
         loss_r = criterion(output_r,target_scores)
-
-
-
 
         # Sum the right and left losses - note that training loss is
         # therefore doubled compared to evaluation loss
@@ -916,7 +1021,20 @@ def main(args, config):
 
     # Mark various disjoint validation sets in the data
     data = get_disjoint_val_set(args, data)
-    dis_val_data = data[data.validation > 0].copy()
+    dis_val_data = data[data.validation == 7].copy()
+    if args.ex_match_lis:
+        dis_ex_data = data[(data.validation == 1) | (data.validation == 3) | (data.validation == 5)].copy()
+    elif args.ex_match_sys:
+        dis_ex_data = data[(data.validation == 2) | (data.validation == 3) | (data.validation == 6)].copy()
+    # print(dis_ex_data)
+    # dis_unique_listeners = list(set(dis_val_data.listener.values))
+    # dis_ex_unique_listeners = list(set(dis_ex_data.listener.values))
+    # dis_unique_systems = list(set(dis_val_data.system.values))
+    # dis_ex_unique_systems = list(set(dis_ex_data.system.values))
+    # print(f"dis_unique_listeners: {dis_unique_listeners}")
+    # print(f"dis_ex_unique_listeners: {dis_ex_unique_listeners}")
+    # print(f"dis_unique_systems: {dis_unique_systems}")
+    # print(f"dis_ex_unique_systems: {dis_ex_unique_systems}")
     train_data,val_data = train_test_split(data[data.validation == 0],test_size=0.1)
 
     # Split into train and val sets
@@ -932,22 +1050,23 @@ def main(args, config):
     print("=====================================")
 
     if args.exemplar:
-        if args.exemplar_source == "CEC1":
-            train_ex_data = train_data[train_data.subset == "CEC1"]
-            dis_val_ex_data = train_data[train_data.subset == "CEC1"]
-        elif args.exemplar_source == "CEC2":
-            train_ex_data = train_data[train_data.subset == "CEC2"]
-            dis_val_ex_data = train_data[train_data.subset == "CEC2"]
-        elif args.exemplar_source == "matching":
-            train_ex_data = train_data
-            dis_val_ex_data = train_data[train_data.subset == "CEC2"]
-        elif args.exemplar_source == "all":
-            train_ex_data = train_data
-            dis_val_ex_data = train_data
-        else:
-            print("Invalid exemplar exemplar source.")
-            quit()
-        print("Using training data for exemplars")
+        pass
+        # if args.exemplar_source == "CEC1":
+        #     train_ex_data = train_data[train_data.subset == "CEC1"]
+        #     dis_val_ex_data = train_data[train_data.subset == "CEC1"]
+        # elif args.exemplar_source == "CEC2":
+        #     train_ex_data = train_data[train_data.subset == "CEC2"]
+        #     dis_val_ex_data = train_data[train_data.subset == "CEC2"]
+        # elif args.exemplar_source == "matching":
+        #     train_ex_data = train_data
+        #     dis_val_ex_data = train_data[train_data.subset == "CEC2"]
+        # elif args.exemplar_source == "all":
+        #     train_ex_data = train_data
+        #     dis_val_ex_data = train_data
+        # else:
+        #     print("Invalid exemplar exemplar source.")
+        #     quit()
+        # print("Using training data for exemplars")
     else:
         train_ex_data = None
         dis_val_ex_data = None
@@ -961,27 +1080,28 @@ def main(args, config):
         print("=====================================")
         for epoch in range(args.restart_epoch, args.n_epochs + args.restart_epoch):
 
-            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,ex_data=train_ex_data)
+            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,ex_data=train_data)
             training_loss /= 2      # training loss is left + right so divide
 
-            _, val_loss = validate_model(model,val_data,optimizer,criterion,args,train_ex_data)
-            preds, _ = validate_model(model,dis_val_data,optimizer,criterion,args,dis_val_ex_data)
+            
+            _, val_loss = validate_model(model,val_data,optimizer,criterion,args,val_data)
+            _, dis_val_loss = validate_model(model,dis_val_data,optimizer,criterion,args,dis_ex_data)
 
             # Get losses for the various disjoint subsets held within dis_val_data
-            dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
-                dis_val_preds = preds,
-                correct = dis_val_data["correctness"].values,
-                validation = dis_val_data["validation"].values,
-                criterion = criterion
-            )
+            # dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
+            #     dis_val_preds = preds,
+            #     correct = dis_val_data["correctness"].values,
+            #     validation = dis_val_data["validation"].values,
+            #     criterion = criterion
+            # )
 
             if not args.skip_wandb:
                 log_dict = {
                     "val_rmse": val_loss**0.5,
-                    "dis_val_rmse": dis_val['loss']**0.5,
-                    "dis_lis_val_rmse": dis_lis_val['loss']**0.5,
-                    "dis_sys_val_rmse": dis_sys_val['loss']**0.5,
-                    "dis_scene_val_rmse": dis_scene_val['loss']**0.5,
+                    "dis_val_rmse": dis_val_loss**0.5,
+                    # "dis_lis_val_rmse": dis_lis_val['loss']**0.5,
+                    # "dis_sys_val_rmse": dis_sys_val['loss']**0.5,
+                    # "dis_scene_val_rmse": dis_scene_val['loss']**0.5,
                     "train_rmse": training_loss**0.5
                 }
                 
@@ -992,10 +1112,10 @@ def main(args, config):
             print("Epoch: %s"%(epoch))
             print("\tTraining Loss: %s"%(training_loss**0.5))
             print("\tValidation Loss: %s"%(val_loss**0.5))
-            print("\tDisjoint validation Loss: %s"%(dis_val['loss']**0.5))
-            print("\tDisjoint listener validation Loss: %s"%(dis_lis_val['loss']**0.5))
-            print("\tDisjoint system validation Loss: %s"%(dis_sys_val['loss']**0.5))
-            print("\tDisjoint scene validation Loss: %s"%(dis_scene_val['loss']**0.5))
+            print("\tDisjoint validation Loss: %s"%(dis_val_loss**0.5))
+            # print("\tDisjoint listener validation Loss: %s"%(dis_lis_val['loss']**0.5))
+            # print("\tDisjoint system validation Loss: %s"%(dis_sys_val['loss']**0.5))
+            # print("\tDisjoint scene validation Loss: %s"%(dis_scene_val['loss']**0.5))
             print("=====================================")    
 
             if args.model == "LSTM_layers" or args.model == "ExLSTM_layers":
@@ -1019,33 +1139,17 @@ def main(args, config):
     model.load_state_dict(torch.load("%s/%s"%(model_dir,model_file)))
     
     # get validation predictions
-    val_predictions,val_loss = validate_model(model,val_data,optimizer,criterion,args,train_ex_data)
+    val_predictions,val_loss = validate_model(model,val_data,optimizer,criterion,args,val_data)
     val_error = val_loss**0.5
     val_stats = get_stats(val_predictions, val_data.correctness.values)
     val_data["predicted"] = val_predictions
     val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_val_preds.csv", index=False)
 
-    dis_val_predictions, _ = validate_model(model,dis_val_data,optimizer,criterion,args,dis_val_ex_data)
+    dis_val_predictions, dis_val_loss = validate_model(model,dis_val_data,optimizer,criterion,args,dis_ex_data)
+    dis_val_error = dis_val_loss**0.5
+    dis_val_stats = get_stats(dis_val_predictions, dis_val_data.correctness.values)
     dis_val_data["predicted"] = dis_val_predictions
-
-    # Write a csv file of restults for each data split:
-    dis_val_data[["scene", "listener", "system", "validation", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_all_dis_val_preds.csv", index=False)
-    temp_data = dis_val_data[dis_val_data.validation == 7].copy()
-    temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_val_preds.csv", index=False)
-    temp_data = dis_val_data[dis_val_data.validation.isin([1, 3, 5, 7])].copy()
-    temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_lis_val_preds.csv", index=False)
-    temp_data = dis_val_data[dis_val_data.validation.isin([2, 3, 6, 7])].copy()
-    temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_sys_val_preds.csv", index=False)
-    temp_data = dis_val_data[dis_val_data.validation.isin([4, 5, 6, 7])].copy()
-    temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_scene_val_preds.csv", index=False)
-
-    dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
-        dis_val_preds = dis_val_predictions,
-        correct = dis_val_data["correctness"].values,
-        validation = dis_val_data["validation"].values,
-        criterion = criterion,
-        include_stats = True
-    )
+    dis_val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_val_preds.csv", index=False)
     
     #normalise the predictions
     val_gt = val_data["correctness"].to_numpy()/100
@@ -1076,14 +1180,33 @@ def main(args, config):
             args = args
         )
 
-        eval_predictions, evalLoss = validate_model(model, test_data, optimizer, criterion, args, dis_val_ex_data)
-        eval_stats = get_stats(eval_predictions, test_data.correctness.values)
+        columns = ["signal", "scene", "listener", "system", "correctness"]
+        for i in range(args.num_evals):
+            eval_preds = np.empty(len(test_data))
+            eval_preds[:] = np.nan
+            eval_data, ex_data, non_ex_idx = get_ex_for_test(test_data, args)
+            # print(eval_data)
+            # print(ex_data)
+            # print(eval_data.listener.values.unique())
+            # print(ex_data.listener.values.unique())
+            eval_predictions, evalLoss = validate_model(model, eval_data, optimizer, criterion, args, ex_data)
+            eval_stats = get_stats(eval_predictions, eval_data.correctness.values)
+            # print(f"len test_data: {len(test_data)}")
+            # print(f"len eval_data: {len(eval_data)}")
+            # print(f"len ex_data: {len(ex_data)}")
+            # print(f"len non_ex_idx: {len(non_ex_idx)}")
+            # print(f"len eval_preds: {len(eval_preds)}")
+            # print(f"len eval_predictions: {len(eval_predictions)}")
+
+            eval_preds[non_ex_idx] = eval_predictions
+            test_data[f"predicted_{i}"] = eval_preds
+            columns.append(f"predicted_{i}")
+            
         # predictions_fitted = np.asarray(predictions)/100
         #apply the logistic mapping
         # predictions_fitted = logit_func(eval_predictions,a,b)
-        test_data["predicted"] = eval_predictions
         # test_data["predicted_fitted"] = predictions_fitted * 100
-        test_data[["signal", "scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_test_preds.csv", index=False)
+        test_data[columns].to_csv(f"{args.out_csv_file}_test_preds.csv", index=False)
         print(f"Evaluation loss: {evalLoss**0.5}")
 
 
@@ -1093,10 +1216,10 @@ def main(args, config):
         csv_writer.writerow([
             args.out_csv_file.split("/")[-1].strip(".csv"), 
             val_error, val_stats["p_corr"], val_stats["s_corr"], val_stats["std"], 
-            dis_val["loss"]**0.5, dis_val["p_corr"], dis_val["s_corr"], dis_val["std"], 
-            dis_lis_val["loss"]**0.5, dis_lis_val["p_corr"], dis_lis_val["s_corr"], dis_lis_val["std"], 
-            dis_sys_val["loss"]**0.5, dis_sys_val["p_corr"], dis_sys_val["s_corr"], dis_sys_val["std"], 
-            dis_scene_val["loss"]**0.5, dis_scene_val["p_corr"], dis_scene_val["s_corr"], dis_scene_val["std"],
+            dis_val_error, dis_val_stats["p_corr"], dis_val_stats["s_corr"], dis_val_stats["std"], 
+            # dis_lis_val["loss"]**0.5, dis_lis_val["p_corr"], dis_lis_val["s_corr"], dis_lis_val["std"], 
+            # dis_sys_val["loss"]**0.5, dis_sys_val["p_corr"], dis_sys_val["s_corr"], dis_sys_val["std"], 
+            # dis_scene_val["loss"]**0.5, dis_scene_val["p_corr"], dis_scene_val["s_corr"], dis_scene_val["std"],
             evalLoss**0.5, eval_stats["p_corr"], eval_stats["s_corr"], eval_stats["std"]
         ])
     
@@ -1122,7 +1245,7 @@ if __name__ == "__main__":
         "--out_csv_file", help="path to write the preditions to" , default=None
     )
     parser.add_argument(
-        "--wandb_project", help="W and B project name" , default="CPC_paper"
+        "--wandb_project", help="W and B project name" , default="CPC_adapt"
     )
     parser.add_argument(
         "--skip_wandb", help="skip logging via WandB", default=False, action='store_true'
@@ -1240,7 +1363,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use_r_encoding", help="use positional encoding for exemplar correctness", default=False, action='store_true'
     )
-
+    parser.add_argument(
+        "--num_evals", help="number of minerva models to use for system combinations or the std model" , default=5, type=int
+    )
+    parser.add_argument(
+        "--ex_match_lis", help="match exemplars to the listener", default = False, action='store_true'
+    )
+    parser.add_argument(
+        "--ex_match_sys", help="match exemplars to the system", default = False, action='store_true'
+    )
     args = parser.parse_args()
 
     if args.config_file is not None:
