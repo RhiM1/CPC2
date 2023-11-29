@@ -529,8 +529,11 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
 
         loss_list.append(loss.item())
         # print statistics
-        running_loss += loss.item()
-    return out_list,sum(loss_list)/len(loss_list)
+    #     running_loss += loss.item()
+    # return out_list,sum(loss_list)/len(loss_list)
+
+        running_loss += loss.item() * len(output)
+    return out_list, running_loss / len(test_data)
 
 
 def train_model(model,train_data,optimizer,criterion,args,ex_data=None):

@@ -130,8 +130,9 @@ class Minerva(torch.nn.Module):
         self.Wd = nn.Linear(input_dim, rep_dim)
         self.p_factor = p_factor
 
-        self.Wr = nn.Linear(1, R_dim)
-        self.We = nn.Linear(R_dim, 1)
+        # self.Wr = nn.Linear(1, R_dim)
+        # self.We = nn.Linear(R_dim, 1)
+        self.We = nn.Linear(1, 1)
         
         self.sm = nn.Softmax(dim = -1)
         
@@ -147,7 +148,8 @@ class Minerva(torch.nn.Module):
         # Dw has dim (*, num_ex, rep_dim)        
         Xw = self.Wx(X)
         Dw = self.Wd(D)
-        Rw = self.Wr(R)
+        # Rw = self.Wr(R)
+        Rw = R
         # print(f"Xw size: {Xw.size()}")
         # print(f"Dw size: {Dw.size()}")
         
@@ -174,7 +176,6 @@ class Minerva(torch.nn.Module):
             p_factor = self.p_factor
 
         return torch.mul(torch.pow(torch.abs(s), p_factor), torch.sign(s))
-
 
 
 
@@ -226,6 +227,7 @@ class Minerva2(torch.nn.Module):
             p_factor = self.p_factor
 
         return torch.mul(torch.pow(torch.abs(s), p_factor), torch.sign(s))
+
 
 
 class MetricPredictorLSTM(nn.Module):
@@ -343,6 +345,7 @@ class MetricPredictorLSTM_layers(nn.Module):
         return X, None
 
 
+
 class ExLSTM_layers(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -403,6 +406,7 @@ class ExLSTM_layers(nn.Module):
             rep_dim = minerva_dim, 
             R_dim = minerva_R_dim
         )
+            print(f"Using R-encoding")
         else:
             self.minerva = Minerva(
                 att_pool_dim, 
@@ -410,6 +414,7 @@ class ExLSTM_layers(nn.Module):
                 rep_dim = minerva_dim, 
                 R_dim = minerva_R_dim
             )
+            print(f"Not using R-encoding")
         
         self.sigmoid = nn.Sigmoid()
 
@@ -456,6 +461,7 @@ class ExLSTM_layers(nn.Module):
 
         return self.sigmoid(echo), full_echo
     
+
 
 
 class ExAttenPool_layers(nn.Module):
@@ -558,6 +564,7 @@ class ExAttenPool_layers(nn.Module):
         return self.sigmoid(echo), full_echo
 
 
+
 class ExLSTM_log(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -653,6 +660,7 @@ class ExLSTM_log(nn.Module):
         return self.sigmoid(echo), None
 
 
+
 class ExLSTM_div(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -744,6 +752,7 @@ class ExLSTM_div(nn.Module):
         # print(self.sigmoid(echo))
 
         return self.sigmoid(echo), None
+
 
 
 class ExLSTM_std(nn.Module):
@@ -863,6 +872,7 @@ class ExLSTM_std(nn.Module):
         return self.calibrate(preds), None
 
 
+
 class ExLSTM(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -922,7 +932,6 @@ class ExLSTM(nn.Module):
 
 
 
-
 class MetricPredictorLSTMCombo(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -979,6 +988,7 @@ class MetricPredictorLSTMCombo(nn.Module):
         return out,_
 
 
+
 class MetricPredictorAttenPool(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -1013,6 +1023,7 @@ class MetricPredictorAttenPool(nn.Module):
         return out, None
     
     
+
 class MetricPredictorAttenPool_layers(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -1057,6 +1068,7 @@ class MetricPredictorAttenPool_layers(nn.Module):
         return X, None
     
     
+
 class ExAttenPool_layers(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -1104,6 +1116,7 @@ class ExAttenPool_layers(nn.Module):
         X = self.sigmoid(X)
 
         return X, None
+    
     
 
 class ffnn(nn.Module):

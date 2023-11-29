@@ -334,8 +334,8 @@ def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
 
         loss_list.append(loss.item())
         # print statistics
-        running_loss += loss.item()
-    return out_list,sum(loss_list)/len(loss_list)
+        running_loss += loss.item() * len(output)
+    return out_list, running_loss / len(test_data)
 
 def get_feats(data, save_feats_file, dim_extractor, feat_extractor, theset, args):
     
@@ -861,8 +861,10 @@ def main(args, config):
             model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,ex_data=train_ex_data)
             training_loss /= 2      # training loss is left + right so divide
 
-            _, val_loss = validate_model(model,val_data,optimizer,criterion,args,train_ex_data)
+            val_preds, val_loss = validate_model(model,val_data,optimizer,criterion,args,train_ex_data)
             preds, _ = validate_model(model,dis_val_data,optimizer,criterion,args,dis_val_ex_data)
+
+            check_val_loss = criterion(torch.tensor(val_preds) / 100, torch.tensor(val_data.correctness.values) / 100).item()
 
             # Get losses for the various disjoint subsets held within dis_val_data
             dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
@@ -884,11 +886,12 @@ def main(args, config):
                 
                 wandb.log(log_dict)
             
-            save_model(model,optimizer,epoch,args,val_loss)
+            save_model(model,optimizer,epoch,args,val_loss**0.5)
             torch.cuda.empty_cache()
             print("Epoch: %s"%(epoch))
             print("\tTraining Loss: %s"%(training_loss**0.5))
             print("\tValidation Loss: %s"%(val_loss**0.5))
+            print("\tCheck val  Loss: %s"%(check_val_loss**0.5))
             print("\tDisjoint validation Loss: %s"%(dis_val['loss']**0.5))
             print("\tDisjoint listener validation Loss: %s"%(dis_lis_val['loss']**0.5))
             print("\tDisjoint system validation Loss: %s"%(dis_sys_val['loss']**0.5))
@@ -918,7 +921,10 @@ def main(args, config):
     # get validation predictions
     val_predictions,val_loss = validate_model(model,val_data,optimizer,criterion,args,train_ex_data)
     val_error = val_loss**0.5
+    val_loss = criterion(torch.tensor(val_predictions) / 100, torch.tensor(val_data.correctness.values) / 100).item()
+    val_loss = val_loss**0.5
     val_stats = get_stats(val_predictions, val_data.correctness.values)
+    print(f"loop val loss: {val_error}, preds val loss: {val_loss}")
     val_data["predicted"] = val_predictions
     val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_val_preds.csv", index=False)
 
