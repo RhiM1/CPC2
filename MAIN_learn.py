@@ -547,41 +547,30 @@ def main(args, config):
         dim_extractor = 512
         hidden_size = 512//2
         activation = nn.LeakyReLU
-        att_pool_dim = 512
 
     elif args.feats_model == "XLSRFull":
         feat_extractor = XLSRFull_feats()
         dim_extractor = 1024
         hidden_size = 1024//2
         activation = nn.LeakyReLU
-        att_pool_dim = 1024
-        
-    elif args.feats_model == "XLSRCombo":
-        ## Tricky one! Check fat extractor
-        print("XLSRCombo Not implemented.")
-        quit()
         
     elif args.feats_model == "HuBERTEncoder":
         feat_extractor = HuBERTEncoder_feats()
         dim_extractor = 512
         hidden_size = 512//2
         activation = nn.LeakyReLU
-        att_pool_dim = 512
-        print(feat_extractor)
         
     elif args.feats_model == "HuBERTFull":
         feat_extractor = HuBERTFull_feats()
         dim_extractor = 768
         hidden_size = 768//2
         activation = nn.LeakyReLU
-        att_pool_dim = 768
         
     elif args.feats_model == "Spec":  
         feat_extractor = Spec_feats()
         dim_extractor = 257
         hidden_size = 257//2
         activation = nn.LeakyReLU
-        att_pool_dim = 256
 
     elif args.feats_model == "WhisperEncoder":  
         feat_extractor = WhisperEncoder_feats(
@@ -592,7 +581,6 @@ def main(args, config):
         dim_extractor = 768
         hidden_size = 768//2
         activation = nn.LeakyReLU
-        att_pool_dim = 768
 
     elif args.feats_model == "WhisperFull":  
         feat_extractor = WhisperFull_feats(
@@ -826,6 +814,7 @@ def main(args, config):
     model = model.to(args.device)
 
     best_val_loss = 999
+    best_epoch = 0
 
     if not args.skip_train:
         print("Starting training of model: %s\nlearning rate: %s\nseed: %s\nepochs: %s\nsave location: %s/"%(args.model,args.lr,args.seed,args.n_epochs,args.model_dir))
@@ -862,6 +851,7 @@ def main(args, config):
             
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
+                best_epoch = epoch
                 save_model(model,optimizer,epoch,args,val_loss**0.5)
 
             torch.cuda.empty_cache()
@@ -880,6 +870,12 @@ def main(args, config):
                     f.write(" ".join([str(weight) for weight in model.sm(model.layer_weights).tolist()]))
                     f.write("\n")
 
+
+    if not args.skip_wandb:
+        wandb.log({
+            "best_val_loss": best_val_loss,
+            "best_epoch": best_epoch
+        })
 
     if args.skip_train and args.pretrained_model_dir is not None:
         model_dir = args.pretrained_model_dir
