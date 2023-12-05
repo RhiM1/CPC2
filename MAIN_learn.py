@@ -713,7 +713,18 @@ def main(args, config):
             project=args.wandb_project, 
             reinit = True, 
             name = args.model_name,
-            tags = [f"N{args.N}", f"lr{args.lr}", args.feats_model, args.model, f"bs{args.batch_size}"]
+            tags = [
+                f"e{args.exp_id}",
+                f"r{args.run_id}",
+                f"N{args.N}", 
+                f"lr{args.lr}", 
+                args.feats_model, 
+                args.model, 
+                f"bs{args.batch_size}",
+                f"wd{args.weight_decay}",
+                f"fd{args.feat_embed_dim}",
+                f"cd{args.class_embed_dim}",
+                ]
         )
         if args.exemplar:
             run.tags = run.tags + (
@@ -1001,6 +1012,9 @@ if __name__ == "__main__":
         "--exp_id", help="id for individual experiment", default = None
     )
     parser.add_argument(
+        "--run_id", help="id for individual experiment", default = None
+    )
+    parser.add_argument(
         "--summ_file", help="path to write summary results to" , default="save/CSL_CPC2.csv"
     )
     parser.add_argument(
@@ -1266,13 +1280,13 @@ if __name__ == "__main__":
     today = datetime.datetime.today()
     date = today.strftime("%H-%M-%d-%b-%Y")
     # nm = "" if args.num_minervas == 1 else f"nm{args.num_minervas}"
-    args.model_name = "%s_%s_%s_%s_%s_%s"%(args.exp_id,args.N,args.feats_model,args.model,date,args.seed)
+    args.model_name = "%s_%s_%s_%s_%s_%s_%s"%(args.exp_id,args.run_id,args.N,args.feats_model,args.model,date,args.seed)
     args.model_dir = "save/%s"%(args.model_name)
     config["model_name"] = args.model_name
 
     if args.out_csv_file is None:
         # nm = "" if args.num_minervas == 1 else f"_nm{args.num_minervas}_{args.seed}"
-        args.out_csv_file = f"{args.model_dir}/{args.exp_id}_N{args.N}_{args.feats_model}_{args.model}"
+        args.out_csv_file = f"{args.model_dir}/{args.exp_id}_{args.run_id}_N{args.N}_{args.model}"
     config["out_csv_file"] = args.out_csv_file
 
     main(args, config)
