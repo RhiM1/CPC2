@@ -199,6 +199,7 @@ class ffnn_wrapper(nn.Module):
         super().__init__()
 
         self.device = args.device
+        self.by_word = args.by_word
 
         self.f = ffnn(
             input_dim = args.feat_dim,
@@ -211,10 +212,17 @@ class ffnn_wrapper(nn.Module):
 
     def forward(self, X):
         
-        # X_out = X.data.to(self.device)
-        X = self.f(X)
+        X_out = X.data.to(self.device)
+        X_out = self.f(X_out)
 
-        return self.sigmoid(X)
+        if self.by_word:
+            X_len = (X.lengths * X.data.size(1)).to(self.device)
+            X_out = X_out.sum(dim = 1)
+            print(f"X_out.size: {X_out.size()}")
+            print(f"X_len.size: {X_len.size()}")
+            X_out = X_out / X_len
+
+        return self.sigmoid(X_out)
 
 
 
@@ -245,14 +253,23 @@ class minerva_wrapper(nn.Module):
 
         self.train_ex_class = args.train_ex_class
         self.use_g = args.use_g
+        self.by_word = args.by_word
         self.device = args.device
 
         if ex_feats_l is not None:
-            self.Dl = nn.Parameter(ex_feats_l, requires_grad = False)
-            self.Dr = nn.Parameter(ex_feats_r, requires_grad = False)
+            if self.by_word:
+                self.Dl = nn.Parameter(ex_feats_l.data, requires_grad = False)
+                self.Dr = nn.Parameter(ex_feats_r.data, requires_grad = False)
+                self.Dl_len = ex_feats_l.lengths * ex_feats_l.data.size(1)
+                self.Dr_len = ex_feats_r.lengths * ex_feats_r.data.size(1)
+            else:
+                self.Dl = nn.Parameter(ex_feats_l, requires_grad = False)
+                self.Dr = nn.Parameter(ex_feats_r, requires_grad = False)
         else:
             self.Dl = None
             self. Dr = None
+            self.Dl_len = None
+            self.Dr_len = None
 
         if ex_correct is not None:
             self.r = nn.Parameter(ex_correct, requires_grad = args.train_ex_class)
@@ -269,20 +286,35 @@ class minerva_wrapper(nn.Module):
     def forward(self, X, D = None, r = None, left = False):
 
         if left:
-            D = D if D is not None else self.Dl
+            D_out = D.data if D is not None else self.Dl
         else:
-            D = D if D is not None else self.Dr
+            D_out = D.data if D is not None else self.Dr
         r = r if r is not None else self.r
 
-        # X_out = X.data.to(self.device)
+        X_out = X.data.to(self.device)
 
         r = r * 2 - 1
 
         if self.use_g:
             X = self.g(X)
-            D = self.g(D)
+            D_out = self.g(D_out)
 
-        echo = self.f(X, D, r)
+        if self.by_word:
+            if left:
+                D_len = D.lengths if D is not None else self.Dl_len
+            else:
+                D_len = D.lengths if D is not None else self.Dr_len
+            X_len = (X.lengths * X.data.size(1)).to(self.device)
+            print(f"X_out.size: {X_out.size()}")
+            X_out = X_out.sum(dim = 1)
+            print(f"X_out.size: {X_out.size()}")
+            print(f"X_len.size: {X_len.size()}")
+            X_out = torch.div(X_out, X_len)
+            D_out = D_out.sum(dim = 1)
+            print(f"D_out.size: {D_out.size()}")
+            D_out = torch.div(D_out, D_len)
+
+        echo = self.f(X_out, D_out, r)
 
         echo = self.h(echo)
         # print(f"output:\n{echo}\n")

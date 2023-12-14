@@ -60,7 +60,7 @@ class Wav2Vec2Wrapper_no_helper(nn.Module):
         super().__init__(*args, **kwargs)
 
         self.model = Wav2Vec2Model.from_pretrained(
-            f"models/facebook/wav2vec2-xls-r-300m")
+            f"facebook/wav2vec2-xls-r-300m")
 
 
     def forward(self, data: Tensor):

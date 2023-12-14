@@ -25,7 +25,7 @@ from data_handling import get_disjoint_val_set
 from process_cpc2_data import get_cpc2_dataset
 from transformers import WhisperProcessor
 import random
-from models.simple_models import MetricPredictorSimple, ExSimple_learn
+from models.simple_models import ffnn_wrapper, minerva_wrapper
 from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, \
     HuBERTEncoder_feats, HuBERTFull_feats, WhisperEncoder_feats, WhisperFull_feats, WhisperBase_feats
 from exemplar import get_ex_set
@@ -60,9 +60,10 @@ def format_correctness(y):
     return y
 
 
-def format_feats(y):
+def format_feats(args, y):
     y = torch.from_numpy(y).to(torch.float)
-    y = y.mean(dim = 1)
+    if not args.by_word:
+        y = y.mean(dim = 1)
     return y[0]
 
 
@@ -224,10 +225,10 @@ def get_dynamic_dataset(data):
             {"func": lambda l: format_correctness(l),
             "takes": "correctness",
             "provides": "formatted_correctness"},
-            {"func": lambda l: format_feats(l),
+            {"func": lambda l: format_feats(args, l),
             "takes": "feats_l",
             "provides": "formatted_feats_l"},
-            {"func": lambda l: format_feats(l),
+            {"func": lambda l: format_feats(args, l),
             "takes": "feats_r",
             "provides": "formatted_feats_r"}
         ]
@@ -461,8 +462,8 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
             exemplars = next(ex_dataloader)
             ex_correct, ex_feats_l, ex_feats_r = exemplars
             
-            ex_feats_l = ex_feats_l.data.to(args.device)
-            ex_feats_r = ex_feats_r.data.to(args.device)
+            # ex_feats_l = ex_feats_l.data.to(args.device)
+            # ex_feats_r = ex_feats_r.data.to(args.device)
             ex_correct = ex_correct.data.to(args.device)
 
         target_scores = correctness.data.to(args.device)
@@ -546,31 +547,26 @@ def main(args, config):
         feat_extractor = XLSREncoder_feats()
         dim_extractor = 512
         hidden_size = 512//2
-        activation = nn.LeakyReLU
 
     elif args.feats_model == "XLSRFull":
         feat_extractor = XLSRFull_feats()
         dim_extractor = 1024
         hidden_size = 1024//2
-        activation = nn.LeakyReLU
         
     elif args.feats_model == "HuBERTEncoder":
         feat_extractor = HuBERTEncoder_feats()
         dim_extractor = 512
         hidden_size = 512//2
-        activation = nn.LeakyReLU
         
     elif args.feats_model == "HuBERTFull":
         feat_extractor = HuBERTFull_feats()
         dim_extractor = 768
         hidden_size = 768//2
-        activation = nn.LeakyReLU
         
     elif args.feats_model == "Spec":  
         feat_extractor = Spec_feats()
         dim_extractor = 257
         hidden_size = 257//2
-        activation = nn.LeakyReLU
 
     elif args.feats_model == "WhisperEncoder":  
         feat_extractor = WhisperEncoder_feats(
@@ -580,7 +576,6 @@ def main(args, config):
         )
         dim_extractor = 768
         hidden_size = 768//2
-        activation = nn.LeakyReLU
 
     elif args.feats_model == "WhisperFull":  
         feat_extractor = WhisperFull_feats(
@@ -590,7 +585,6 @@ def main(args, config):
         )
         dim_extractor = 768
         hidden_size = args.class_embed_dim
-        activation = nn.LeakyReLU
         
     elif args.feats_model == "WhisperBase":  
         feat_extractor = WhisperBase_feats(
@@ -600,7 +594,6 @@ def main(args, config):
         )
         dim_extractor = 512
         hidden_size = 512//2
-        activation = nn.LeakyReLU
         
     else:
         print("Feats extractor not recognised")
@@ -669,21 +662,17 @@ def main(args, config):
         ex_correct = None
 
     # Select classifier model (this is the one we're actually training)
-    if args.model == "simple":
-        model = MetricPredictorSimple(
-            feat_dim = dim_extractor,
-            hidden_size = hidden_size,
-            activation = activation
-        )
-    elif args.model == "ex_simple":
-        model = ExSimple_learn(
-            feat_dim = dim_extractor,
-            linear_dim = args.feat_embed_dim,
-            p_factor = args.p_factor,
+    args.feat_dim = dim_extractor
+    if args.model == "ffnn":
+        args.hidden_size = hidden_size
+        args.activation = nn.ReLU()
+        model = ffnn_wrapper(args)
+    elif args.model == "minerva":
+        model = minerva_wrapper(
+            args,
             ex_feats_l = ex_feats_l,
             ex_feats_r = ex_feats_r,
             ex_correct = ex_correct,
-            train_ex_class = args.train_ex_class
         )
         args.exemplar = True
     else:
@@ -870,41 +859,38 @@ def main(args, config):
                     f.write(" ".join([str(weight) for weight in model.sm(model.layer_weights).tolist()]))
                     f.write("\n")
 
-
-    if not args.skip_wandb:
-        wandb.log({
-            "best_val_loss": best_val_loss,
-            "best_epoch": best_epoch
-        })
-
-    if args.skip_train and args.pretrained_model_dir is not None:
-        model_dir = args.pretrained_model_dir
+    if args.skip_train and args.pretrained_model_dir is None:
+        pass
     else:
-        model_dir = args.model_dir
 
-    print(model_dir)
-    model_files = os.listdir(model_dir)
+        if args.skip_train and args.pretrained_model_dir is not None:
+            model_dir = args.pretrained_model_dir
+        else:
+            model_dir = args.model_dir
 
-    model_files = [x for x in model_files if "model" in x]
-    if len(model_files) > 1:
-        model_files.sort(key=lambda x: float(x.split("_")[-2].strip(".pt")))
-    
-    model_file = model_files[0]
-    print("Loading model:\n%s"%model_file)
-    Dl_file = [x for x in model_files if "_Dl.pt" in x]
-    Dr_file = [x for x in model_files if "_Dr.pt" in x]
-    r_file = [x for x in model_files if "_r.pt" in x]
-    model.load_state_dict(torch.load("%s/%s"%(model_dir,model_file)))
-    if len(Dl_file) == 1:
-        print("Loading ex features")
-        Dl_file = Dl_file[0]
-        Dr_file = Dr_file[0]
-        model.Dl = torch.load("%s/%s"%(model_dir, Dl_file))
-        model.Dr = torch.load("%s/%s"%(model_dir, Dr_file))
-    if len(r_file) == 1:
-        print("Loading ex classes")
-        r_file = r_file[0]
-        model.r = torch.load("%s/%s"%(model_dir, r_file))
+        print(model_dir)
+        model_files = os.listdir(model_dir)
+
+        model_files = [x for x in model_files if "model" in x]
+        if len(model_files) > 1:
+            model_files.sort(key=lambda x: float(x.split("_")[-2].strip(".pt")))
+        
+        model_file = model_files[0]
+        print("Loading model:\n%s"%model_file)
+        Dl_file = [x for x in model_files if "_Dl.pt" in x]
+        Dr_file = [x for x in model_files if "_Dr.pt" in x]
+        r_file = [x for x in model_files if "_r.pt" in x]
+        model.load_state_dict(torch.load("%s/%s"%(model_dir,model_file)))
+        if len(Dl_file) == 1:
+            print("Loading ex features")
+            Dl_file = Dl_file[0]
+            Dr_file = Dr_file[0]
+            model.Dl = torch.load("%s/%s"%(model_dir, Dl_file))
+            model.Dr = torch.load("%s/%s"%(model_dir, Dr_file))
+        if len(r_file) == 1:
+            print("Loading ex classes")
+            r_file = r_file[0]
+            model.r = torch.load("%s/%s"%(model_dir, r_file))
 
     
     # get validation predictions
@@ -978,6 +964,13 @@ def main(args, config):
         test_data[["signal", "scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_test_preds.csv", index=False)
         print(f"Evaluation loss: {evalLoss**0.5}")
 
+    if not args.skip_wandb:
+        wandb.log({
+            "best_val_loss": val_error,
+            "best_dis_val_loss": dis_val["loss"]**0.5,
+            "best_eval_loss": evalLoss**0.5,
+            "best_epoch": best_epoch
+        })
 
     # Write the final stastistics to the summary file
     with open (args.summ_file, "a") as f:
@@ -1014,7 +1007,7 @@ if __name__ == "__main__":
         "--summ_file", help="path to write summary results to" , default="save/CSL_CPC2.csv"
     )
     parser.add_argument(
-        "--out_csv_file", help="path to write the preditions to" , default=None
+        "--out_csv_file", help="path to write the predictions to" , default=None
     )
     parser.add_argument(
         "--wandb_project", help="W and B project name" , default="CSL_CPC2"
@@ -1044,7 +1037,7 @@ if __name__ == "__main__":
 
     # Training data
     parser.add_argument(
-        "--skip_train", help="do training", default=False, action='store_true'
+        "--skip_train", help="skip training", default=False, action='store_true'
     )
     parser.add_argument(
         "--use_CPC1", help="train and evaluate on CPC1 data" , default=False, action='store_true'
@@ -1070,7 +1063,7 @@ if __name__ == "__main__":
         "--layer", help="layer of feat extractor to use" , default=8, type = int
     )
     parser.add_argument(
-        "--num_layers", help="layer of feat extractor to use" , default=12, type = int
+        "--num_layers", help="layer of feat extractor to use, where appropriate" , default=12, type = int
     )
     parser.add_argument(
         "--whisper_model", help="location of configuation json file", default = "openai/whisper-small"
@@ -1098,6 +1091,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--class_embed_dim", help = "embeddings size of the classifier", default = 512, type = int
     )
+    parser.add_argument(
+        "--by_word", help="get intelligibility for each word, then average", default=False, action='store_true'
+    )
 
     # Training hyperparameters
     parser.add_argument(
@@ -1114,6 +1110,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--grad_clipping", help="gradient clipping", default=1, type=float
+    )
+    parser.add_argument(
+        "--dropout", help="dropout", default=1, type=float
     )
 
     # Exemplar bits
@@ -1137,6 +1136,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--fix_ex", help="use fixed exemplars", default=False, action='store_true'
+    )
+    parser.add_argument(
+        "--use_g", help="train the exemplar classes", default=False, action='store_true'
     )
     parser.add_argument(
         "--train_ex_class", help="train the exemplar classes", default=False, action='store_true'
@@ -1185,7 +1187,7 @@ if __name__ == "__main__":
         args.pretrained_feats_model = config["pretrained_feats_model"] if "pretrained_feats_model" in config else None
     config["pretrained_feats_model"] = args.pretrained_feats_model
 
-    args.pretrained_model_dir = f"save/{args.pretrained_model_dir}"
+    args.pretrained_model_dir = f"save/{args.pretrained_model_dir}" if args.pretrained_model_dir is not None else None
     config["pretrained_model_dir"] = args.pretrained_model_dir
 
     if args.layer == None:
@@ -1226,18 +1228,6 @@ if __name__ == "__main__":
     if args.p_factor is None:
         args.p_factor = config["p_factor"] if "p_factor" in config else 1
     config["p_factor"] = args.p_factor
-
-    # if args.minerva_dim is None:
-    #     args.minerva_dim = config["minerva_dim"] if "minerva_dim" in config else None
-    # config["minerva_dim"] = args.minerva_dim
-
-    # if args.minerva_r_dim is None:
-    #     args.minerva_r_dim = config["minerva_r_dim"] if "minerva_r_dim" in config else None
-    # config["minerva_r_dim"] = args.minerva_r_dim
-    
-    # if args.num_minervas is None:
-    #     args.num_minervas = config["num_minervas"] if "num_minervas" in config else 1
-    # config["num_minervas"] = args.num_minervas
     
     config["random_exemplars"] = args.random_exemplars
     config["exemplar_source"] = args.exemplar_source
@@ -1282,7 +1272,7 @@ if __name__ == "__main__":
 
     if args.out_csv_file is None:
         # nm = "" if args.num_minervas == 1 else f"_nm{args.num_minervas}_{args.seed}"
-        args.out_csv_file = f"{args.model_dir}/{args.exp_id}_{args.run_id}_N{args.N}_{args.model}"
+        args.out_csv_file = f"{args.model_dir}/{args.exp_id}_{args.run_id}_{args.feats_model}_N{args.N}_{args.model}"
     config["out_csv_file"] = args.out_csv_file
 
     main(args, config)
