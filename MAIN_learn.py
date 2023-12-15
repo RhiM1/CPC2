@@ -738,14 +738,18 @@ def main(args, config):
     for param_name, param in model.named_parameters():
         if param_name == "layer_weights":
             optParams.append(
-                {'params': param, 'weight_decay': 0}
+                {'params': param, 'weight_decay': 0, 'lr': args.lr}
+            )
+        elif param_name == "r":
+            optParams.append(
+                {'params': param, 'weight_decay': args.wd_ex, 'lr': args.lr_ex}
             )
         else:
             optParams.append(
-                {'params': param, 'weight_decay': args.weight_decay}
+                {'params': param, 'weight_decay': args.weight_decay, 'lr': args.lr}
             )
 
-    optimizer = optim.Adam(optParams,lr=args.lr)
+    optimizer = optim.Adam(optParams)
     if not args.use_CPC1:
         if int(args.in_json_file.split("/")[-1].split(".")[-2]) != int(args.N):
             print("Warning: N does not match dataset:")
@@ -1106,13 +1110,19 @@ if __name__ == "__main__":
         "--lr", help="learning rate", default=None, type=float
     )
     parser.add_argument(
+        "--lr_ex", help="learning rate for exemplar labels", default=None, type=float
+    )
+    parser.add_argument(
         "--weight_decay", help="weight decay", default=None, type=float
+    )
+    parser.add_argument(
+        "--wd_ex", help="weight decay for exemplar labels", default=None, type=float
     )
     parser.add_argument(
         "--grad_clipping", help="gradient clipping", default=1, type=float
     )
     parser.add_argument(
-        "--dropout", help="dropout", default=1, type=float
+        "--dropout", help="dropout", default=0, type=float
     )
 
     # Exemplar bits
@@ -1269,6 +1279,9 @@ if __name__ == "__main__":
     args.model_name = "%s_%s_%s_%s_%s_%s_%s"%(args.exp_id,args.run_id,args.N,args.feats_model,args.model,date,args.seed)
     args.model_dir = "save/%s"%(args.model_name)
     config["model_name"] = args.model_name
+
+    args.lr_ex = args.lr_ex if args.lr_ex is not None else args.lr
+    args.wd_ex = args.wd_ex if args.wd_ex is not None else args.weight_decay
 
     if args.out_csv_file is None:
         # nm = "" if args.num_minervas == 1 else f"_nm{args.num_minervas}_{args.seed}"
