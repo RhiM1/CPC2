@@ -819,8 +819,31 @@ def main(args, config):
 
     model = model.to(args.device)
 
-    best_val_loss = 999
-    best_dis_val_loss = 999
+    
+    val_preds, val_loss = validate_model(model,val_data,optimizer,criterion,args,train_ex_data)
+    preds, _ = validate_model(model,dis_val_data,optimizer,criterion,args,dis_val_ex_data)
+
+    # Get losses for the various disjoint subsets held within dis_val_data
+    dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
+        dis_val_preds = preds,
+        correct = dis_val_data["correctness"].values,
+        validation = dis_val_data["validation"].values,
+        criterion = criterion
+    )
+
+    if not args.skip_wandb:
+        log_dict = {
+            "val_rmse": val_loss**0.5,
+            "dis_val_rmse": dis_val['loss']**0.5,
+            "dis_lis_val_rmse": dis_lis_val['loss']**0.5,
+            "dis_sys_val_rmse": dis_sys_val['loss']**0.5,
+            "dis_scene_val_rmse": dis_scene_val['loss']**0.5
+        }
+        wandb.log(log_dict)
+
+
+    best_val_loss = val_loss**0.5
+    best_dis_val_loss = dis_val['loss']**0.5
     best_epoch = 0
 
     if not args.skip_train:
@@ -1186,7 +1209,7 @@ if __name__ == "__main__":
         "--which_ear", help="which ear to use for initialisation: left, right or both (trains two networks)", default='both'
     )
     parser.add_argument(
-        "--alpha", help="exemplar model p_factor" , default=1, type=float
+        "--alpha", help="exemplar model initialisation multiplier" , default=1, type=float
     )
     parser.add_argument(
         "--train_alpha", help="exemplar initialisation alpha" , default=False, action='store_true'
