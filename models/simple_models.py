@@ -314,6 +314,91 @@ class minerva_wrapper(nn.Module):
 
 
 
+
+class minerva_wrapper2(nn.Module):
+    """Metric estimator for enhancement training.
+
+    Consists of:
+     * four 2d conv layers
+     * channel averaging
+     * three linear layers
+
+    Arguments
+    ---------
+    kernel_size : tuple
+        The dimensions of the 2-d kernel used for convolution.
+    base_channels : int
+        Number of channels used in each conv layer.
+    """
+
+    def __init__(
+        self, 
+        args,
+        ex_feats_l = None,
+        ex_feats_r = None,
+        ex_correct = None,
+    ):
+        super().__init__()
+
+        self.train_ex_class = args.train_ex_class
+        self.device = args.device
+        self.feat_embed_dim = args.feat_embed_dim
+        self.class_embed_dim = args.class_embed_dim
+
+        if ex_feats_l is not None:
+            self.Dl = nn.Parameter(ex_feats_l, requires_grad = False)
+            self.Dr = nn.Parameter(ex_feats_r, requires_grad = False)
+        else:
+            self.Dl = None
+            self. Dr = None
+
+        if ex_correct is not None:
+            self.r = nn.Parameter(ex_correct, requires_grad = args.train_ex_class)
+
+        if self.feat_embed_dim is not None:
+            # feat_embed_dim = args.feat_dim if args.feat_embed_dim is None else args.feat_embed_dim
+            self.g = nn.Linear(in_features = args.feat_dim, out_features = self.feat_embed_dim)
+
+        self.f = Minerva(args.p_factor)
+        if self.class_embed_dim is not None:
+            self.h = nn.Linear(in_features = 1, out_features = self.class_embed_dim)
+        # self.h = nn.Linear(in_features = 1, out_features = 1)
+        
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, X, D = None, r = None, left = False):
+
+        if left:
+            D = D if D is not None else self.Dl
+        else:
+            D = D if D is not None else self.Dr
+        r = r if r is not None else self.r
+
+        # X_out = X.data.to(self.device)
+
+        r = r * 2 - 1
+
+        if self.feat_embed_dim is not None:
+            X = self.g(X)
+            D = self.g(D)
+
+        echo = self.f(X, D, r)
+
+        if self.class_embed_dim is not None:
+            echo = self.h(echo)
+        # print(f"output:\n{echo}\n")
+
+        output = {
+            'logits': echo,
+            'preds': self.sigmoid(echo)
+        }
+
+        return output
+
+
+
+
+
 class ffnn_init(nn.Module):
     """Metric estimator for enhancement training.
 
@@ -671,8 +756,13 @@ class ffnn_init(nn.Module):
         # print(self.sigmoid(X))
         # print(f"X before L2 activation:\n{X}")
         # quit()
+
+        output = {
+            'logits': X,
+            'preds': self.sigmoid(X)
+        }
             
-        return self.sigmoid(X)
+        return output
     
 
     def save(self, save_file):
@@ -698,6 +788,85 @@ class ffnn_init(nn.Module):
         self.to(self.args.device)
 
 
+
+class minerva_transform(nn.Module):
+    """Metric estimator for enhancement training.
+
+    Consists of:
+     * four 2d conv layers
+     * channel averaging
+     * three linear layers
+
+    Arguments
+    ---------
+    kernel_size : tuple
+        The dimensions of the 2-d kernel used for convolution.
+    base_channels : int
+        Number of channels used in each conv layer.
+    """
+
+    def __init__(
+        self, 
+        args,
+        ex_feats_l = None,
+        ex_feats_r = None,
+        ex_correct = None,
+    ):
+        super().__init__()
+
+        self.feat_embed_dim = args.feat_embed_dim
+        self.class_embed_dim = args.class_embed_dim
+        self.p_factor = args.p_factor
+        self.device = args.device
+        if ex_correct is not None:
+            ex_correct = ex_correct * 2 - 1
+
+        self.register_buffer('Dl', ex_feats_l)
+        self.register_buffer('Dr', ex_feats_r)
+        self.register_buffer('r', ex_correct)
+
+
+        if self.feat_embed_dim is not None:
+            # feat_embed_dim = args.feat_dim if args.feat_embed_dim is None else args.feat_embed_dim
+            self.g = nn.Linear(in_features = args.feat_dim, out_features = self.feat_embed_dim)
+        else:
+            self.g = None
+            
+        if self.class_embed_dim is not None:
+            self.h = nn.Linear(in_features = 1, out_features = self.class_embed_dim)
+        else:
+            self.h = None
+
+        self.f = Minerva(args.p_factor)
+        
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, X, D = None, r = None, left = False):
+
+        if left:
+            D = D if D is not None else self.Dl
+        else:
+            D = D if D is not None else self.Dr
+        r = r if r is not None else self.r
+
+        if self.g is not None:
+            X = self.g(X)
+            D = self.g(D)
+
+        if self.h is not None:
+            r = self.h(r) 
+
+        echo = self.f(X, D, r)
+
+        output = {
+            'logits': echo,
+            'preds': self.sigmoid(echo)
+        }
+
+        # echo = self.h(echo)
+        # print(f"output:\n{echo}\n")
+
+        return output
 
 
 
