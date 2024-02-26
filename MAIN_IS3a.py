@@ -748,8 +748,8 @@ def main(args):
                 "exemplar", 
                 f"es{args.ex_size}{args.exemplar_source}", 
                 f"p{args.p_factor}",
-                f"lr_ex{args.lr_ex}", 
-                f"wd_ex{args.wd_ex}",
+                f"lr{args.lr_ex}", 
+                f"wd{args.wd_ex}",
                 f"fe{int(args.fix_ex)}",
                 f"tec{int(args.train_ex_class)}"
             )

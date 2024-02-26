@@ -3,6 +3,12 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from models.ni_predictors import PoolAttFF
 import math
+from scipy.optimize import curve_fit
+import numpy as np
+
+
+def logit_func(x,a,b):
+    return 1/(1+np.exp(-(a*x+b)))
 
 
 # Activations
@@ -366,6 +372,44 @@ class minerva_wrapper2(nn.Module):
         
         self.sigmoid = nn.Sigmoid()
 
+        
+    def get_regression(self, feats_l, feats_r, targets):
+        # logistic mapping curve fit to get the a and b parameters
+        # popt,_ = curve_fit(logit_func, val_predictions, val_gt)
+
+        # print(f"feats: {feats}")
+        # print(f"targets: {targets}")
+        x = self.forward(feats_l.to(self.device), left = True)
+        x_l = x['logits'].to('cpu').squeeze()
+        x = self.forward(feats_r.to(self.device), left = False)
+        x_r = x['logits'].to('cpu').squeeze()
+        x = torch.maximum(x_l, x_r)
+        # print(f"logits: {x}")
+        # print(f"targets numpy: {targets[:, 0].numpy()}")
+
+        # x_bar = x.mean().item()
+        # a0 = 1 / (x - x_bar).abs().max().item()
+        # b0 = -x_bar * a0
+        a0 = 1/ x.abs().max().item()
+        b0 = 0
+
+        # b0 = -x.mean().item()
+        # a0 = 1 / (x + b0).abs().max().item()
+        # b0 = b0 * a0
+        # a0 = 1 / x.abs().max().item()
+        # print(f"x numpy: {x.numpy()}")
+
+        # print(f"correctness:\n{x}")
+        # print(f"corrected correctness:\n{x * a0 + b0}")
+        # print(f"targets[0]:\n{targets}")
+        # print(f"a0: {a0}")
+        # print(f"b0: {b0}")
+        
+        popt, _ = curve_fit(logit_func, x.numpy(), targets.squeeze().numpy(), p0 = (a0, b0)) # , 
+        a, b = popt
+        return a, b
+    
+
     def forward(self, X, D = None, r = None, left = False):
 
         if left:
@@ -472,6 +516,56 @@ class ffnn_init(nn.Module):
         else:
             print(f"{acivation_name} is not known.")
 
+            
+    def get_regression(self, feats_l, feats_r, targets):
+        
+        print(f"Starting weights regression...")
+        
+        self.to(self.device)
+        # print(f"feats_l:\n{feats_l}")
+        # print(f"feats_r:\n{feats_r}")
+        
+        x_l = self.forward(feats_l.to(self.device), left = True)
+        # print(f"x_l:\n{x_l}") # dodgy
+        x_r = self.forward(feats_r.to(self.device), left = False)
+        # print(f"x_r:\n{x_r}") # ok
+        # x_l_r = self.forward(feats_l.to(self.device), left = False)
+        # print(f"x_l_r:\n{x_l_r}") # ok
+        # x_r_l = self.forward(feats_r.to(self.device), left = True)
+        # print(f"x_r_l:\n{x_r_l}") # dodgy
+        # x_l_r = self.forward(feats_l.to(self.device), left = False)
+        # x_r_l = self.forward(feats_r.to(self.device), left = True)
+        # x_l_l = x_l_l['logits']
+        # x_r_r = x_r_r['logits']
+        # x_l_r = x_l_r['logits']
+        # x_r_l = x_r_l['logits']
+        # print(f"x_l_l mean: {x_l_l.mean().item()}, x_r_r mean: {x_r_r.mean().item()}")
+        # print(f"x_l_r mean: {x_l_r.mean().item()}, x_r_l mean: {x_r_l.mean().item()}")
+        # quit()
+        x = torch.maximum(x_l['logits'], x_r['logits']).to('cpu').squeeze()
+        targets = targets.squeeze()
+
+        x_bar = x.mean().item()
+        # print(f"x:\n{x}")
+        # print(f"x_bar: {x_bar}")
+        # print(f"layer0l.weight:\n{self.layer0l.weight}")
+        # print(f"layer0r.weight:\n{self.layer0.weight}")
+        if (x - x_bar).abs().max().item() == 0: # usually due to ReLU acting on EVERYTHING
+            a0 = 1
+        else:
+            a0 = 1 / (x - x_bar).abs().max().item()
+        b0 = -x_bar * a0
+        # quit()
+
+        # print(f"x:\n{x}")
+        
+        popt, _ = curve_fit(logit_func, x.detach().numpy(), targets.detach().numpy(), p0 = (a0, b0)) # , 
+        a, b = popt
+        print(f"corrections for intialisations - a: {a}, b: {b}")
+        
+        print(f"Finished weights regression.")
+        return a, b
+
     def initialise_layers(self, initialisation, inits = None):
 
         # correct_transform = torch.zeros(self.args.class_embed_dim, 1, dtype = torch.float)
@@ -483,127 +577,168 @@ class ffnn_init(nn.Module):
         # print(X)
         # X = X @ inv_correct_transform
         # print(X)
+        self.eval()
+        # ex_feats_l, ex_feats_r, ex_correct = inits
 
-        ex_feats_l, ex_feats_r, ex_correct = inits
-
-
-        if initialisation == 'minerva':
-            ex_feats_l, ex_feats_r, ex_correct = inits
-            ex_feats_l = ex_feats_l - ex_feats_l.mean()
-            ex_feats_r = ex_feats_r - ex_feats_l.mean()
-            # print(f"ex_correct:\n{ex_correct}\n")
-            if self.args.which_ear == 'both':
-                self.layer0l.weight = nn.Parameter(nn.functional.normalize(self.args.alpha * ex_feats_l, dim = -1))
-                self.layer0r.weight = nn.Parameter(nn.functional.normalize(self.args.alpha * ex_feats_r, dim = -1))
-                self.layer0l.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
-                self.layer0r.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
-                
-            else:
-                if self.args.which_ear == 'left':
-                    ex_feats = ex_feats_l
-                elif self.args.which_ear == 'right':
-                    ex_feats = ex_feats_r
-                self.layer0.weight = nn.Parameter(nn.functional.normalize(self.args.alpha * ex_feats, dim = -1))
-                self.layer0.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
-
-            correct_transform = torch.ones(1, self.args.class_embed_dim, dtype = torch.float)
-            if self.args.class_embed_dim > 1:
-                nn.init.kaiming_uniform_(correct_transform, a=math.sqrt(5))
-            # print(f"correct_transform:\n{correct_transform}\n")
-            inv_correct_transform = 1 / (self.args.class_embed_dim * correct_transform)
-            ex_correct = (ex_correct * 2 - 1) @ correct_transform
-            # print(f"ex_correct transformed:\n{ex_correct}\n")
-
-            self.layer1.weight = nn.Parameter(self.args.alpha * ex_correct.t())
-            self.layer1.bias = nn.Parameter(torch.zeros(self.args.class_embed_dim, dtype = torch.float))
-
-            self.layer2.weight = nn.Parameter(self.args.alpha * inv_correct_transform)
-            self.layer2.bias = nn.Parameter(torch.zeros(1, dtype = torch.float))
-            
-            # test_ex_correct = self.layer2(ex_correct)
-            # print(f"test_ex_correct: \n{test_ex_correct}")
+        
+        if initialisation == 'minerva4':
+            ex_feats_l_base, ex_feats_r_base, ex_correct_base = inits
+            ex_feats_l = ex_feats_l_base.detach()#) / self.args.feat_embed_dim
+            ex_feats_r = ex_feats_r_base.detach()#) / self.args.feat_embed_dim
+            # print(f"norm l mean: {norm_l.mean()}, min: {norm_l.min()}, max: {norm_l.max()}, len: {norm_l.size()}")
+            # print(f"norm r mean: {norm_r.mean()}, min: {norm_r.min()}, max: {norm_r.max()}, len: {norm_r.size()}")
             # quit()
 
+            # print(f"ex_feats_l_base:\n{ex_feats_l_base}")
+            # print(f"ex_feats_r_base:\n{ex_feats_r_base}")
+            # print(f"l_mean: {ex_feats_l_base.mean()}, r_mean: {ex_feats_r_base.mean()}")
+            # print(f"l_max: {ex_feats_l_base.max()}, r_max: {ex_feats_r_base.max()}")
+            # print(f"l_min: {ex_feats_l_base.min()}, r_min: {ex_feats_r_base.min()}")
+            # print(f"l var: {torch.var(ex_feats_l_base)}, r var: {torch.var(ex_feats_r_base)}")
+            # print()
+            # print(f"l_mean: {ex_feats_l.mean()}, r_mean: {ex_feats_r.mean()}")
+            # print(f"l_max: {ex_feats_l.max()}, r_max: {ex_feats_r.max()}")
+            # print(f"l_min: {ex_feats_l.min()}, r_min: {ex_feats_r.min()}")
+            # print(f"l var: {torch.var(ex_feats_l)}, r var: {torch.var(ex_feats_r)}")
+            # print("dim 0 stats...")
+            # print(f"l mean min/max: {ex_feats_l.mean(dim = 0).min()}, {ex_feats_l.mean(dim = 0).max()}")
+            # print(f"r mean min/max: {ex_feats_r.mean(dim = 0).min()}, {ex_feats_r.mean(dim = 0).max()}")
+            # print("dim 1 stats...")
+            # print(f"l mean min/max: {ex_feats_l.mean(dim = 1).min()}, {ex_feats_l.mean(dim = 1).max()}")
+            # print(f"r mean min/max: {ex_feats_r.mean(dim = 1).min()}, {ex_feats_r.mean(dim = 1).max()}")
 
-        if initialisation == 'minerva_scaled':
-            ex_feats_l_base, ex_feats_r_base, ex_correct_base = inits
-            ex_feats_l_base = ex_feats_l_base - ex_feats_l_base.mean()
-            ex_feats_r_base = ex_feats_r_base - ex_feats_r_base.mean()
-
-            # print(f"ex_correct:\n{ex_correct}\n")
             if self.args.which_ear == 'both':
-                ex_feats_l = nn.functional.normalize(ex_feats_l_base, dim = -1)
-                ex_feats_r = nn.functional.normalize(ex_feats_r_base, dim = -1)
-                scale0_l = ex_feats_l_base @ ex_feats_l.t()
-                scale0_r = ex_feats_r_base @ ex_feats_r.t()
-                scale0_l = (scale0_l.sum() - torch.trace(scale0_l)) / (self.args.feat_embed_dim - 1)**2
-                scale0_r = (scale0_r.sum() - torch.trace(scale0_r)) / (self.args.feat_embed_dim - 1)**2
-                self.layer0l.weight = nn.Parameter(self.args.alpha * ex_feats_l / scale0_l)
-                self.layer0r.weight = nn.Parameter(self.args.alpha * ex_feats_r / scale0_r)
+                # norm_l = torch.linalg.vector_norm(ex_feats_l_base, dim = -1)
+                # norm_r = torch.linalg.vector_norm(ex_feats_r_base, dim = -1)
+                # print(f"norm_l dim: {norm_l.size()}")
+                # print(f"norm_r dim: {norm_r.size()}")
+                # norm_l = torch.pow(norm_l.unsqueeze(1), 2)
+                # norm_r = torch.pow(norm_r.unsqueeze(1), 2)
+                # print(f"norm_r dim: {norm_r.size()}")
+                ex_feats_l = nn.functional.normalize(ex_feats_l) / self.args.feat_embed_dim
+                ex_feats_r = nn.functional.normalize(ex_feats_r) / self.args.feat_embed_dim
+                ex_feats_norm = (ex_feats_l.norm() + ex_feats_r.norm()) / 2
+                self.layer0l.weight = nn.Parameter(ex_feats_l)
+                self.layer0r.weight = nn.Parameter(ex_feats_r)
                 self.layer0l.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
                 self.layer0r.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
-
-                X_l = self.layer0l(ex_feats_l_base)
-                X_r = self.layer0r(ex_feats_l_base)
-                X = (X_l + X_r) / 2
- 
             else:
                 if self.args.which_ear == 'left':
-                    ex_feats_base = ex_feats_l_base
+                    ex_feats = nn.functional.normalize(ex_feats_l, dim = -1) / self.args.feat_embed_dim
                 elif self.args.which_ear == 'right':
-                    ex_feats_base = ex_feats_r_base
-                
-                ex_feats = nn.functional.normalize(ex_feats_base, dim = -1)
-                scale0 = ex_feats_base @ ex_feats.t()
-                scale0 = (scale0.sum() - torch.trace(scale0)) / (self.args.feat_embed_dim - 1)**2
-                self.layer0.weight = nn.Parameter(self.args.alpha * ex_feats / scale0)
+                    ex_feats - nn.functional.normalize(ex_feats_r, dim = -1) / self.args.feat_embed_dim
+                elif self.args.which_ear == 'mean':
+                    ex_feats = nn.functional.normalize(ex_feats_l + ex_feats_r, dim = -1) / self.args.feat_embed_dim
+                ex_feats_norm = ex_feats.norm()
+                self.layer0.weight = nn.Parameter(ex_feats)
                 self.layer0.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
-            
+                        
+            # correct_transform = torch.ones(1, self.args.class_embed_dim, dtype = torch.float)
+            # if self.args.class_embed_dim > 1:
+            #     nn.init.kaiming_uniform_(correct_transform, a=math.sqrt(5))
+            if self.args.class_embed_dim == 1:
+                correct_transform = torch.ones(1, 1, dtype = torch.float)
+            else:
+                correct_transform = torch.rand(1, self.args.class_embed_dim, dtype = torch.float)
+                correct_transform = correct_transform - 0.5
 
-            correct_transform = torch.ones(1, self.args.class_embed_dim, dtype = torch.float)
-            if self.args.class_embed_dim > 1:
-                nn.init.kaiming_uniform_(correct_transform, a=math.sqrt(5))
-            # print(f"correct_transform:\n{correct_transform}\n")
+            # print(f"correct_transform:\n{correct_transform}")
             inv_correct_transform = 1 / (self.args.class_embed_dim * correct_transform)
+            # print(f"inv_correct_transform:\n{inv_correct_transform}")
             ex_correct = (ex_correct_base * 2 - 1) @ correct_transform
 
-            scale1 = (X @ ex_correct).mean()
+            # Do variance correction
+            ex_correct_norm = ex_correct.norm()
+            inv_trans_norm = inv_correct_transform.norm()
+            # print(f"ex_feats_norm: {ex_feats_norm}")
+            # print(f"ex_correct_norm: {ex_correct_norm}")
+            # print(f"inv_trans_norm: {inv_trans_norm}")
+            # if self.args.class_embed_dim == 1:
+            #     inv_trans_norm = 1
+            ex_correct = ex_correct * ex_feats_norm / ex_correct_norm
+            inv_correct_transform = inv_correct_transform * ex_feats_norm / inv_trans_norm
 
-            # output_l = ex_feats_l_base @ ex_correct
-            # output_l = ex_feats_l_base @ ex_correct
-            # print(f"ex_correct transformed:\n{ex_correct}\n")
-
-            self.layer1.weight = nn.Parameter(self.args.alpha * ex_correct.t() / scale1)
+            self.layer1.weight = nn.Parameter(ex_correct.t())
             self.layer1.bias = nn.Parameter(torch.zeros(self.args.class_embed_dim, dtype = torch.float))
 
-            X = self.layer1(X)
-
-            scale2 = (X @ inv_correct_transform.t()).mean()
-
-            self.layer2.weight = nn.Parameter(self.args.alpha * inv_correct_transform / scale2)
+            self.layer2.weight = nn.Parameter(inv_correct_transform)
             self.layer2.bias = nn.Parameter(torch.zeros(1, dtype = torch.float))
 
-
-        if initialisation == 'minerva_scaled2':
-            ex_feats_l, ex_feats_r, ex_correct = inits
-            ex_feats_l = ex_feats_l - ex_feats_l.mean()
-            ex_feats_r = ex_feats_r - ex_feats_l.mean()
+            a, b = self.get_regression(ex_feats_l_base, ex_feats_r_base, ex_correct_base)
+            a_sign = a / abs(a)
+            a = abs(a)**(1/3)
+            print(f"a: {a}, b: {b}")
 
             if self.args.which_ear == 'both':
-                ex_feats_l = nn.functional.normalize(ex_feats_l, dim = -1)
-                ex_feats_r - nn.functional.normalize(ex_feats_r, dim = -1)
+                # print(f"self.layer0l.weight:\n{self.layer0l.weight}")
+                # print(f"self.layer0l.weight x a:\n{self.layer0l.weight * a}")
+                self.layer0l.weight = nn.Parameter(self.layer0l.weight * a)
+                # print(f"new self.layer0l.weight:\n{self.layer0l.weight}")
+                self.layer0r.weight = nn.Parameter(self.layer0r.weight * a)
+            else:
+                self.layer0.weight = nn.Parameter(self.layer0.weight * a)
+            self.layer1.weight = nn.Parameter(self.layer1.weight * a)
+            self.layer2.weight = nn.Parameter(self.layer2.weight * a * a_sign)
+            self.layer2.bias = nn.Parameter(torch.tensor([b], dtype = torch.float))
+
+            # print(f"self.layer0.weight: {self.layer0.weight.norm()}")
+            # print(f"self.layer1.weight: {self.layer1.weight.norm()}")
+            # print(f"self.layer2.weight: {self.layer2.weight.norm()}")
+            # print(f"self.layer0.bias: {self.layer0.bias.norm()}")
+            # print(f"self.layer1.bias: {self.layer1.bias.norm()}")
+            # print(f"self.layer2.bias: {self.layer2.bias.norm()}")
+
+            # quit()
+
+        
+        if initialisation == 'minerva3':
+            ex_feats_l_base, ex_feats_r_base, ex_correct_base = inits
+            ex_feats_l = ex_feats_l_base.detach()#) / self.args.feat_embed_dim
+            ex_feats_r = ex_feats_r_base.detach()#) / self.args.feat_embed_dim
+            # print(f"norm l mean: {norm_l.mean()}, min: {norm_l.min()}, max: {norm_l.max()}, len: {norm_l.size()}")
+            # print(f"norm r mean: {norm_r.mean()}, min: {norm_r.min()}, max: {norm_r.max()}, len: {norm_r.size()}")
+            # quit()
+
+            # print(f"ex_feats_l_base:\n{ex_feats_l_base}")
+            # print(f"ex_feats_r_base:\n{ex_feats_r_base}")
+            # print(f"l_mean: {ex_feats_l_base.mean()}, r_mean: {ex_feats_r_base.mean()}")
+            # print(f"l_max: {ex_feats_l_base.max()}, r_max: {ex_feats_r_base.max()}")
+            # print(f"l_min: {ex_feats_l_base.min()}, r_min: {ex_feats_r_base.min()}")
+            # print(f"l var: {torch.var(ex_feats_l_base)}, r var: {torch.var(ex_feats_r_base)}")
+            # print()
+            # print(f"l_mean: {ex_feats_l.mean()}, r_mean: {ex_feats_r.mean()}")
+            # print(f"l_max: {ex_feats_l.max()}, r_max: {ex_feats_r.max()}")
+            # print(f"l_min: {ex_feats_l.min()}, r_min: {ex_feats_r.min()}")
+            # print(f"l var: {torch.var(ex_feats_l)}, r var: {torch.var(ex_feats_r)}")
+            # print("dim 0 stats...")
+            # print(f"l mean min/max: {ex_feats_l.mean(dim = 0).min()}, {ex_feats_l.mean(dim = 0).max()}")
+            # print(f"r mean min/max: {ex_feats_r.mean(dim = 0).min()}, {ex_feats_r.mean(dim = 0).max()}")
+            # print("dim 1 stats...")
+            # print(f"l mean min/max: {ex_feats_l.mean(dim = 1).min()}, {ex_feats_l.mean(dim = 1).max()}")
+            # print(f"r mean min/max: {ex_feats_r.mean(dim = 1).min()}, {ex_feats_r.mean(dim = 1).max()}")
+
+            if self.args.which_ear == 'both':
+                # norm_l = torch.linalg.vector_norm(ex_feats_l_base, dim = -1)
+                # norm_r = torch.linalg.vector_norm(ex_feats_r_base, dim = -1)
+                # print(f"norm_l dim: {norm_l.size()}")
+                # print(f"norm_r dim: {norm_r.size()}")
+                # norm_l = torch.pow(norm_l.unsqueeze(1), 2)
+                # norm_r = torch.pow(norm_r.unsqueeze(1), 2)
+                # print(f"norm_r dim: {norm_r.size()}")
+                ex_feats_l = nn.functional.normalize(ex_feats_l / self.args.feat_embed_dim)
+                ex_feats_r = nn.functional.normalize(ex_feats_r / self.args.feat_embed_dim)
                 ex_feats_var = (torch.var(ex_feats_l) + torch.var(ex_feats_r)) / 2
-                self.layer0l.weight = nn.Parameter(self.args.p_factor * ex_feats_l)
-                self.layer0r.weight = nn.Parameter(self.args.p_factor * ex_feats_r)
+                self.layer0l.weight = nn.Parameter(ex_feats_l)
+                self.layer0r.weight = nn.Parameter(ex_feats_r)
                 self.layer0l.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
                 self.layer0r.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
             else:
                 if self.args.which_ear == 'left':
-                    ex_feats = nn.functional.normalize(ex_feats_l, dim = -1)
+                    ex_feats = nn.functional.normalize(ex_feats_l, dim = -1) / self.args.feat_embed_dim
                 elif self.args.which_ear == 'right':
-                    ex_feats - nn.functional.normalize(ex_feats_r, dim = -1)
+                    ex_feats - nn.functional.normalize(ex_feats_r, dim = -1) / self.args.feat_embed_dim
                 elif self.args.which_ear == 'mean':
-                    ex_feats = nn.functional.normalize(ex_feats_l + ex_feats_r, dim = -1)
+                    ex_feats = nn.functional.normalize(ex_feats_l + ex_feats_r, dim = -1) / self.args.feat_embed_dim
                 ex_feats_var = torch.var(ex_feats)
                 self.layer0.weight = nn.Parameter(ex_feats)
                 self.layer0.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
@@ -617,18 +752,18 @@ class ffnn_init(nn.Module):
                 correct_transform = torch.rand(1, self.args.class_embed_dim, dtype = torch.float)
                 correct_transform = correct_transform - 0.5
 
-            print(f"correct_transform:\n{correct_transform}")
+            # print(f"correct_transform:\n{correct_transform}")
             inv_correct_transform = 1 / (self.args.class_embed_dim * correct_transform)
-            print(f"inv_correct_transform:\n{inv_correct_transform}")
-            ex_correct = (ex_correct * 2 - 1) @ correct_transform
+            # print(f"inv_correct_transform:\n{inv_correct_transform}")
+            ex_correct = (ex_correct_base * 2 - 1) @ correct_transform
 
             # Do variance correction
             ex_correct_var = torch.var(ex_correct)
             inv_trans_var = torch.var(inv_correct_transform)
             if self.args.class_embed_dim == 1:
                 inv_trans_var = 1
-            ex_correct = self.args.p_factor * ex_correct * (ex_feats_var / ex_correct_var)**0.5
-            inv_correct_transform = self.args.p_factor * inv_correct_transform * (inv_trans_var / ex_correct_var)**0.5
+            ex_correct = ex_correct * (ex_feats_var / ex_correct_var)**0.5
+            inv_correct_transform = inv_correct_transform * (inv_trans_var / ex_correct_var)**0.5
 
             self.layer1.weight = nn.Parameter(ex_correct.t())
             self.layer1.bias = nn.Parameter(torch.zeros(self.args.class_embed_dim, dtype = torch.float))
@@ -636,86 +771,37 @@ class ffnn_init(nn.Module):
             self.layer2.weight = nn.Parameter(inv_correct_transform)
             self.layer2.bias = nn.Parameter(torch.zeros(1, dtype = torch.float))
 
-            
-        if initialisation == 'minerva_scaled3':
-            print(f"Doing minerva_scaled3 inititalisation...")
-            ex_feats_l_base, ex_feats_r_base, ex_correct_base = inits
-            # ex_feats_l_base = ex_feats_l_base - ex_feats_l_base.mean()
-            # ex_feats_r_base = ex_feats_r_base - ex_feats_r_base.mean()
+            a, b = self.get_regression(ex_feats_l_base, ex_feats_r_base, ex_correct_base)
+            a_sign = a / abs(a)
+            a = abs(a)**(1/3)
+            print(f"a: {a}, b: {b}")
 
-            # print(f"ex_correct:\n{ex_correct}\n")
             if self.args.which_ear == 'both':
-                ex_feats_l = nn.functional.normalize(ex_feats_l_base, dim = -1)
-                ex_feats_r = nn.functional.normalize(ex_feats_r_base, dim = -1)
-                out0_l = ex_feats_l_base @ ex_feats_l.t()
-                out0_r = ex_feats_r_base @ ex_feats_r.t()
-                bias0_l = -out0_l.mean()
-                bias0_r = -out0_r.mean()
-                scale0_l = out0_l.var()**0.5
-                scale0_r = out0_r.var()**0.5
-                self.layer0l.weight = nn.Parameter(self.args.alpha * ex_feats_l / scale0_l)
-                self.layer0r.weight = nn.Parameter(self.args.alpha * ex_feats_r / scale0_r)
-                # self.layer0l.bias = nn.Parameter(bias0_l)
-                # self.layer0r.bias = nn.Parameter(bias0_r)
-                self.layer0l.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim, dtype = torch.float))
-                self.layer0r.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim, dtype = torch.float))
-
-                X_l = self.layer0l(ex_feats_l_base)
-                X_r = self.layer0r(ex_feats_l_base)
-                X = (X_l + X_r) / 2
- 
+                print(f"self.layer0l.weight:\n{self.layer0l.weight}")
+                print(f"self.layer0l.weight x a:\n{self.layer0l.weight * a}")
+                self.layer0l.weight = nn.Parameter(self.layer0l.weight * a)
+                print(f"new self.layer0l.weight:\n{self.layer0l.weight}")
+                self.layer0r.weight = nn.Parameter(self.layer0r.weight * a)
             else:
-                if self.args.which_ear == 'left':
-                    ex_feats_base = ex_feats_l_base
-                elif self.args.which_ear == 'right':
-                    ex_feats_base = ex_feats_r_base
-                
-                ex_feats = nn.functional.normalize(ex_feats_base, dim = -1)
-                out0 = ex_feats_base @ ex_feats.t()
-                bias0 = -out0.mean()
-                scale0 = out0.var()**0.5
-                self.layer0.weight = nn.Parameter(self.args.alpha * ex_feats / scale0)
-                # self.layer0.bias = nn.Parameter(bias0.repeat(self.args.class_embed_dim))
-                self.layer0.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim, dtype = torch.float))
-            
+                self.layer0.weight = nn.Parameter(self.layer0.weight * a)
+            self.layer1.weight = nn.Parameter(self.layer1.weight * a)
+            self.layer2.weight = nn.Parameter(self.layer2.weight * a * a_sign)
+            self.layer2.bias = nn.Parameter(torch.tensor([b], dtype = torch.float))
 
-            correct_transform = torch.ones(1, self.args.class_embed_dim, dtype = torch.float)
-            if self.args.class_embed_dim > 1:
-                nn.init.kaiming_uniform_(correct_transform, a=math.sqrt(5))
-            # print(f"correct_transform:\n{correct_transform}\n")
-            inv_correct_transform = 1 / (self.args.class_embed_dim * correct_transform)
-            ex_correct = (ex_correct_base * 2 - 1) @ correct_transform
+            print(f"self.layer0.weight: {self.layer0.weight.norm()}")
+            print(f"self.layer1.weight: {self.layer1.weight.norm()}")
+            print(f"self.layer2.weight: {self.layer2.weight.norm()}")
+            print(f"self.layer0.bias: {self.layer0.bias.norm()}")
+            print(f"self.layer1.bias: {self.layer1.bias.norm()}")
+            print(f"self.layer2.bias: {self.layer2.bias.norm()}")
 
-            out1 = X @ ex_correct
-            bias1 = -out1.mean()
-            scale1 = out1.var()**0.5
-
-            # output_l = ex_feats_l_base @ ex_correct
-            # output_l = ex_feats_l_base @ ex_correct
-            # print(f"ex_correct transformed:\n{ex_correct}\n")
-
-            self.layer1.weight = nn.Parameter(self.args.alpha * ex_correct.t() / scale1)
-            # self.layer1.bias = nn.Parameter(bias1.repeat(self.args.class_embed_dim))
-            self.layer1.bias = nn.Parameter(torch.zeros(self.args.class_embed_dim, dtype = torch.float))
-
-            X = self.layer1(X)
-
-            out2 = X @ inv_correct_transform.t()
-            bias2 = -out2.mean()
-            scale2 = out2.var()**0.5
-
-
-            self.layer2.weight = nn.Parameter(self.args.alpha * inv_correct_transform / scale2)
-            self.layer2.bias = nn.Parameter(bias2)
-
-
-            
+            quit()
+           
 
     def forward(self, X, left = False):
         # print(f"X.mean(0): {X.mean(dim = 0)}")
         # print(f"X.mean(1): {X.mean(dim = 1)}")
         # print(f"X.mean: {X.mean()}")
-
         
         # print(f"X:\n{X}")
         if self.args.normalize:
@@ -786,6 +872,230 @@ class ffnn_init(nn.Module):
         self.__init__(self.args)
         self.load_state_dict(save_dict["state_dict"])
         self.to(self.args.device)
+
+
+
+        # if initialisation == 'minerva':
+        #     ex_feats_l, ex_feats_r, ex_correct = inits
+        #     ex_feats_l = ex_feats_l - ex_feats_l.mean()
+        #     ex_feats_r = ex_feats_r - ex_feats_l.mean()
+        #     # print(f"ex_correct:\n{ex_correct}\n")
+        #     if self.args.which_ear == 'both':
+        #         self.layer0l.weight = nn.Parameter(nn.functional.normalize(self.args.alpha * ex_feats_l, dim = -1))
+        #         self.layer0r.weight = nn.Parameter(nn.functional.normalize(self.args.alpha * ex_feats_r, dim = -1))
+        #         self.layer0l.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
+        #         self.layer0r.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
+                
+        #     else:
+        #         if self.args.which_ear == 'left':
+        #             ex_feats = ex_feats_l
+        #         elif self.args.which_ear == 'right':
+        #             ex_feats = ex_feats_r
+        #         self.layer0.weight = nn.Parameter(nn.functional.normalize(self.args.alpha * ex_feats, dim = -1))
+        #         self.layer0.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
+
+        #     correct_transform = torch.ones(1, self.args.class_embed_dim, dtype = torch.float)
+        #     if self.args.class_embed_dim > 1:
+        #         nn.init.kaiming_uniform_(correct_transform, a=math.sqrt(5))
+        #     # print(f"correct_transform:\n{correct_transform}\n")
+        #     inv_correct_transform = 1 / (self.args.class_embed_dim * correct_transform)
+        #     ex_correct = (ex_correct * 2 - 1) @ correct_transform
+        #     # print(f"ex_correct transformed:\n{ex_correct}\n")
+
+        #     self.layer1.weight = nn.Parameter(self.args.alpha * ex_correct.t())
+        #     self.layer1.bias = nn.Parameter(torch.zeros(self.args.class_embed_dim, dtype = torch.float))
+
+        #     self.layer2.weight = nn.Parameter(self.args.alpha * inv_correct_transform)
+        #     self.layer2.bias = nn.Parameter(torch.zeros(1, dtype = torch.float))
+            
+        #     # test_ex_correct = self.layer2(ex_correct)
+        #     # print(f"test_ex_correct: \n{test_ex_correct}")
+        #     # quit()
+
+
+        # if initialisation == 'minerva_scaled':
+        #     ex_feats_l_base, ex_feats_r_base, ex_correct_base = inits
+        #     ex_feats_l_base = ex_feats_l_base - ex_feats_l_base.mean()
+        #     ex_feats_r_base = ex_feats_r_base - ex_feats_r_base.mean()
+
+        #     # print(f"ex_correct:\n{ex_correct}\n")
+        #     if self.args.which_ear == 'both':
+        #         ex_feats_l = nn.functional.normalize(ex_feats_l_base, dim = -1)
+        #         ex_feats_r = nn.functional.normalize(ex_feats_r_base, dim = -1)
+        #         scale0_l = ex_feats_l_base @ ex_feats_l.t()
+        #         scale0_r = ex_feats_r_base @ ex_feats_r.t()
+        #         scale0_l = (scale0_l.sum() - torch.trace(scale0_l)) / (self.args.feat_embed_dim - 1)**2
+        #         scale0_r = (scale0_r.sum() - torch.trace(scale0_r)) / (self.args.feat_embed_dim - 1)**2
+        #         self.layer0l.weight = nn.Parameter(self.args.alpha * ex_feats_l / scale0_l)
+        #         self.layer0r.weight = nn.Parameter(self.args.alpha * ex_feats_r / scale0_r)
+        #         self.layer0l.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
+        #         self.layer0r.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
+
+        #         X_l = self.layer0l(ex_feats_l_base)
+        #         X_r = self.layer0r(ex_feats_l_base)
+        #         X = (X_l + X_r) / 2
+ 
+        #     else:
+        #         if self.args.which_ear == 'left':
+        #             ex_feats_base = ex_feats_l_base
+        #         elif self.args.which_ear == 'right':
+        #             ex_feats_base = ex_feats_r_base
+                
+        #         ex_feats = nn.functional.normalize(ex_feats_base, dim = -1)
+        #         scale0 = ex_feats_base @ ex_feats.t()
+        #         scale0 = (scale0.sum() - torch.trace(scale0)) / (self.args.feat_embed_dim - 1)**2
+        #         self.layer0.weight = nn.Parameter(self.args.alpha * ex_feats / scale0)
+        #         self.layer0.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
+            
+
+        #     correct_transform = torch.ones(1, self.args.class_embed_dim, dtype = torch.float)
+        #     if self.args.class_embed_dim > 1:
+        #         nn.init.kaiming_uniform_(correct_transform, a=math.sqrt(5))
+        #     # print(f"correct_transform:\n{correct_transform}\n")
+        #     inv_correct_transform = 1 / (self.args.class_embed_dim * correct_transform)
+        #     ex_correct = (ex_correct_base * 2 - 1) @ correct_transform
+
+        #     scale1 = (X @ ex_correct).mean()
+
+        #     # output_l = ex_feats_l_base @ ex_correct
+        #     # output_l = ex_feats_l_base @ ex_correct
+        #     # print(f"ex_correct transformed:\n{ex_correct}\n")
+
+        #     self.layer1.weight = nn.Parameter(self.args.alpha * ex_correct.t() / scale1)
+        #     self.layer1.bias = nn.Parameter(torch.zeros(self.args.class_embed_dim, dtype = torch.float))
+
+        #     X = self.layer1(X)
+
+        #     scale2 = (X @ inv_correct_transform.t()).mean()
+
+        #     self.layer2.weight = nn.Parameter(self.args.alpha * inv_correct_transform / scale2)
+        #     self.layer2.bias = nn.Parameter(torch.zeros(1, dtype = torch.float))
+
+
+        # if initialisation == 'minerva_scaled2':
+        #     ex_feats_l, ex_feats_r, ex_correct = inits
+        #     ex_feats_l = ex_feats_l - ex_feats_l.mean()
+        #     ex_feats_r = ex_feats_r - ex_feats_l.mean()
+
+        #     if self.args.which_ear == 'both':
+        #         ex_feats_l = nn.functional.normalize(ex_feats_l, dim = -1)
+        #         ex_feats_r - nn.functional.normalize(ex_feats_r, dim = -1)
+        #         ex_feats_var = (torch.var(ex_feats_l) + torch.var(ex_feats_r)) / 2
+        #         self.layer0l.weight = nn.Parameter(self.args.p_factor * ex_feats_l)
+        #         self.layer0r.weight = nn.Parameter(self.args.p_factor * ex_feats_r)
+        #         self.layer0l.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
+        #         self.layer0r.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
+        #     else:
+        #         if self.args.which_ear == 'left':
+        #             ex_feats = nn.functional.normalize(ex_feats_l, dim = -1)
+        #         elif self.args.which_ear == 'right':
+        #             ex_feats - nn.functional.normalize(ex_feats_r, dim = -1)
+        #         elif self.args.which_ear == 'mean':
+        #             ex_feats = nn.functional.normalize(ex_feats_l + ex_feats_r, dim = -1)
+        #         ex_feats_var = torch.var(ex_feats)
+        #         self.layer0.weight = nn.Parameter(ex_feats)
+        #         self.layer0.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim))
+                        
+        #     # correct_transform = torch.ones(1, self.args.class_embed_dim, dtype = torch.float)
+        #     # if self.args.class_embed_dim > 1:
+        #     #     nn.init.kaiming_uniform_(correct_transform, a=math.sqrt(5))
+        #     if self.args.class_embed_dim == 1:
+        #         correct_transform = torch.ones(1, 1, dtype = torch.float)
+        #     else:
+        #         correct_transform = torch.rand(1, self.args.class_embed_dim, dtype = torch.float)
+        #         correct_transform = correct_transform - 0.5
+
+        #     print(f"correct_transform:\n{correct_transform}")
+        #     inv_correct_transform = 1 / (self.args.class_embed_dim * correct_transform)
+        #     print(f"inv_correct_transform:\n{inv_correct_transform}")
+        #     ex_correct = (ex_correct * 2 - 1) @ correct_transform
+
+        #     # Do variance correction
+        #     ex_correct_var = torch.var(ex_correct)
+        #     inv_trans_var = torch.var(inv_correct_transform)
+        #     if self.args.class_embed_dim == 1:
+        #         inv_trans_var = 1
+        #     ex_correct = self.args.p_factor * ex_correct * (ex_feats_var / ex_correct_var)**0.5
+        #     inv_correct_transform = self.args.p_factor * inv_correct_transform * (inv_trans_var / ex_correct_var)**0.5
+
+        #     self.layer1.weight = nn.Parameter(ex_correct.t())
+        #     self.layer1.bias = nn.Parameter(torch.zeros(self.args.class_embed_dim, dtype = torch.float))
+
+        #     self.layer2.weight = nn.Parameter(inv_correct_transform)
+        #     self.layer2.bias = nn.Parameter(torch.zeros(1, dtype = torch.float))
+
+            
+        # if initialisation == 'minerva_scaled3':
+        #     print(f"Doing minerva_scaled3 inititalisation...")
+        #     ex_feats_l_base, ex_feats_r_base, ex_correct_base = inits
+        #     # ex_feats_l_base = ex_feats_l_base - ex_feats_l_base.mean()
+        #     # ex_feats_r_base = ex_feats_r_base - ex_feats_r_base.mean()
+
+        #     # print(f"ex_correct:\n{ex_correct}\n")
+        #     if self.args.which_ear == 'both':
+        #         ex_feats_l = nn.functional.normalize(ex_feats_l_base, dim = -1)
+        #         ex_feats_r = nn.functional.normalize(ex_feats_r_base, dim = -1)
+        #         out0_l = ex_feats_l_base @ ex_feats_l.t()
+        #         out0_r = ex_feats_r_base @ ex_feats_r.t()
+        #         bias0_l = -out0_l.mean()
+        #         bias0_r = -out0_r.mean()
+        #         scale0_l = out0_l.var()**0.5
+        #         scale0_r = out0_r.var()**0.5
+        #         self.layer0l.weight = nn.Parameter(self.args.alpha * ex_feats_l / scale0_l)
+        #         self.layer0r.weight = nn.Parameter(self.args.alpha * ex_feats_r / scale0_r)
+        #         # self.layer0l.bias = nn.Parameter(bias0_l)
+        #         # self.layer0r.bias = nn.Parameter(bias0_r)
+        #         self.layer0l.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim, dtype = torch.float))
+        #         self.layer0r.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim, dtype = torch.float))
+
+        #         X_l = self.layer0l(ex_feats_l_base)
+        #         X_r = self.layer0r(ex_feats_l_base)
+        #         X = (X_l + X_r) / 2
+ 
+        #     else:
+        #         if self.args.which_ear == 'left':
+        #             ex_feats_base = ex_feats_l_base
+        #         elif self.args.which_ear == 'right':
+        #             ex_feats_base = ex_feats_r_base
+                
+        #         ex_feats = nn.functional.normalize(ex_feats_base, dim = -1)
+        #         out0 = ex_feats_base @ ex_feats.t()
+        #         bias0 = -out0.mean()
+        #         scale0 = out0.var()**0.5
+        #         self.layer0.weight = nn.Parameter(self.args.alpha * ex_feats / scale0)
+        #         # self.layer0.bias = nn.Parameter(bias0.repeat(self.args.class_embed_dim))
+        #         self.layer0.bias = nn.Parameter(torch.zeros(self.args.feat_embed_dim, dtype = torch.float))
+            
+
+        #     correct_transform = torch.ones(1, self.args.class_embed_dim, dtype = torch.float)
+        #     if self.args.class_embed_dim > 1:
+        #         nn.init.kaiming_uniform_(correct_transform, a=math.sqrt(5))
+        #     # print(f"correct_transform:\n{correct_transform}\n")
+        #     inv_correct_transform = 1 / (self.args.class_embed_dim * correct_transform)
+        #     ex_correct = (ex_correct_base * 2 - 1) @ correct_transform
+
+        #     out1 = X @ ex_correct
+        #     bias1 = -out1.mean()
+        #     scale1 = out1.var()**0.5
+
+        #     # output_l = ex_feats_l_base @ ex_correct
+        #     # output_l = ex_feats_l_base @ ex_correct
+        #     # print(f"ex_correct transformed:\n{ex_correct}\n")
+
+        #     self.layer1.weight = nn.Parameter(self.args.alpha * ex_correct.t() / scale1)
+        #     # self.layer1.bias = nn.Parameter(bias1.repeat(self.args.class_embed_dim))
+        #     self.layer1.bias = nn.Parameter(torch.zeros(self.args.class_embed_dim, dtype = torch.float))
+
+        #     X = self.layer1(X)
+
+        #     out2 = X @ inv_correct_transform.t()
+        #     bias2 = -out2.mean()
+        #     scale2 = out2.var()**0.5
+
+
+        #     self.layer2.weight = nn.Parameter(self.args.alpha * inv_correct_transform / scale2)
+        #     self.layer2.bias = nn.Parameter(bias2)
+
 
 
 
