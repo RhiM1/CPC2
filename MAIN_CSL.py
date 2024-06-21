@@ -25,7 +25,7 @@ from data_handling import get_disjoint_val_set
 from process_cpc2_data import get_cpc2_dataset
 from transformers import WhisperProcessor
 import random
-from models.simple_models import ffnn_init, minerva_transform, minerva_wrapper2
+from models.simple_models import ffnn_init, minerva_wrapper3
 from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, \
     HuBERTEncoder_feats, HuBERTFull_feats, WhisperEncoder_feats, WhisperFull_feats, WhisperBase_feats
 from exemplar import get_ex_set
@@ -703,18 +703,18 @@ def main(args):
     if args.model == "ffnn_init":
         model = ffnn_init(args)
         model.initialise_layers(args.model_initialisation, (ex_feats_l, ex_feats_r, ex_correct))
-    elif args.model == "minerva_transform":
-        # args.hidden_size = args.feat_embed_dim
-        model = minerva_transform(
-            args,
-            ex_feats_l = ex_feats_l,
-            ex_feats_r = ex_feats_r,
-            ex_correct = ex_correct
-        )
-        args.exemplar = True
+    # elif args.model == "minerva_transform":
+    #     # args.hidden_size = args.feat_embed_dim
+    #     model = minerva_transform(
+    #         args,
+    #         ex_feats_l = ex_feats_l,
+    #         ex_feats_r = ex_feats_r,
+    #         ex_correct = ex_correct
+    #     )
+    #     args.exemplar = True
     elif args.model == 'minerva':
         # args.hidden_size = args.feat_embed_dim
-        model = minerva_wrapper2(
+        model = minerva_wrapper3(
             args,
             ex_feats_l = ex_feats_l,
             ex_feats_r = ex_feats_r,
@@ -1143,7 +1143,7 @@ if __name__ == "__main__":
         "--out_csv_file", help="path to write the predictions to" , default=None
     )
     parser.add_argument(
-        "--wandb_project", help="W and B project name" , default="IS_CPC2"
+        "--wandb_project", help="W and B project name" , default="CSL_CPC2"
     )
     parser.add_argument(
         "--skip_wandb", help="skip logging via WandB", default=False, action='store_true'

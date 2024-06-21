@@ -25,7 +25,7 @@ from data_handling import get_disjoint_val_set
 from process_cpc2_data import get_cpc2_dataset
 from transformers import WhisperProcessor
 import random
-from models.simple_models import ffnn_init, minerva_transform, minerva_wrapper2
+from models.simple_models import ffnn_init, minerva_transform, minerva_wrapper2, ffnn_layers
 from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, \
     HuBERTEncoder_feats, HuBERTFull_feats, WhisperEncoder_feats, WhisperFull_feats, WhisperBase_feats
 from exemplar import get_ex_set
@@ -703,6 +703,10 @@ def main(args):
     if args.model == "ffnn_init":
         model = ffnn_init(args)
         model.initialise_layers(args.model_initialisation, (ex_feats_l, ex_feats_r, ex_correct))
+    args.feat_dim = dim_extractor
+    if args.model == "ffnn_layers":
+        model = ffnn_layers(args)
+        model.initialise_layers(args.model_initialisation, (ex_feats_l, ex_feats_r, ex_correct))
     elif args.model == "minerva_transform":
         # args.hidden_size = args.feat_embed_dim
         model = minerva_transform(
@@ -1137,13 +1141,13 @@ if __name__ == "__main__":
         "--run_id", help="id for individual experiment", default = 'test'
     )
     parser.add_argument(
-        "--summ_file", help="path to write summary results to" , default="save/IS_CPC2.csv"
+        "--summ_file", help="path to write summary results to" , default="save/CSL_CPC2.csv"
     )
     parser.add_argument(
         "--out_csv_file", help="path to write the predictions to" , default=None
     )
     parser.add_argument(
-        "--wandb_project", help="W and B project name" , default="IS_CPC2"
+        "--wandb_project", help="W and B project name" , default="CSL_CPC2"
     )
     parser.add_argument(
         "--skip_wandb", help="skip logging via WandB", default=False, action='store_true'
@@ -1438,7 +1442,7 @@ if __name__ == "__main__":
         args.out_csv_file = f"{args.model_dir}/{args.exp_id}_{args.run_id}_{args.feats_model}_N{args.N}_{args.model}"
     # config["out_csv_file"] = args.out_csv_file
 
-    if args.model == 'ffnn_init':
+    if args.model == 'ffnn_init' or args.model == 'ffnn_layers':
         args.ex_size = args.feat_embed_dim
 
     main(args)
