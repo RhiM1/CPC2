@@ -674,461 +674,485 @@ def main(args):
     print(f"val_data length: {len(val_data)}")
     print(f"train_data length: {len(train_data)}")
 
-    # Reset seeds for repeatable behaviour regardless of
-    # how feats / models are obtained
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)
-    random.seed(args.seed)
-    torch.cuda.manual_seed(args.seed)
-
-    if args.fix_ex:
-        if args.ex_size > len(train_data):
-            args.ex_size = len(train_data)
-        if args.random_exemplars:
-            ex_set = get_dynamic_dataset(train_data)
-            ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
-        else:
-            ex_set = get_ex_set(train_data, args)
-            ex_set = get_dynamic_dataset(ex_set)
-            ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
-            # len_ex = len(ex_dataloader)
-        ex_dataloader = iter(ex_dataloader)
-        ex_correct, ex_feats_l, ex_feats_r = next(ex_dataloader)
-        ex_correct = ex_correct.data
-        ex_feats_l = ex_feats_l.data
-        ex_feats_r = ex_feats_r.data
-    else:
-        ex_feats_l = None
-        ex_feats_r = None
-        ex_correct = None
-
-    # Select classifier model (this is the one we're actually training)
-    args.feat_dim = dim_extractor
-    if args.model == "ffnn_init":
-        model = ffnn_init(args)
-        model.initialise_layers(args.model_initialisation, (ex_feats_l, ex_feats_r, ex_correct))
-    # elif args.model == "minerva_transform":
-    #     # args.hidden_size = args.feat_embed_dim
-    #     model = minerva_transform(
-    #         args,
-    #         ex_feats_l = ex_feats_l,
-    #         ex_feats_r = ex_feats_r,
-    #         ex_correct = ex_correct
-    #     )
-    #     args.exemplar = True
-    elif args.model == 'minerva':
-        # args.hidden_size = args.feat_embed_dim
-        model = minerva_wrapper3(
-            args,
-            ex_feats_l = ex_feats_l,
-            ex_feats_r = ex_feats_r,
-            ex_correct = ex_correct
-        )
-        args.exemplar = True
-    else:
-        print(f"Model not recognised: {args.model}")
-        exit(1)
-    print(model)
-
-    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
-    num_params = sum([np.prod(p.size()) for p in model_parameters]) 
-    model_parameters = filter(lambda p: not p.requires_grad, model.parameters())
-    num_unlearned_params = sum([np.prod(p.size()) for p in model_parameters]) 
-    print(f"Number of learned parameters: {num_params}")
-    print(f"Number of unlearned parameters: {num_unlearned_params}")
-
-    # Set up logging on WandB (handy for keeping an eye on things)
-    if not args.skip_wandb:
-        # wandb_name = "%s_%s_%s_%s_feats_%s_%s"%(args.exp_id,args.N,args.model,ex,date,args.seed)
-        run = wandb.init(
-            project=args.wandb_project, 
-            reinit = True, 
-            name = args.model_name,
-            tags = [
-                f"e{args.exp_id}",
-                f"r{args.run_id}",
-                f"N{args.N}", 
-                f"lr{args.lr}", 
-                args.feats_model, 
-                args.model, 
-                f"bs{args.batch_size}",
-                f"wd{args.weight_decay}",
-                f"do{args.dropout}",
-                f"fd{args.feat_embed_dim}",
-                f"cd{args.class_embed_dim}",
-                f"{args.which_ear}_ear",
-                f"{args.model_initialisation}"
-                ]
-        )
-        if args.exemplar:
-            run.tags = run.tags + (
-                "exemplar", 
-                f"es{args.ex_size}{args.exemplar_source}", 
-                f"p{args.p_factor}",
-                f"lr_ex{args.lr_ex}", 
-                f"wd_ex{args.wd_ex}",
-                f"fe{int(args.fix_ex)}",
-                f"tec{int(args.train_ex_class)}"
-            )
-        if args.restart_model is not None:
-            run.tags = run.tags + ("resumed", )
-        if args.layer is not None:
-            run.tags = run.tags + (f"layer{args.layer}", )
-        # if args.minerva_dim is not None:
-        #     run.tags = run.tags + (f"min_dim{args.minerva_dim}", )
-        if args.random_exemplars:
-            run.tags = run.tags + (f"random_ex", )
-        else:
-            run.tags = run.tags + (f"strat_ex", )
-        # if args.num_minervas != 1:
-        #     run.tags = run.tags + (f"nm{args.num_minervas}", )
-        if args.learn_incorrect:
-            run.tags = run.tags + (f"learn_incorrect", )
-        # if args.minerva_r_dim is not None:
-        #     run.tags = run.tags + (f"r_dim{args.minerva_r_dim}", )
-        # if args.use_r_encoding:
-        #     run.tags = run.tags + (f"r_encoding", )
-        if args.train_disjoint:
-            run.tags = run.tags + (f"train_disjoint", )
-    
-    criterion = nn.MSELoss()
-
-    # if not args.use_CPC1:
-    if int(args.in_json_file.split("/")[-1].split(".")[-2]) != int(args.N):
-        print("Warning: N does not match dataset:")
-        print(args.in_json_file.split("/")[-1].split(".")[-2],args.N)
-        exit()
-
-
-    # If restarting a training run, load the weights
-    if args.restart_model is not None:
-        model.load_state_dict(torch.load(args.restart_model))
-
-
-    # # Reset seeds for repeatable behaviour regardless of
-    # # how feats / models are obtained
-    # torch.manual_seed(args.seed)
-    # np.random.seed(args.seed)
-    # random.seed(args.seed)
-    # torch.cuda.manual_seed(args.seed)
-
-    # Split into train and val sets
-    if args.train_disjoint:
-        print("Training on disjoint")
-        train_data = pd.concat([train_data, dis_val_data])
-    # print(dis_val_data["correctness"])
-    # print(train_data["correctness"])
-    # print(val_data["correctness"])
-    # quit()
-
-    print("Trainset: %s\nValset: %s\nDisValset: %s"%(train_data.shape[0],val_data.shape[0],dis_val_data.shape[0]))
-    print("=====================================")
-
-    if args.exemplar and not args.fix_ex:
-        if args.exemplar_source == "CEC1":
-            train_ex_data = train_data[train_data.subset == "CEC1"]
-            dis_val_ex_data = train_data[train_data.subset == "CEC1"]
-        elif args.exemplar_source == "CEC2":
-            train_ex_data = train_data[train_data.subset == "CEC2"]
-            dis_val_ex_data = train_data[train_data.subset == "CEC2"]
-        elif args.exemplar_source == "matching":
-            train_ex_data = train_data
-            dis_val_ex_data = train_data[train_data.subset == "CEC2"]
-        elif args.exemplar_source == "all":
-            train_ex_data = train_data
-            dis_val_ex_data = train_data
-        else:
-            print("Invalid exemplar exemplar source.")
-            quit()
-        print("Using training data for exemplars")
-    else:
-        train_ex_data = None
-        dis_val_ex_data = None
-
-    train_data = train_data.sample(frac=1).reset_index(drop=True)
-
-    model = model.to(args.device)
-
-    
-    val_preds, val_loss = validate_model(model,val_data,criterion,args,train_ex_data)
-    preds, _ = validate_model(model,dis_val_data,criterion,args,dis_val_ex_data)
-
-    # Get losses for the various disjoint subsets held within dis_val_data
-    dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
-        dis_val_preds = preds,
-        correct = dis_val_data["correctness"].values,
-        validation = dis_val_data["validation"].values,
-        criterion = criterion
-    )
-
-    if not args.skip_wandb:
-        log_dict = {
-            "val_rmse": val_loss**0.5,
-            "dis_val_rmse": dis_val['loss']**0.5,
-            "dis_lis_val_rmse": dis_lis_val['loss']**0.5,
-            "dis_sys_val_rmse": dis_sys_val['loss']**0.5,
-            "dis_scene_val_rmse": dis_scene_val['loss']**0.5
-        }
-        wandb.log(log_dict)
-
-
-    best_val_loss = val_loss**0.5
-    best_dis_val_loss = dis_val['loss']**0.5
-    # best_dis_val_loss = 999
-    # best_val_loss = 999
-    best_epoch = 0
-
-    if not args.skip_train:
-        
-        optParams = []
-        for param_name, param in model.named_parameters():
-            if param_name == "layer_weights":
-                optParams.append(
-                    {'params': param, 'weight_decay': 0, 'lr': args.lr}
-                )
-            elif param_name == "r":
-                optParams.append(
-                    {'params': param, 'weight_decay': args.wd_ex, 'lr': args.lr_ex}
-                )
+    last_auc = 1
+    last_last_auc = 1
+    last_last_last_auc = 1
+    for ex_size in [4, 8, 16, 32, 63, 128, 256, 512, 1024, 2048, 4096, 8192]:
+        for p_factor in [1, 5, 9, 15, 25, 35, 45, 55, 65, 75, 85, 95, 105, 125, 145, 165, 185, 205, 225, 245, 265, 285, 305, 325, 345, 365, 385, 405]:
+            if last_auc > last_last_auc and last_auc > last_last_last_auc:
+                last_auc = 1
+                last_last_auc = 1
+                last_last_last_auc = 1
             else:
-                optParams.append(
-                    {'params': param, 'weight_decay': args.weight_decay, 'lr': args.lr}
+                args.ex_size = ex_size
+                args.p_factor = p_factor
+            
+                args.model_name = "%s_%s_%s_%s_%s_%s_%s_%s"%(args.exp_id,args.ex_size,args.p_factor,args.N,args.feats_model,args.model,date,args.seed)
+                args.model_dir = "save/%s"%(args.model_name)
+
+                # Reset seeds for repeatable behaviour regardless of
+                # how feats / models are obtained
+                torch.manual_seed(args.seed)
+                np.random.seed(args.seed)
+                random.seed(args.seed)
+                torch.cuda.manual_seed(args.seed)
+
+                if args.fix_ex:
+                    if args.ex_size > len(train_data):
+                        args.ex_size = len(train_data)
+                    if args.random_exemplars:
+                        ex_set = get_dynamic_dataset(train_data)
+                        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
+                    else:
+                        ex_set = get_ex_set(train_data, args)
+                        ex_set = get_dynamic_dataset(ex_set)
+                        ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
+                        # len_ex = len(ex_dataloader)
+                    ex_dataloader = iter(ex_dataloader)
+                    ex_correct, ex_feats_l, ex_feats_r = next(ex_dataloader)
+                    ex_correct = ex_correct.data
+                    ex_feats_l = ex_feats_l.data
+                    ex_feats_r = ex_feats_r.data
+                else:
+                    ex_feats_l = None
+                    ex_feats_r = None
+                    ex_correct = None
+
+                # Select classifier model (this is the one we're actually training)
+                args.feat_dim = dim_extractor
+                if args.model == "ffnn_init":
+                    model = ffnn_init(args)
+                    model.initialise_layers(args.model_initialisation, (ex_feats_l, ex_feats_r, ex_correct))
+                # elif args.model == "minerva_transform":
+                #     # args.hidden_size = args.feat_embed_dim
+                #     model = minerva_transform(
+                #         args,
+                #         ex_feats_l = ex_feats_l,
+                #         ex_feats_r = ex_feats_r,
+                #         ex_correct = ex_correct
+                #     )
+                #     args.exemplar = True
+                elif args.model == 'minerva':
+                    # args.hidden_size = args.feat_embed_dim
+                    model = minerva_wrapper3(
+                        args,
+                        ex_feats_l = ex_feats_l,
+                        ex_feats_r = ex_feats_r,
+                        ex_correct = ex_correct
+                    )
+                    args.exemplar = True
+                else:
+                    print(f"Model not recognised: {args.model}")
+                    exit(1)
+                print(model)
+
+                model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+                num_params = sum([np.prod(p.size()) for p in model_parameters]) 
+                model_parameters = filter(lambda p: not p.requires_grad, model.parameters())
+                num_unlearned_params = sum([np.prod(p.size()) for p in model_parameters]) 
+                print(f"Number of learned parameters: {num_params}")
+                print(f"Number of unlearned parameters: {num_unlearned_params}")
+
+                # Set up logging on WandB (handy for keeping an eye on things)
+                if not args.skip_wandb:
+                    # wandb_name = "%s_%s_%s_%s_feats_%s_%s"%(args.exp_id,args.N,args.model,ex,date,args.seed)
+                    run = wandb.init(
+                        project=args.wandb_project, 
+                        reinit = True, 
+                        name = args.model_name,
+                        tags = [
+                            f"e{args.exp_id}",
+                            f"r{args.run_id}",
+                            f"N{args.N}", 
+                            f"lr{args.lr}", 
+                            args.feats_model, 
+                            args.model, 
+                            f"bs{args.batch_size}",
+                            f"wd{args.weight_decay}",
+                            f"do{args.dropout}",
+                            f"fd{args.feat_embed_dim}",
+                            f"cd{args.class_embed_dim}",
+                            f"{args.which_ear}_ear",
+                            f"{args.model_initialisation}"
+                            ]
+                    )
+                    if args.exemplar:
+                        run.tags = run.tags + (
+                            "exemplar", 
+                            f"es{args.ex_size}{args.exemplar_source}", 
+                            f"p{args.p_factor}",
+                            f"lr_ex{args.lr_ex}", 
+                            f"wd_ex{args.wd_ex}",
+                            f"fe{int(args.fix_ex)}",
+                            f"tec{int(args.train_ex_class)}"
+                        )
+                    if args.restart_model is not None:
+                        run.tags = run.tags + ("resumed", )
+                    if args.layer is not None:
+                        run.tags = run.tags + (f"layer{args.layer}", )
+                    # if args.minerva_dim is not None:
+                    #     run.tags = run.tags + (f"min_dim{args.minerva_dim}", )
+                    if args.random_exemplars:
+                        run.tags = run.tags + (f"random_ex", )
+                    else:
+                        run.tags = run.tags + (f"strat_ex", )
+                    # if args.num_minervas != 1:
+                    #     run.tags = run.tags + (f"nm{args.num_minervas}", )
+                    if args.learn_incorrect:
+                        run.tags = run.tags + (f"learn_incorrect", )
+                    # if args.minerva_r_dim is not None:
+                    #     run.tags = run.tags + (f"r_dim{args.minerva_r_dim}", )
+                    # if args.use_r_encoding:
+                    #     run.tags = run.tags + (f"r_encoding", )
+                    if args.train_disjoint:
+                        run.tags = run.tags + (f"train_disjoint", )
+                
+                criterion = nn.MSELoss()
+
+                # if not args.use_CPC1:
+                if int(args.in_json_file.split("/")[-1].split(".")[-2]) != int(args.N):
+                    print("Warning: N does not match dataset:")
+                    print(args.in_json_file.split("/")[-1].split(".")[-2],args.N)
+                    exit()
+
+
+                # If restarting a training run, load the weights
+                if args.restart_model is not None:
+                    model.load_state_dict(torch.load(args.restart_model))
+
+
+                # # Reset seeds for repeatable behaviour regardless of
+                # # how feats / models are obtained
+                # torch.manual_seed(args.seed)
+                # np.random.seed(args.seed)
+                # random.seed(args.seed)
+                # torch.cuda.manual_seed(args.seed)
+
+                # Split into train and val sets
+                if args.train_disjoint:
+                    print("Training on disjoint")
+                    train_data = pd.concat([train_data, dis_val_data])
+                # print(dis_val_data["correctness"])
+                # print(train_data["correctness"])
+                # print(val_data["correctness"])
+                # quit()
+
+                print("Trainset: %s\nValset: %s\nDisValset: %s"%(train_data.shape[0],val_data.shape[0],dis_val_data.shape[0]))
+                print("=====================================")
+
+                if args.exemplar and not args.fix_ex:
+                    if args.exemplar_source == "CEC1":
+                        train_ex_data = train_data[train_data.subset == "CEC1"]
+                        dis_val_ex_data = train_data[train_data.subset == "CEC1"]
+                    elif args.exemplar_source == "CEC2":
+                        train_ex_data = train_data[train_data.subset == "CEC2"]
+                        dis_val_ex_data = train_data[train_data.subset == "CEC2"]
+                    elif args.exemplar_source == "matching":
+                        train_ex_data = train_data
+                        dis_val_ex_data = train_data[train_data.subset == "CEC2"]
+                    elif args.exemplar_source == "all":
+                        train_ex_data = train_data
+                        dis_val_ex_data = train_data
+                    else:
+                        print("Invalid exemplar exemplar source.")
+                        quit()
+                    print("Using training data for exemplars")
+                else:
+                    train_ex_data = None
+                    dis_val_ex_data = None
+
+                train_data = train_data.sample(frac=1).reset_index(drop=True)
+
+                model = model.to(args.device)
+
+                
+                val_preds, val_loss = validate_model(model,val_data,criterion,args,train_ex_data)
+                preds, _ = validate_model(model,dis_val_data,criterion,args,dis_val_ex_data)
+
+                # Get losses for the various disjoint subsets held within dis_val_data
+                dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
+                    dis_val_preds = preds,
+                    correct = dis_val_data["correctness"].values,
+                    validation = dis_val_data["validation"].values,
+                    criterion = criterion
                 )
 
-        optimizer = optim.Adam(optParams)
+                if not args.skip_wandb:
+                    log_dict = {
+                        "val_rmse": val_loss**0.5,
+                        "dis_val_rmse": dis_val['loss']**0.5,
+                        "dis_lis_val_rmse": dis_lis_val['loss']**0.5,
+                        "dis_sys_val_rmse": dis_sys_val['loss']**0.5,
+                        "dis_scene_val_rmse": dis_scene_val['loss']**0.5
+                    }
+                    wandb.log(log_dict)
 
-        print("Starting training of model: %s\nlearning rate: %s\nseed: %s\nepochs: %s\nsave location: %s/"%(args.model,args.lr,args.seed,args.n_epochs,args.model_dir))
-        print("=====================================")
-        for epoch in range(args.restart_epoch, args.n_epochs + args.restart_epoch):
 
-            model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,ex_data=train_ex_data)
-            training_loss /= 2      # training loss is left + right so divide
-
-            val_preds, val_loss = validate_model(model,val_data,criterion,args,train_ex_data)
-            preds, _ = validate_model(model,dis_val_data,criterion,args,dis_val_ex_data)
-
-            check_val_loss = criterion(torch.tensor(val_preds) / 100, torch.tensor(val_data.correctness.values) / 100).item()
-
-            # Get losses for the various disjoint subsets held within dis_val_data
-            dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
-                dis_val_preds = preds,
-                correct = dis_val_data["correctness"].values,
-                validation = dis_val_data["validation"].values,
-                criterion = criterion
-            )
-
-            if not args.skip_wandb:
-                log_dict = {
-                    "val_rmse": val_loss**0.5,
-                    "dis_val_rmse": dis_val['loss']**0.5,
-                    "dis_lis_val_rmse": dis_lis_val['loss']**0.5,
-                    "dis_sys_val_rmse": dis_sys_val['loss']**0.5,
-                    "dis_scene_val_rmse": dis_scene_val['loss']**0.5,
-                    "train_rmse": training_loss**0.5
-                }
-                
-                wandb.log(log_dict)
-            
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-
-            # if dis_val['loss']**0.5 < best_dis_val_loss:
+                best_val_loss = val_loss**0.5
                 best_dis_val_loss = dis_val['loss']**0.5
-                save_model(model,optimizer,epoch,args,dis_val['loss']**0.5)
+                # best_dis_val_loss = 999
+                # best_val_loss = 999
+                best_epoch = 0
 
-            torch.cuda.empty_cache()
-            print("Epoch: %s"%(epoch))
-            print("\tTraining Loss: %s"%(training_loss**0.5))
-            print("\tValidation Loss: %s"%(val_loss**0.5))
-            print("\tCheck val  Loss: %s"%(check_val_loss**0.5))
-            print("\tDisjoint validation Loss: %s"%(dis_val['loss']**0.5))
-            print("\tDisjoint listener validation Loss: %s"%(dis_lis_val['loss']**0.5))
-            print("\tDisjoint system validation Loss: %s"%(dis_sys_val['loss']**0.5))
-            print("\tDisjoint scene validation Loss: %s"%(dis_scene_val['loss']**0.5))
-            print("=====================================")    
+                if not args.skip_train:
+                    
+                    optParams = []
+                    for param_name, param in model.named_parameters():
+                        if param_name == "layer_weights":
+                            optParams.append(
+                                {'params': param, 'weight_decay': 0, 'lr': args.lr}
+                            )
+                        elif param_name == "r":
+                            optParams.append(
+                                {'params': param, 'weight_decay': args.wd_ex, 'lr': args.lr_ex}
+                            )
+                        else:
+                            optParams.append(
+                                {'params': param, 'weight_decay': args.weight_decay, 'lr': args.lr}
+                            )
 
-            if args.model == "LSTM_layers" or args.model == "ExLSTM_layers":
-                with open(f"{args.model_dir}/layer_weights.txt", 'a') as f:
-                    f.write(" ".join([str(weight) for weight in model.sm(model.layer_weights).tolist()]))
-                    f.write("\n")
+                    optimizer = optim.Adam(optParams)
 
-    if args.skip_train and args.pretrained_model_dir is None:
-        pass
-    else:
+                    print("Starting training of model: %s\nlearning rate: %s\nseed: %s\nepochs: %s\nsave location: %s/"%(args.model,args.lr,args.seed,args.n_epochs,args.model_dir))
+                    print("=====================================")
+                    for epoch in range(args.restart_epoch, args.n_epochs + args.restart_epoch):
 
-        if args.skip_train and args.pretrained_model_dir is not None:
-            model_dir = args.pretrained_model_dir
-        else:
-            model_dir = args.model_dir
+                        model,optimizer,criterion,training_loss = train_model(model,train_data,optimizer,criterion,args,ex_data=train_ex_data)
+                        training_loss /= 2      # training loss is left + right so divide
 
-        print(model_dir)
-        model_files = os.listdir(model_dir)
+                        val_preds, val_loss = validate_model(model,val_data,criterion,args,train_ex_data)
+                        preds, _ = validate_model(model,dis_val_data,criterion,args,dis_val_ex_data)
 
-        model_files = [x for x in model_files if "model" in x]
-        if len(model_files) > 1:
-            model_files.sort(key=lambda x: float(x.split("_")[-2].strip(".pt")))
-        
-        model_file = model_files[0]
-        print("Loading model:\n%s"%model_file)
-        Dl_file = [x for x in model_files if "_Dl.pt" in x]
-        Dr_file = [x for x in model_files if "_Dr.pt" in x]
-        r_file = [x for x in model_files if "_r.pt" in x]
-        model.load_state_dict(torch.load("%s/%s"%(model_dir,model_file)))
-        if len(Dl_file) == 1:
-            print("Loading ex features")
-            Dl_file = Dl_file[0]
-            Dr_file = Dr_file[0]
-            model.Dl = torch.load("%s/%s"%(model_dir, Dl_file))
-            model.Dr = torch.load("%s/%s"%(model_dir, Dr_file))
-        if len(r_file) == 1:
-            print("Loading ex classes")
-            r_file = r_file[0]
-            model.r = torch.load("%s/%s"%(model_dir, r_file))
+                        check_val_loss = criterion(torch.tensor(val_preds) / 100, torch.tensor(val_data.correctness.values) / 100).item()
 
-    
-    # get validation predictions
-    val_predictions,val_loss = validate_model(model,val_data,criterion,args,train_ex_data)
-    val_error = val_loss**0.5
-    val_loss = criterion(torch.tensor(val_predictions) / 100, torch.tensor(val_data.correctness.values) / 100).item()
-    val_loss = val_loss**0.5
-    val_stats = get_stats(val_predictions, val_data.correctness.values)
-    print(f"loop val loss: {val_error}, preds val loss: {val_loss}")
-    val_data["predicted"] = val_predictions
-    val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_val_preds.csv", index=False)
+                        # Get losses for the various disjoint subsets held within dis_val_data
+                        dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
+                            dis_val_preds = preds,
+                            correct = dis_val_data["correctness"].values,
+                            validation = dis_val_data["validation"].values,
+                            criterion = criterion
+                        )
 
-    dis_val_predictions, _ = validate_model(model,dis_val_data,criterion,args,dis_val_ex_data)
-    dis_val_data["predicted"] = dis_val_predictions
+                        if not args.skip_wandb:
+                            log_dict = {
+                                "val_rmse": val_loss**0.5,
+                                "dis_val_rmse": dis_val['loss']**0.5,
+                                "dis_lis_val_rmse": dis_lis_val['loss']**0.5,
+                                "dis_sys_val_rmse": dis_sys_val['loss']**0.5,
+                                "dis_scene_val_rmse": dis_scene_val['loss']**0.5,
+                                "train_rmse": training_loss**0.5
+                            }
+                            
+                            wandb.log(log_dict)
+                        
+                        if val_loss < best_val_loss:
+                            best_val_loss = val_loss
 
-    # Write a csv file of restults for each data split:
-    dis_val_data[["scene", "listener", "system", "validation", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_all_dis_val_preds.csv", index=False)
-    temp_data = dis_val_data[dis_val_data.validation == 7].copy()
-    temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_val_preds.csv", index=False)
-    temp_data = dis_val_data[dis_val_data.validation.isin([1, 3, 5, 7])].copy()
-    temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_lis_val_preds.csv", index=False)
-    temp_data = dis_val_data[dis_val_data.validation.isin([2, 3, 6, 7])].copy()
-    temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_sys_val_preds.csv", index=False)
-    temp_data = dis_val_data[dis_val_data.validation.isin([4, 5, 6, 7])].copy()
-    temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_scene_val_preds.csv", index=False)
+                        # if dis_val['loss']**0.5 < best_dis_val_loss:
+                            best_dis_val_loss = dis_val['loss']**0.5
+                            save_model(model,optimizer,epoch,args,dis_val['loss']**0.5)
 
-    dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
-        dis_val_preds = dis_val_predictions,
-        correct = dis_val_data["correctness"].values,
-        validation = dis_val_data["validation"].values,
-        criterion = criterion,
-        include_stats = True
-    )
+                        torch.cuda.empty_cache()
+                        print("Epoch: %s"%(epoch))
+                        print("\tTraining Loss: %s"%(training_loss**0.5))
+                        print("\tValidation Loss: %s"%(val_loss**0.5))
+                        print("\tCheck val  Loss: %s"%(check_val_loss**0.5))
+                        print("\tDisjoint validation Loss: %s"%(dis_val['loss']**0.5))
+                        print("\tDisjoint listener validation Loss: %s"%(dis_lis_val['loss']**0.5))
+                        print("\tDisjoint system validation Loss: %s"%(dis_sys_val['loss']**0.5))
+                        print("\tDisjoint scene validation Loss: %s"%(dis_scene_val['loss']**0.5))
+                        print("=====================================")    
 
-    log_final = {
-            "best_val_loss": val_error,
-            "best_dis_val_loss": dis_val["loss"]**0.5,
-            "best_epoch": best_epoch
-        }
-    
-    if args.do_fit:
-        # untrained Minerva - do a logistic regression on training data
-    
-        #normalise the predictions
-        train_predictions,_ = validate_model(model,train_data,criterion,args,train_ex_data, skip_sigmoid = True)
-        max_train_pred = torch.tensor(train_predictions).max().item()
-        print(f"train max: {max_train_pred}")
-        val_predictions,_ = validate_model(model,val_data,criterion,args,train_ex_data, skip_sigmoid = True)
-        dis_val_predictions, _ = validate_model(model,dis_val_data,criterion,args,dis_val_ex_data, skip_sigmoid = True)
-        val_predictions = np.asarray(val_predictions)#/100
-        train_predictions = np.asarray(train_predictions)#/100
-        dis_val_predictions = np.asarray(dis_val_predictions)#/100
-        val_gt = val_data["correctness"].to_numpy()/100
-        train_gt = train_data["correctness"].to_numpy()/100
+                        if args.model == "LSTM_layers" or args.model == "ExLSTM_layers":
+                            with open(f"{args.model_dir}/layer_weights.txt", 'a') as f:
+                                f.write(" ".join([str(weight) for weight in model.sm(model.layer_weights).tolist()]))
+                                f.write("\n")
 
-        def logit_func(x,a,b):
-            return 1/(1+np.exp(-(a*x+b)))
-        # logistic mapping curve fit to get the a and b parameters
-        # popt,_ = curve_fit(logit_func, val_predictions, val_gt)
-        popt,_ = curve_fit(logit_func, train_predictions, train_gt, p0 = (1/max_train_pred, 0)) # , 
-        a_,b_ = popt
-        
-        a, b = model.get_regression(ex_feats_l, ex_feats_r, ex_correct)
+                if args.skip_train and args.pretrained_model_dir is None:
+                    pass
+                else:
 
-        val_pred_fitted = logit_func(val_predictions, a, b)
-        val_pred_loss = rmse_score(val_pred_fitted, val_gt)
-        # val_pred_stats = get_stats(val_pred_fitted, val_data.correctness.values)
-        dis_val_pred_fitted = logit_func(dis_val_predictions, a, b) * 100
+                    if args.skip_train and args.pretrained_model_dir is not None:
+                        model_dir = args.pretrained_model_dir
+                    else:
+                        model_dir = args.model_dir
 
-        dis_val_fitted, _, _, _ = get_dis_val_set_losses(
-            dis_val_preds = dis_val_pred_fitted,
-            correct = dis_val_data["correctness"].values,
-            validation = dis_val_data["validation"].values,
-            criterion = criterion,
-            include_stats = True
-            )
+                    print(model_dir)
+                    model_files = os.listdir(model_dir)
 
-        log_final['best_fitted_val_loss'] = val_pred_loss
-        log_final['best_fitted_dis_val_loss'] = dis_val_fitted['loss']**0.5
+                    model_files = [x for x in model_files if "model" in x]
+                    if len(model_files) > 1:
+                        model_files.sort(key=lambda x: float(x.split("_")[-2].strip(".pt")))
+                    
+                    model_file = model_files[0]
+                    print("Loading model:\n%s"%model_file)
+                    Dl_file = [x for x in model_files if "_Dl.pt" in x]
+                    Dr_file = [x for x in model_files if "_Dr.pt" in x]
+                    r_file = [x for x in model_files if "_r.pt" in x]
+                    model.load_state_dict(torch.load("%s/%s"%(model_dir,model_file)))
+                    if len(Dl_file) == 1:
+                        print("Loading ex features")
+                        Dl_file = Dl_file[0]
+                        Dr_file = Dr_file[0]
+                        model.Dl = torch.load("%s/%s"%(model_dir, Dl_file))
+                        model.Dr = torch.load("%s/%s"%(model_dir, Dr_file))
+                    if len(r_file) == 1:
+                        print("Loading ex classes")
+                        r_file = r_file[0]
+                        model.r = torch.load("%s/%s"%(model_dir, r_file))
 
+                
+                # get validation predictions
+                val_predictions,val_loss = validate_model(model,val_data,criterion,args,train_ex_data)
+                val_error = val_loss**0.5
+                val_loss = criterion(torch.tensor(val_predictions) / 100, torch.tensor(val_data.correctness.values) / 100).item()
+                val_loss = val_loss**0.5
+                val_stats = get_stats(val_predictions, val_data.correctness.values)
+                print(f"loop val loss: {val_error}, preds val loss: {val_loss}")
+                val_data["predicted"] = val_predictions
+                val_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_val_preds.csv", index=False)
 
-        print("a: %s b: %s"%(a,b))
-        print("a_: %s b_: %s"%(a_,b_))
-        print("=====================================")
+                dis_val_predictions, _ = validate_model(model,dis_val_data,criterion,args,dis_val_ex_data)
+                dis_val_data["predicted"] = dis_val_predictions
 
-    # Test the model
-    if not args.skip_test:
-        print("Testing model on test set")
-        test_data = pd.read_json(args.test_json_file)
-        # test_data["correctness"] = np.nan
-        test_data["subset"] = "CEC2"
-        save_feats_file = f"{args.dataroot}{args.feats_model}{pre}_N{args.N}_{'debug_' if args.debug else ''}{'' if args.layer == -1 else args.layer}_test"
+                # Write a csv file of restults for each data split:
+                dis_val_data[["scene", "listener", "system", "validation", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_all_dis_val_preds.csv", index=False)
+                temp_data = dis_val_data[dis_val_data.validation == 7].copy()
+                temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_val_preds.csv", index=False)
+                temp_data = dis_val_data[dis_val_data.validation.isin([1, 3, 5, 7])].copy()
+                temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_lis_val_preds.csv", index=False)
+                temp_data = dis_val_data[dis_val_data.validation.isin([2, 3, 6, 7])].copy()
+                temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_sys_val_preds.csv", index=False)
+                temp_data = dis_val_data[dis_val_data.validation.isin([4, 5, 6, 7])].copy()
+                temp_data[["scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_dis_scene_val_preds.csv", index=False)
 
-        test_data = get_feats(
-            data = test_data,
-            save_feats_file = save_feats_file,
-            dim_extractor = dim_extractor,
-            feat_extractor = feat_extractor,
-            theset = "test",
-            args = args
-        )
+                dis_val, dis_lis_val, dis_sys_val, dis_scene_val = get_dis_val_set_losses(
+                    dis_val_preds = dis_val_predictions,
+                    correct = dis_val_data["correctness"].values,
+                    validation = dis_val_data["validation"].values,
+                    criterion = criterion,
+                    include_stats = True
+                )
 
-        eval_predictions, evalLoss = validate_model(model, test_data, criterion, args, dis_val_ex_data)
-        eval_stats = get_stats(eval_predictions, test_data.correctness.values)
-        # predictions_fitted = np.asarray(predictions)/100
-        #apply the logistic mapping
-        # predictions_fitted = logit_func(eval_predictions,a,b)
-        test_data["predicted"] = eval_predictions
-        # test_data["predicted_fitted"] = predictions_fitted * 100
-        test_data[["signal", "scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_test_preds.csv", index=False)
-        print(f"Evaluation loss: {evalLoss**0.5}")
+                log_final = {
+                        "best_val_loss": val_error,
+                        "best_dis_val_loss": dis_val["loss"]**0.5,
+                        "best_epoch": best_epoch
+                    }
+                
+                if args.do_fit:
+                    # untrained Minerva - do a logistic regression on training data
+                
+                    #normalise the predictions
+                    train_predictions,_ = validate_model(model,train_data,criterion,args,train_ex_data, skip_sigmoid = True)
+                    max_train_pred = torch.tensor(train_predictions).max().item()
+                    print(f"train max: {max_train_pred}")
+                    val_predictions,_ = validate_model(model,val_data,criterion,args,train_ex_data, skip_sigmoid = True)
+                    dis_val_predictions, _ = validate_model(model,dis_val_data,criterion,args,dis_val_ex_data, skip_sigmoid = True)
+                    val_predictions = np.asarray(val_predictions)#/100
+                    train_predictions = np.asarray(train_predictions)#/100
+                    dis_val_predictions = np.asarray(dis_val_predictions)#/100
+                    val_gt = val_data["correctness"].to_numpy()/100
+                    train_gt = train_data["correctness"].to_numpy()/100
 
-        log_final['best_eval_loss'] = evalLoss**0.5
-    
-        if args.do_fit:
+                    def logit_func(x,a,b):
+                        return 1/(1+np.exp(-(a*x+b)))
+                    # logistic mapping curve fit to get the a and b parameters
+                    # popt,_ = curve_fit(logit_func, val_predictions, val_gt)
+                    # popt,_ = curve_fit(logit_func, train_predictions, train_gt, p0 = (1/max_train_pred, 0)) # , 
+                    # a_,b_ = popt
+                    try:
+                        a, b = model.get_regression(ex_feats_l, ex_feats_r, ex_correct)
+                    except:
+                        a = 1
+                        b = 0
 
-            eval_predictions, _ = validate_model(model, test_data, criterion, args, dis_val_ex_data, skip_sigmoid = True)
-            
-            eval_gt = test_data["correctness"].to_numpy()/100
-            eval_predictions = np.asarray(eval_predictions)#/100
-            eval_pred_fitted = logit_func(eval_predictions, a, b)
-            eval_pred_loss = rmse_score(eval_pred_fitted, eval_gt)
-            log_final['best_fitted_eval_loss'] = eval_pred_loss
+                    val_pred_fitted = logit_func(val_predictions, a, b)
+                    val_pred_loss = rmse_score(val_pred_fitted, val_gt)
+                    # val_pred_stats = get_stats(val_pred_fitted, val_data.correctness.values)
+                    dis_val_pred_fitted = logit_func(dis_val_predictions, a, b) * 100
 
-    if not args.skip_wandb:
-        wandb.log(log_final)
-        print(log_final)
+                    dis_val_fitted, _, _, _ = get_dis_val_set_losses(
+                        dis_val_preds = dis_val_pred_fitted,
+                        correct = dis_val_data["correctness"].values,
+                        validation = dis_val_data["validation"].values,
+                        criterion = criterion,
+                        include_stats = True
+                        )
 
-    # Write the final stastistics to the summary file
-    with open (args.summ_file, "a") as f:
-        csv_writer = csv.writer(f)
-        csv_writer.writerow([
-            args.out_csv_file.split("/")[-1].strip(".csv"), 
-            val_error, val_stats["p_corr"], val_stats["s_corr"], val_stats["std"], 
-            dis_val["loss"]**0.5, dis_val["p_corr"], dis_val["s_corr"], dis_val["std"], 
-            dis_lis_val["loss"]**0.5, dis_lis_val["p_corr"], dis_lis_val["s_corr"], dis_lis_val["std"], 
-            dis_sys_val["loss"]**0.5, dis_sys_val["p_corr"], dis_sys_val["s_corr"], dis_sys_val["std"], 
-            dis_scene_val["loss"]**0.5, dis_scene_val["p_corr"], dis_scene_val["s_corr"], dis_scene_val["std"],
-            evalLoss**0.5, eval_stats["p_corr"], eval_stats["s_corr"], eval_stats["std"]
-        ])
-    
-    print("=====================================")
+                    log_final['best_fitted_val_loss'] = val_pred_loss
+                    log_final['best_fitted_dis_val_loss'] = dis_val_fitted['loss']**0.5
 
-    if not args.skip_wandb:
-        run.finish()
+                    last_last_last_auc = last_last_auc
+                    last_last_auc = last_auc
+                    last_auc = dis_val_fitted['loss']**0.5
+
+                    print(f"last_auc: {last_auc}, last_last_auc: {last_last_auc}, last_last_last_auc: {last_last_last_auc}")
+
+                    print("a: %s b: %s"%(a,b))
+                    # print("a_: %s b_: %s"%(a_,b_))
+                    print("=====================================")
+
+                # Test the model
+                if not args.skip_test:
+                    print("Testing model on test set")
+                    test_data = pd.read_json(args.test_json_file)
+                    # test_data["correctness"] = np.nan
+                    test_data["subset"] = "CEC2"
+                    save_feats_file = f"{args.dataroot}{args.feats_model}{pre}_N{args.N}_{'debug_' if args.debug else ''}{'' if args.layer == -1 else args.layer}_test"
+
+                    test_data = get_feats(
+                        data = test_data,
+                        save_feats_file = save_feats_file,
+                        dim_extractor = dim_extractor,
+                        feat_extractor = feat_extractor,
+                        theset = "test",
+                        args = args
+                    )
+
+                    eval_predictions, evalLoss = validate_model(model, test_data, criterion, args, dis_val_ex_data)
+                    eval_stats = get_stats(eval_predictions, test_data.correctness.values)
+                    # predictions_fitted = np.asarray(predictions)/100
+                    #apply the logistic mapping
+                    # predictions_fitted = logit_func(eval_predictions,a,b)
+                    test_data["predicted"] = eval_predictions
+                    # test_data["predicted_fitted"] = predictions_fitted * 100
+                    test_data[["signal", "scene", "listener", "system", "correctness", "predicted"]].to_csv(f"{args.out_csv_file}_test_preds.csv", index=False)
+                    print(f"Evaluation loss: {evalLoss**0.5}")
+
+                    log_final['best_eval_loss'] = evalLoss**0.5
+                
+                    if args.do_fit:
+
+                        eval_predictions, _ = validate_model(model, test_data, criterion, args, dis_val_ex_data, skip_sigmoid = True)
+                        
+                        eval_gt = test_data["correctness"].to_numpy()/100
+                        eval_predictions = np.asarray(eval_predictions)#/100
+                        eval_pred_fitted = logit_func(eval_predictions, a, b)
+                        eval_pred_loss = rmse_score(eval_pred_fitted, eval_gt)
+                        log_final['best_fitted_eval_loss'] = eval_pred_loss
+
+                if not args.skip_wandb:
+                    wandb.log(log_final)
+                    print(log_final)
+
+                # Write the final stastistics to the summary file
+                with open (args.summ_file, "a") as f:
+                    csv_writer = csv.writer(f)
+                    csv_writer.writerow([
+                        args.out_csv_file.split("/")[-1].strip(".csv"), 
+                        val_error, val_stats["p_corr"], val_stats["s_corr"], val_stats["std"], 
+                        dis_val["loss"]**0.5, dis_val["p_corr"], dis_val["s_corr"], dis_val["std"], 
+                        dis_lis_val["loss"]**0.5, dis_lis_val["p_corr"], dis_lis_val["s_corr"], dis_lis_val["std"], 
+                        dis_sys_val["loss"]**0.5, dis_sys_val["p_corr"], dis_sys_val["s_corr"], dis_sys_val["std"], 
+                        dis_scene_val["loss"]**0.5, dis_scene_val["p_corr"], dis_scene_val["s_corr"], dis_scene_val["std"],
+                        evalLoss**0.5, eval_stats["p_corr"], eval_stats["s_corr"], eval_stats["std"]
+                    ])
+                
+                print("=====================================")
+
+                if not args.skip_wandb:
+                    run.finish()
 
 if __name__ == "__main__":
     
@@ -1315,102 +1339,10 @@ if __name__ == "__main__":
         "--train_alpha", help="exemplar initialisation alpha" , default=False, action='store_true'
     )
 
-
     args = parser.parse_args()
 
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    # if args.config_file is not None:
-    #     with open(args.config_file) as f:
-    #         config = AttrDict(json.load(f))
-    # else:
-    # config = AttrDict()
-
-    # config["device"] = args.device
-
-    # if args.exp_id is None:
-    #     args.exp_id = config["exp_id"] if "exp_id" in config else "test"
-    # config["exp_id"] = args.exp_id
-
-    # if args.wandb_project is None:
-    #     args.wandb_project = config["wandb_project"] if "wandb_project" in config else None
-    # config["wandb_project"] = args.wandb_project
-    
-    # if args.seed is None:
-    #     args.seed = config["seed"] if "seed" in config else 1234
-    # config["seed"] = args.seed
-
-    # config["debug"] = args.debug
-    # config["skip_train"] = args.skip_train
-    # # config["use_CPC1"] = args.use_CPC1
-    # config["N"] = args.N
-    # config["skip_test"] = args.skip_test
-
-    # if args.feats_model is None:
-    #     args.feats_model = config["feats_model"] if "feats_model" in config else "WhisperFull"
-    # # config["feats_model"] = args.feats_model
-
-    # if args.pretrained_feats_model is None:
-    #     args.pretrained_feats_model = config["pretrained_feats_model"] if "pretrained_feats_model" in config else None
-    # config["pretrained_feats_model"] = args.pretrained_feats_model
-
-    # args.pretrained_model_dir = f"save/{args.pretrained_model_dir}" if args.pretrained_model_dir is not None else None
-    # config["pretrained_model_dir"] = args.pretrained_model_dir
-
-    # if args.layer == None:
-    #     args.layer = config["layer"] if "layer" in config else None
-    # config["layer"] = args.layer
-
-    # config["whisper_model"] = args.whisper_model
-    # config["whisper_language"] = args.whisper_language
-    # config["whisper_task"] = args.whisper_task
-
-    # if args.model is None:
-    #     args.model = config["model"] if "model" in config else None
-    # config["model"] = args.model
-
-    # config["restart_model"] = args.restart_model
-    # config["restart_epoch"] = args.restart_epoch
-
-    # if args.batch_size is None:
-    #     args.batch_size = config["batch_size"] if "batch_size" in config else 8
-    # config["batch_size"] = args.batch_size
-
-    # if args.lr is None:
-    #     args.lr = config["lr"] if "lr" in config else 0.001
-    # config["lr"] = args.lr
-
-    # if args.weight_decay is None:
-    #     args.weight_decay = config["weight_decay"] if "weight_decay" in config else 0.001
-    # config["weight_decay"] = args.weight_decay
-
-    # if args.n_epochs is None:
-    #     args.n_epochs = config["n_epochs"] if "n_epochs" in config else 25
-    # config["n_epochs"] = args.n_epochs
-    
-    # if args.ex_size is None:
-    #     args.ex_size = config["ex_size"] if "ex_size" in config else None
-    # config["ex_size"] = args.ex_size
-
-    # if args.p_factor is None:
-    #     args.p_factor = config["p_factor"] if "p_factor" in config else 1
-    # config["p_factor"] = args.p_factor
-    
-    # config["random_exemplars"] = args.random_exemplars
-    # config["exemplar_source"] = args.exemplar_source
-    # config["learn_incorrect"] = args.learn_incorrect
-    # config["use_r_encoding"] = args.use_r_encoding
-    # # config["train_disjoint"] = args.train_disjoint
-
-    # if args.use_CPC1:
-    #     args.wandb_project = "CPC1" if args.wandb_project is None else args.wandb_project
-    #     config["wandb_project"] = "CPC1"
-    #     args.dataroot = DATAROOT_CPC1
-    #     args.in_json_file = DATAROOT_CPC1 + "metadata/CPC1.train_indep.json"
-    #     config["in_json_file"] = args.in_json_file
-    #     args.test_json_file = DATAROOT_CPC1 + "metadata/CPC1.test_indep.json"
-    #     config["test_json_file"] = args.test_json_file
-    # else:
     args.dataroot = DATAROOT
     args.wandb_project = "CPC_paper" if args.wandb_project is None else args.wandb_project
     # config["wandb_project"] = args.wandb_project

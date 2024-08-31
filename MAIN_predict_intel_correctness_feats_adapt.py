@@ -56,10 +56,8 @@ def audio_pipeline(path,fs=32000):
 
 
 def format_correctness(y):
-    # print(f"format_correctness y: {y}")
     y = torch.tensor([y])
     y = y/100
-    # print(f"format_correctness 2 y: {y}")
     return y
 
 
@@ -251,12 +249,10 @@ def get_dynamic_dataset(data, object_to_id, args):
                 "provides": "object_id"}
             )
 
-
     ddata = sb.dataio.dataset.DynamicItemDataset(data_dict,dynamic_items)
     ddata.set_output_keys(["object_id", "formatted_correctness", "formatted_feats_l", "formatted_feats_r"])
 
     return ddata
-
 
 
 def get_feats(data, save_feats_file, dim_extractor, feat_extractor, theset, args):
@@ -352,52 +348,14 @@ def format_audiogram(audiogram):
     audiogram = numpy.delete(audiogram,4)
     audiogram = audiogram[:-1]
     return audiogram
-    
-def get_ex_for_test(ex_data, args):
-
-    ex_data.ex = np.nan
-    arang = np.arange(len(ex_data))
-    ex = np.zeros(len(ex_data))
-
-    if args.ex_match_lis:
-        objects = ex_data.listener.values
-    if args.ex_match_sys:
-        objects = ex_data.system.values
-
-    unique_objects = list(set(objects))
-    print(f"unique_objects: {unique_objects}")
-
-    for obj in unique_objects:
-        lis_arang = arang[objects == obj]
-        lis_arang = np.random.permutation(lis_arang)
-        lis_arang = lis_arang[0:args.ex_size]
-        ex[lis_arang] = 1
-    ex_data.ex = ex
-    test_data = ex_data[ex_data.ex == 0].copy() 
-    ex_data = ex_data[ex_data.ex == 1].copy() 
-    non_ex_idx = ex == 0
-    print(f"ex: {ex}")
-    print(f"len ex: {len(ex)}")
-    print(f"non_ex_idx: {non_ex_idx}")
-    print(f"len non_ex_idx: {len(non_ex_idx)}")
-
-    return test_data, ex_data, non_ex_idx
-
 
 
 def validate_model(model,test_data,optimizer,criterion,args,ex_data = None):
+    
     out_list = []
     model.eval()
     running_loss = 0.0
     loss_list = []
-
-    # if test_data.equals(ex_data):
-    #     print("ex_data same as data")
-    #     ex_data = get_ex_for_test(test_data, args)
-    #     print(f"test_data: \n{test_data}\n")
-    #     print(f"ex_data: \n{ex_data}\n")
-    # else:
-    #     print("ex_data different from data")
 
 
     object_to_id = {}

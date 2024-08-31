@@ -25,7 +25,7 @@ from data_handling import get_disjoint_val_set
 from process_cpc2_data import get_cpc2_dataset
 from transformers import WhisperProcessor
 import random
-from models.simple_models import ffnn_init, minerva_wrapper3
+from models.simple_models import ffnn_init, minerva_wrapper4
 from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, \
     HuBERTEncoder_feats, HuBERTFull_feats, WhisperEncoder_feats, WhisperFull_feats, WhisperBase_feats
 from exemplar import get_ex_set
@@ -477,8 +477,8 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
             exemplars = next(ex_dataloader)
             ex_correct, ex_feats_l, ex_feats_r = exemplars
             
-            # ex_feats_l = ex_feats_l.data.to(args.device)
-            # ex_feats_r = ex_feats_r.data.to(args.device)
+            ex_feats_l = ex_feats_l.data.to(args.device)
+            ex_feats_r = ex_feats_r.data.to(args.device)
             ex_correct = ex_correct.data.to(args.device)
 
         target_scores = correctness.data.to(args.device)
@@ -718,7 +718,7 @@ def main(args):
     #     args.exemplar = True
     elif args.model == 'minerva':
         # args.hidden_size = args.feat_embed_dim
-        model = minerva_wrapper3(
+        model = minerva_wrapper4(
             args,
             ex_feats_l = ex_feats_l,
             ex_feats_r = ex_feats_r,
@@ -1150,7 +1150,7 @@ if __name__ == "__main__":
         "--out_csv_file", help="path to write the predictions to" , default=None
     )
     parser.add_argument(
-        "--wandb_project", help="W and B project name" , default="CSL_CPC2"
+        "--wandb_project", help="W and B project name" , default="thesis_cpc2"
     )
     parser.add_argument(
         "--skip_wandb", help="skip logging via WandB", default=False, action='store_true'
@@ -1229,6 +1229,9 @@ if __name__ == "__main__":
         "--feat_embed_dim", help = "embeddings size of the feature transform", default = None, type = int
     )
     parser.add_argument(
+        "--share_feature_transform", help="get intelligibility for each word, then average", default=False, action='store_true'
+    )
+    parser.add_argument(
         "--class_embed_dim", help = "embeddings size of the classifier", default = None, type = int
     )
     parser.add_argument(
@@ -1288,7 +1291,7 @@ if __name__ == "__main__":
         "--random_exemplars", help="use randomly selected exemplars, rather than stratified exemplars", default=False, action='store_true'
     )
     parser.add_argument(
-        "--fix_ex", help="use fixed exemplars", default=True, action='store_true'
+        "--fix_ex", help="use fixed exemplars", default=False, action='store_true'
     )
     parser.add_argument(
         "--use_g", help="train the exemplar classes", default=False, action='store_true'

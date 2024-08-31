@@ -429,6 +429,246 @@ class minerva_wrapper2(nn.Module):
 
 
 
+class minerva_wrapper4(nn.Module):
+
+    def __init__(
+        self, 
+        args,
+        ex_feats_l = None,
+        ex_feats_r = None,
+        ex_correct = None,
+    ):
+        super().__init__()
+
+        self.train_ex_class = args.train_ex_class
+        self.device = args.device
+        self.feat_embed_dim = args.feat_embed_dim
+        self.class_embed_dim = args.class_embed_dim
+        self.share_feature_transform = args.share_feature_transform
+
+        # if ex_feats_l is not None:
+        self.Dl = nn.Parameter(ex_feats_l, requires_grad = False)
+        self.Dr = nn.Parameter(ex_feats_r, requires_grad = False)
+        # else:
+        #     self.Dl = None
+        #     self. Dr = None
+
+        # if ex_correct is not None:
+        self.r = nn.Parameter(ex_correct, requires_grad = args.train_ex_class)
+
+        if self.feat_embed_dim is not None:
+            # feat_embed_dim = args.feat_dim if args.feat_embed_dim is None else args.feat_embed_dim
+            self.g_q = nn.Linear(in_features = args.feat_dim, out_features = self.feat_embed_dim, bias = False)
+            if not self.share_feature_transform:
+                self.g_k = nn.Linear(in_features = args.feat_dim, out_features = self.feat_embed_dim, bias = False)
+        
+        self.do = nn.Dropout(p = args.dropout)
+
+        self.f = Minerva(args.p_factor)
+        if self.class_embed_dim is not None:
+            self.h = nn.Linear(in_features = 1, out_features = self.class_embed_dim)
+        # self.h = nn.Linear(in_features = 1, out_features = 1)
+        
+        self.sigmoid = nn.Sigmoid()
+
+        
+    def get_regression(self, feats_l, feats_r, targets):
+        # logistic mapping curve fit to get the a and b parameters
+        # popt,_ = curve_fit(logit_func, val_predictions, val_gt)
+
+        # print(f"feats: {feats}")
+        # print(f"targets: {targets}")
+        x = self.forward(feats_l.to(self.device), left = True)
+        x_l = x['logits'].to('cpu').squeeze()
+        x = self.forward(feats_r.to(self.device), left = False)
+        x_r = x['logits'].to('cpu').squeeze()
+        x = torch.maximum(x_l, x_r)
+        # print(f"logits: {x}")
+        # print(f"targets numpy: {targets[:, 0].numpy()}")
+
+        # x_bar = x.mean().item()
+        # a0 = 1 / (x - x_bar).abs().max().item()
+        # b0 = -x_bar * a0
+        a0 = 1/ x.abs().max().item()
+        b0 = 0
+
+        # b0 = -x.mean().item()
+        # a0 = 1 / (x + b0).abs().max().item()
+        # b0 = b0 * a0
+        # a0 = 1 / x.abs().max().item()
+        # print(f"x numpy: {x.numpy()}")
+
+        # print(f"correctness:\n{x}")
+        # print(f"corrected correctness:\n{x * a0 + b0}")
+        # print(f"targets[0]:\n{targets}")
+        # print(f"a0: {a0}")
+        # print(f"b0: {b0}")
+        
+        popt, _ = curve_fit(logit_func, x.numpy(), targets.squeeze().numpy(), p0 = (a0, b0)) # , 
+        a, b = popt
+        return a, b
+    
+
+    def forward(self, X, D = None, r = None, left = False):
+
+        if left:
+            D = D if D is not None else self.Dl
+        else:
+            D = D if D is not None else self.Dr
+        r = r if r is not None else self.r
+
+        # X_out = X.data.to(self.device)
+
+        r = r * 2 - 1
+
+        if self.feat_embed_dim is not None:
+            X = self.g_q(X)
+            if self.share_feature_transform:
+                D = self.g_q(D)
+            else:
+                D = self.g_k(D)
+            
+        X = self.do(X)
+        D = self.do(D)
+
+        echo = self.f(X, D, r)
+
+        if self.class_embed_dim is not None:
+            echo = self.h(echo)
+        # print(f"output:\n{echo}\n")
+
+        output = {
+            'logits': echo,
+            'preds': self.sigmoid(echo)
+        }
+
+        return output
+
+
+
+
+class minerva_wrapper_learnedLayers(nn.Module):
+
+    def __init__(
+        self, 
+        args,
+        ex_feats_l = None,
+        ex_feats_r = None,
+        ex_correct = None,
+    ):
+        super().__init__()
+
+        self.train_ex_class = args.train_ex_class
+        self.device = args.device
+        self.feat_embed_dim = args.feat_embed_dim
+        self.class_embed_dim = args.class_embed_dim
+        self.share_feature_transform = args.share_feature_transform
+        self.layer = args.layer
+
+        # if ex_feats_l is not None:
+        self.Dl = nn.Parameter(ex_feats_l, requires_grad = False)
+        self.Dr = nn.Parameter(ex_feats_r, requires_grad = False)
+        # else:
+        #     self.Dl = None
+        #     self. Dr = None
+
+        # if ex_correct is not None:
+        self.r = nn.Parameter(ex_correct, requires_grad = args.train_ex_class)
+
+        if self.layer == -1:
+            self.layer_weights = nn.Parameter(torch.ones(args.num_layers, dtype = torch.float) / args.num_layers)
+
+        if self.feat_embed_dim is not None:
+            # feat_embed_dim = args.feat_dim if args.feat_embed_dim is None else args.feat_embed_dim
+            self.g_q = nn.Linear(in_features = args.feat_dim, out_features = self.feat_embed_dim, bias = False)
+            if not self.share_feature_transform:
+                self.g_k = nn.Linear(in_features = args.feat_dim, out_features = self.feat_embed_dim, bias = False)
+        
+        self.do = nn.Dropout(p = args.dropout)
+
+        self.f = Minerva(args.p_factor)
+        if self.class_embed_dim is not None:
+            self.h = nn.Linear(in_features = 1, out_features = self.class_embed_dim)
+        # self.h = nn.Linear(in_features = 1, out_features = 1)
+        
+        self.sigmoid = nn.Sigmoid()
+
+        
+    def get_regression(self, feats_l, feats_r, targets):
+        # logistic mapping curve fit to get the a and b parameters
+        # popt,_ = curve_fit(logit_func, val_predictions, val_gt)
+        if self.layer_weights == -1:
+            X = X @ self.sm(self.layer_weights)
+
+        # print(f"feats: {feats}")
+        # print(f"targets: {targets}")
+        x = self.forward(feats_l.to(self.device), left = True)
+        x_l = x['logits'].to('cpu').squeeze()
+        x = self.forward(feats_r.to(self.device), left = False)
+        x_r = x['logits'].to('cpu').squeeze()
+        x = torch.maximum(x_l, x_r)
+        # print(f"logits: {x}")
+        # print(f"targets numpy: {targets[:, 0].numpy()}")
+
+        # x_bar = x.mean().item()
+        # a0 = 1 / (x - x_bar).abs().max().item()
+        # b0 = -x_bar * a0
+        a0 = 1/ x.abs().max().item()
+        b0 = 0
+
+        # b0 = -x.mean().item()
+        # a0 = 1 / (x + b0).abs().max().item()
+        # b0 = b0 * a0
+        # a0 = 1 / x.abs().max().item()
+        # print(f"x numpy: {x.numpy()}")
+
+        # print(f"correctness:\n{x}")
+        # print(f"corrected correctness:\n{x * a0 + b0}")
+        # print(f"targets[0]:\n{targets}")
+        # print(f"a0: {a0}")
+        # print(f"b0: {b0}")
+        
+        popt, _ = curve_fit(logit_func, x.numpy(), targets.squeeze().numpy(), p0 = (a0, b0)) # , 
+        a, b = popt
+        return a, b
+    
+
+    def forward(self, X, D = None, r = None, left = False):
+
+        if left:
+            D = D if D is not None else self.Dl
+        else:
+            D = D if D is not None else self.Dr
+        r = r if r is not None else self.r
+
+        # X_out = X.data.to(self.device)
+
+        r = r * 2 - 1
+
+        if self.feat_embed_dim is not None:
+            X = self.g_q(X)
+            if self.share_feature_transform:
+                D = self.g_q(D)
+            else:
+                D = self.g_k(D)
+            
+        X = self.do(X)
+        D = self.do(D)
+
+        echo = self.f(X, D, r)
+
+        if self.class_embed_dim is not None:
+            echo = self.h(echo)
+        # print(f"output:\n{echo}\n")
+
+        output = {
+            'logits': echo,
+            'preds': self.sigmoid(echo)
+        }
+
+        return output
+
+
 
 class minerva_wrapper3(nn.Module):
 

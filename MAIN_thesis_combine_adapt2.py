@@ -25,7 +25,7 @@ from data_handling import get_disjoint_val_set
 from process_cpc2_data import get_cpc2_dataset
 from transformers import WhisperProcessor
 import random
-from models.simple_models import ffnn_init, minerva_wrapper3
+from models.simple_models import ffnn_init, minerva_wrapper4, minerva_wrapper_learnedLayers
 from models.ni_feat_extractors import Spec_feats, XLSREncoder_feats, XLSRFull_feats, \
     HuBERTEncoder_feats, HuBERTFull_feats, WhisperEncoder_feats, WhisperFull_feats, WhisperBase_feats
 from exemplar import get_ex_set
@@ -206,7 +206,7 @@ def extract_feats(feat_extractor, data, args, theset, save_feats_file = None):
     return data
 
 
-def get_dynamic_dataset(data):
+def get_dynamic_dataset(args, data):
 
     name_list = data["signal"]
     correctness_list = data["correctness"]
@@ -245,19 +245,19 @@ def validate_model(model,test_data,criterion,args,ex_data = None, skip_sigmoid =
     running_loss = 0.0
     loss_list = []
 
-    test_set = get_dynamic_dataset(test_data)
+    test_set = get_dynamic_dataset(args, test_data)
     my_dataloader = DataLoader(test_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
 
     # Get exemplar data loader if using exemplars
     if ex_data is not None:
         if args.random_exemplars:
-            len_ex = len(test_data)
-            ex_set = get_dynamic_dataset(test_data)
+            len_ex = len(ex_data)
+            ex_set = get_dynamic_dataset(args, ex_data)
             ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
         else:
             ex_set = get_ex_set(ex_data, args)
             len_ex = len(ex_set)
-            ex_set = get_dynamic_dataset(ex_set)
+            ex_set = get_dynamic_dataset(args, ex_set)
             ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
         ex_used = 0
         ex_dataloader = iter(ex_dataloader)
@@ -278,7 +278,7 @@ def validate_model(model,test_data,criterion,args,ex_data = None, skip_sigmoid =
                     ex_dataloader = iter(DataLoader(ex_set,args.ex_size, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True))
                 else:
                     ex_set = get_ex_set(ex_data, args)
-                    ex_set = get_dynamic_dataset(ex_data)
+                    ex_set = get_dynamic_dataset(args, ex_data)
                     ex_dataloader = iter(DataLoader(ex_set,args.ex_size, collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
                 ex_used = args.ex_size
 
@@ -433,19 +433,19 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
     running_loss = 0.0
     loss_list = []
 
-    train_set = get_dynamic_dataset(train_data)
+    train_set = get_dynamic_dataset(args, train_data)
     my_dataloader = DataLoader(train_set,args.batch_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
 
     # Set up exemplar data loader if using exemplars
     if ex_data is not None:
         if args.random_exemplars:
-            ex_set = get_dynamic_dataset(ex_data)
+            ex_set = get_dynamic_dataset(args, ex_data)
             len_ex = len(ex_set)
             ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
         else:
             ex_set = get_ex_set(ex_data, args)
             len_ex = len(ex_set)
-            ex_set = get_dynamic_dataset(ex_set)
+            ex_set = get_dynamic_dataset(args, ex_set)
             ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
             # len_ex = len(ex_dataloader)
         ex_used = 0
@@ -470,15 +470,15 @@ def train_model(model,train_data,optimizer,criterion,args,ex_data=None):
                 else:
                 # print("Reloading exemplars...")
                     ex_set = get_ex_set(ex_data, args)
-                    ex_set = get_dynamic_dataset(ex_set)
+                    ex_set = get_dynamic_dataset(args, ex_set)
                     ex_dataloader = iter(DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False))
                 ex_used = args.ex_size
 
             exemplars = next(ex_dataloader)
             ex_correct, ex_feats_l, ex_feats_r = exemplars
             
-            # ex_feats_l = ex_feats_l.data.to(args.device)
-            # ex_feats_r = ex_feats_r.data.to(args.device)
+            ex_feats_l = ex_feats_l.data.to(args.device)
+            ex_feats_r = ex_feats_r.data.to(args.device)
             ex_correct = ex_correct.data.to(args.device)
 
         target_scores = correctness.data.to(args.device)
@@ -558,121 +558,11 @@ def save_model_old(model,opt,epoch,args,val_loss):
         pass
 
 
-def main(args):
-    #set up the torch objects
-    print("creating model: %s"%args.feats_model)
-    torch.backends.cudnn.deterministic = True
-    torch.manual_seed(1234)
-    np.random.seed(1234)
-    random.seed(1234)
-    torch.cuda.manual_seed(1234)
+def main(args, dis_val_data, train_data, val_data):
 
-    args.exemplar = False
-
-    # Select a pretrained feature extractor model
-    if args.feats_model == "XLSREncoder":
-        feat_extractor = XLSREncoder_feats()
-        dim_extractor = 512
-        hidden_size = 512//2
-
-    elif args.feats_model == "XLSRFull":
-        feat_extractor = XLSRFull_feats()
-        dim_extractor = 1024
-        # hidden_size = 1024//2
-        
-    elif args.feats_model == "HuBERTEncoder":
-        feat_extractor = HuBERTEncoder_feats()
-        dim_extractor = 512
-        hidden_size = 512//2
-        
-    elif args.feats_model == "HuBERTFull":
-        feat_extractor = HuBERTFull_feats()
-        dim_extractor = 768
-        hidden_size = 768//2
-        
-    elif args.feats_model == "Spec":  
-        feat_extractor = Spec_feats()
-        dim_extractor = 257
-        # hidden_size = 257//2
-
-    elif args.feats_model == "WhisperEncoder":  
-        feat_extractor = WhisperEncoder_feats(
-            pretrained_model=args.pretrained_feats_model, 
-            use_feat_extractor = True,
-            layer = args.layer
-        )
-        dim_extractor = 768
-        hidden_size = 768//2
-
-    elif args.feats_model == "WhisperFull":  
-        feat_extractor = WhisperFull_feats(
-            pretrained_model=args.pretrained_feats_model, 
-            use_feat_extractor = True,
-            layer = args.layer
-        )
-        dim_extractor = 768
-        # hidden_size = args.class_embed_dim
-        
-    elif args.feats_model == "WhisperBase":  
-        feat_extractor = WhisperBase_feats(
-            pretrained_model=args.pretrained_feats_model, 
-            use_feat_extractor = True,
-            layer = args.layer
-        )
-        dim_extractor = 512
-        hidden_size = 512//2
-        
-    else:
-        print("Feats extractor not recognised")
-        exit(1)
-
-
-    # Make a model directory (if it doesn't exist) and write out config for future reference
-    # args.model_dir = model_dir
-    if not os.path.exists(args.model_dir):
-        os.mkdir(args.model_dir)
-    # with open(args.model_dir + "/config.json", 'w+') as f:
-    #     f.write(json.dumps(dict(config)))
-        
-    # You can save the feats extracted to disk so it doesn't have to be done 
-    # again for future test runs (takes up space though)
-    pre = "" if args.pretrained_feats_model is None else "pre"
-    save_feats_file = f"{args.dataroot}{args.feats_model}{pre}_N{args.N}_{'debug_' if args.debug else ''}{'' if args.layer == -1 else args.layer}"
-    print(f"save_feats_file:\n{save_feats_file}")
-    data = pd.read_json(args.in_json_file)
-    data["subset"] = "CEC1"
-    # if not args.use_CPC1:
-    data2 = pd.read_json(args.in_json_file.replace("CEC1","CEC2"))
-    data2["subset"] = "CEC2"
-    data = pd.concat([data, data2])
-    data = data.drop_duplicates(subset = ['signal'], keep = 'last')
-    # print(data["correctness"])
-    if args.learn_incorrect:
-        data["correctness"] = 100 - data["correctness"].to_numpy()
-    data["predicted"] = np.nan  
-
-    if args.debug:
-        _, data = train_test_split(data, test_size = 0.01)
-
-    theset = "train"
-    data = get_feats(
-        data = data,
-        save_feats_file = save_feats_file,
-        dim_extractor = dim_extractor,
-        feat_extractor = feat_extractor,
-        theset = theset,
-        args = args
-    )
     
-    # Mark various disjoint validation sets in the data
-    data = get_disjoint_val_set(args, data)
-    dis_val_data = data[data.validation > 0].copy()
-    train_data,val_data = train_test_split(data[data.validation == 0],test_size=0.1)
-    # print(np.unique(dis_val_data[dis_val_data.validation == 7].system.values))
-
-    print(f"dis_val length: {len(dis_val_data[dis_val_data.validation == 7])}")
-    print(f"val_data length: {len(val_data)}")
-    print(f"train_data length: {len(train_data)}")
+    if not os.path.exists(args_all.model_dir):
+        os.mkdir(args_all.model_dir)
 
     # Reset seeds for repeatable behaviour regardless of
     # how feats / models are obtained
@@ -685,11 +575,11 @@ def main(args):
         if args.ex_size > len(train_data):
             args.ex_size = len(train_data)
         if args.random_exemplars:
-            ex_set = get_dynamic_dataset(train_data)
+            ex_set = get_dynamic_dataset(args, train_data)
             ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = True)
         else:
             ex_set = get_ex_set(train_data, args)
-            ex_set = get_dynamic_dataset(ex_set)
+            ex_set = get_dynamic_dataset(args, ex_set)
             ex_dataloader = DataLoader(ex_set,args.ex_size,collate_fn=sb.dataio.batch.PaddedBatch, shuffle = False)
             # len_ex = len(ex_dataloader)
         ex_dataloader = iter(ex_dataloader)
@@ -701,6 +591,15 @@ def main(args):
         ex_feats_l = None
         ex_feats_r = None
         ex_correct = None
+
+    
+    # writeOut = [str(i.item()) for i in ex_correct]
+    # writeOut = "\n".join(writeOut)
+    # writeOut = "\n".join(['corrects', writeOut])
+    # with open('corrects_1234.txt', 'w') as f:
+    #     f.write(writeOut)
+
+    # quit()
 
     # Select classifier model (this is the one we're actually training)
     args.feat_dim = dim_extractor
@@ -718,7 +617,16 @@ def main(args):
     #     args.exemplar = True
     elif args.model == 'minerva':
         # args.hidden_size = args.feat_embed_dim
-        model = minerva_wrapper3(
+        model = minerva_wrapper4(
+            args,
+            ex_feats_l = ex_feats_l,
+            ex_feats_r = ex_feats_r,
+            ex_correct = ex_correct
+        )
+        args.exemplar = True
+    elif args.model == 'minerva_ll':
+        # args.hidden_size = args.feat_embed_dim
+        model = minerva_wrapper_learnedLayers(
             args,
             ex_feats_l = ex_feats_l,
             ex_feats_r = ex_feats_r,
@@ -1141,7 +1049,7 @@ if __name__ == "__main__":
         "--exp_id", help="id for individual experiment", default = 'test'
     )
     parser.add_argument(
-        "--run_id", help="id for individual experiment", default = 'test'
+        "--run_id", help="id for individual experiment", default = 'test', nargs='+'
     )
     parser.add_argument(
         "--summ_file", help="path to write summary results to" , default="save/IS_CPC2.csv"
@@ -1150,13 +1058,13 @@ if __name__ == "__main__":
         "--out_csv_file", help="path to write the predictions to" , default=None
     )
     parser.add_argument(
-        "--wandb_project", help="W and B project name" , default="CSL_CPC2"
+        "--wandb_project", help="W and B project name" , default="thesis_cpc2"
     )
     parser.add_argument(
         "--skip_wandb", help="skip logging via WandB", default=False, action='store_true'
     )
     parser.add_argument(
-        "--seed", help="random seed for repeatability", default=1234, type=int
+        "--seed", help="random seed for repeatability", default=1234, type=int, nargs='+'
     )
     parser.add_argument(
         "--debug", help="use a tiny dataset for debugging", default=False, action='store_true'
@@ -1226,7 +1134,10 @@ if __name__ == "__main__":
         "--restart_epoch", help="epoch number to restart from (for logging)" , default=0, type = int
     )
     parser.add_argument(
-        "--feat_embed_dim", help = "embeddings size of the feature transform", default = None, type = int
+        "--feat_embed_dim", help = "embeddings size of the feature transform", default = None, type = int, nargs='+'
+    )
+    parser.add_argument(
+        "--share_feature_transform", help="get intelligibility for each word, then average", default=False, action='store_true'
     )
     parser.add_argument(
         "--class_embed_dim", help = "embeddings size of the classifier", default = None, type = int
@@ -1256,13 +1167,13 @@ if __name__ == "__main__":
         "--n_epochs", help="number of epochs", default=100, type=int
     )
     parser.add_argument(
-        "--lr", help="learning rate", default=None, type=float
+        "--lr", help="learning rate", default=None, type=float, nargs='+'
     )
     parser.add_argument(
         "--lr_ex", help="learning rate for exemplar labels", default=None, type=float
     )
     parser.add_argument(
-        "--weight_decay", help="weight decay", default=None, type=float
+        "--weight_decay", help="weight decay", default=None, type=float, nargs='+'
     )
     parser.add_argument(
         "--wd_ex", help="weight decay for exemplar labels", default=None, type=float
@@ -1271,7 +1182,7 @@ if __name__ == "__main__":
         "--grad_clipping", help="gradient clipping", default=1, type=float
     )
     parser.add_argument(
-        "--dropout", help="dropout", default=0, type=float
+        "--dropout", help="dropout", default=0, type=float, nargs='+'
     )
     parser.add_argument(
         "--do_fit", help="do logistic regression to find scaling parameters", default=False, action='store_true'
@@ -1279,16 +1190,16 @@ if __name__ == "__main__":
 
     # Exemplar bits
     parser.add_argument(
-        "--ex_size", help="train split" , default=None, type=int
+        "--ex_size", help="train split" , default=None, type=int, nargs='+'
     )
     parser.add_argument(
-        "--p_factor", help="exemplar model p_factor" , default=None, type=float
+        "--p_factor", help="exemplar model p_factor" , default=None, type=float, nargs='+'
     )
     parser.add_argument(
         "--random_exemplars", help="use randomly selected exemplars, rather than stratified exemplars", default=False, action='store_true'
     )
     parser.add_argument(
-        "--fix_ex", help="use fixed exemplars", default=True, action='store_true'
+        "--fix_ex", help="use fixed exemplars", default=False, action='store_true'
     )
     parser.add_argument(
         "--use_g", help="train the exemplar classes", default=False, action='store_true'
@@ -1316,9 +1227,11 @@ if __name__ == "__main__":
     )
 
 
-    args = parser.parse_args()
+    args_all = parser.parse_args()
 
-    args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    args_all.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    
 
     # if args.config_file is not None:
     #     with open(args.config_file) as f:
@@ -1411,41 +1324,217 @@ if __name__ == "__main__":
     #     args.test_json_file = DATAROOT_CPC1 + "metadata/CPC1.test_indep.json"
     #     config["test_json_file"] = args.test_json_file
     # else:
-    args.dataroot = DATAROOT
-    args.wandb_project = "CPC_paper" if args.wandb_project is None else args.wandb_project
+    args_all.dataroot = DATAROOT
+    args_all.wandb_project = "CPC_paper" if args_all.wandb_project is None else args_all.wandb_project
     # config["wandb_project"] = args.wandb_project
-    args.in_json_file = f"{DATAROOT}/metadata/CEC1.train.{args.N}.json"
+    args_all.in_json_file = f"{DATAROOT}/metadata/CEC1.train.{args_all.N}.json"
     # config["in_json_file"] = args.in_json_file
-    if args.skip_test:
-        args.test_json_file = None
+    if args_all.skip_test:
+        args_all.test_json_file = None
         # config["test_json_file"] = None
     else:
-        args.test_json_file = f"{DATAROOT}/metadata/CEC2.test.{args.N}.json"
+        args_all.test_json_file = f"{DATAROOT}/metadata/CEC2.test.{args_all.N}.json"
         # config["test_json_file"] = args.test_json_file
         
-    if args.summ_file is None:
+    if args_all.summ_file is None:
         # if args.use_CPC1:
         #     args.summ_file = "save/CPC1_metrics.csv"
         # else:
-        args.summ_file = "save/CPC_metrics.csv"
+        args_all.summ_file = "save/CPC_metrics.csv"
     # config["summ_file"] = args.summ_file
 
     today = datetime.datetime.today()
     date = today.strftime("%H-%M-%d-%b-%Y")
     # nm = "" if args.num_minervas == 1 else f"nm{args.num_minervas}"
-    args.model_name = "%s_%s_%s_%s_%s_%s_%s"%(args.exp_id,args.run_id,args.N,args.feats_model,args.model,date,args.seed)
-    args.model_dir = "save/%s"%(args.model_name)
+    for i in range(len(args_all.run_id)):
+
+        args_all.model_name = ["%s_%s_%s_%s_%s_%s_%s"%(args_all.exp_id,args_all.run_id[i],args_all.N,args_all.feats_model,args_all.model,date,args_all.seed[i]) for i in range(len(args_all.run_id))]
+        args_all.model_dir = ["save/%s"%(args_all.model_name[i]) for i in range(len(args_all.model_name))]
     # config["model_name"] = args.model_name
 
-    args.lr_ex = args.lr_ex if args.lr_ex is not None else args.lr
-    args.wd_ex = args.wd_ex if args.wd_ex is not None else args.weight_decay
+    args_all.lr_ex = args_all.lr_ex if args_all.lr_ex is not None else args_all.lr
+    args_all.wd_ex = args_all.wd_ex if args_all.wd_ex is not None else args_all.weight_decay
 
-    if args.out_csv_file is None:
+    if args_all.out_csv_file is None:
         # nm = "" if args.num_minervas == 1 else f"_nm{args.num_minervas}_{args.seed}"
-        args.out_csv_file = f"{args.model_dir}/{args.exp_id}_{args.run_id}_{args.feats_model}_N{args.N}_{args.model}"
+        args_all.out_csv_file = [f"{args_all.model_dir[i]}/{args_all.exp_id}_{args_all.run_id[i]}_{args_all.feats_model}_N{args_all.N}_{args_all.model}" for i in range(len(args_all.model_dir))]
     # config["out_csv_file"] = args.out_csv_file
 
-    if args.model == 'ffnn_init':
-        args.ex_size = args.feat_embed_dim
+    if args_all.model == 'ffnn_init':
+        args_all.ex_size = args_all.feat_embed_dim
+        
+        
+    print(args_all.run_id)
+    print(args_all.seed)
+    print(args_all.feat_embed_dim)
+    print(args_all.lr)
+    print(args_all.weight_decay)
+    print(args_all.dropout)
+    print(args_all.ex_size)
+    print(args_all.p_factor)
+    print(args_all.model_name)
+    print(args_all.model_dir)
+    print(args_all.lr_ex)
+    print(args_all.wd_ex)
+    print(args_all.out_csv_file)
 
-    main(args)
+        
+    #set up the torch objects
+    print("creating model: %s"%args_all.feats_model)
+    torch.backends.cudnn.deterministic = True
+    torch.manual_seed(1234)
+    np.random.seed(1234)
+    random.seed(1234)
+    torch.cuda.manual_seed(1234)
+
+    args_all.exemplar = False
+
+    # Select a pretrained feature extractor model
+    if args_all.feats_model == "XLSREncoder":
+        feat_extractor = XLSREncoder_feats()
+        dim_extractor = 512
+        hidden_size = 512//2
+
+    elif args_all.feats_model == "XLSRFull":
+        feat_extractor = XLSRFull_feats()
+        dim_extractor = 1024
+        # hidden_size = 1024//2
+        
+    elif args_all.feats_model == "HuBERTEncoder":
+        feat_extractor = HuBERTEncoder_feats()
+        dim_extractor = 512
+        hidden_size = 512//2
+        
+    elif args_all.feats_model == "HuBERTFull":
+        feat_extractor = HuBERTFull_feats()
+        dim_extractor = 768
+        hidden_size = 768//2
+        
+    elif args_all.feats_model == "Spec":  
+        feat_extractor = Spec_feats()
+        dim_extractor = 257
+        # hidden_size = 257//2
+
+    elif args_all.feats_model == "WhisperEncoder":  
+        feat_extractor = WhisperEncoder_feats(
+            pretrained_model=args_all.pretrained_feats_model, 
+            use_feat_extractor = True,
+            layer = args_all.layer
+        )
+        dim_extractor = 768
+        hidden_size = 768//2
+
+    elif args_all.feats_model == "WhisperFull":  
+        feat_extractor = WhisperFull_feats(
+            pretrained_model=args_all.pretrained_feats_model, 
+            use_feat_extractor = True,
+            layer = args_all.layer
+        )
+        dim_extractor = 768
+        # hidden_size = args.class_embed_dim
+        
+    elif args_all.feats_model == "WhisperBase":  
+        feat_extractor = WhisperBase_feats(
+            pretrained_model=args_all.pretrained_feats_model, 
+            use_feat_extractor = True,
+            layer = args_all.layer
+        )
+        dim_extractor = 512
+        hidden_size = 512//2
+        
+    else:
+        print("Feats extractor not recognised")
+        exit(1)
+
+
+    # Make a model directory (if it doesn't exist) and write out config for future reference
+    # args.model_dir = model_dir
+    # with open(args.model_dir + "/config.json", 'w+') as f:
+    #     f.write(json.dumps(dict(config)))
+        
+    # You can save the feats extracted to disk so it doesn't have to be done 
+    # again for future test runs (takes up space though)
+    pre = "" if args_all.pretrained_feats_model is None else "pre"
+    save_feats_file = f"{args_all.dataroot}{args_all.feats_model}{pre}_N{args_all.N}_{'debug_' if args_all.debug else ''}{'' if args_all.layer == -1 else args_all.layer}"
+    print(f"save_feats_file:\n{save_feats_file}")
+    data = pd.read_json(args_all.in_json_file)
+    data["subset"] = "CEC1"
+    # if not args.use_CPC1:
+    data2 = pd.read_json(args_all.in_json_file.replace("CEC1","CEC2"))
+    data2["subset"] = "CEC2"
+    data = pd.concat([data, data2])
+    data = data.drop_duplicates(subset = ['signal'], keep = 'last')
+    # print(data["correctness"])
+    if args_all.learn_incorrect:
+        data["correctness"] = 100 - data["correctness"].to_numpy()
+    data["predicted"] = np.nan  
+
+    if args_all.debug:
+        _, data = train_test_split(data, test_size = 0.01)
+
+    theset = "train"
+    data = get_feats(
+        data = data,
+        save_feats_file = save_feats_file,
+        dim_extractor = dim_extractor,
+        feat_extractor = feat_extractor,
+        theset = theset,
+        args = args_all
+    )
+    
+    # Mark various disjoint validation sets in the data
+    data = get_disjoint_val_set(args_all, data)
+    dis_val_data = data[data.validation > 0].copy()
+    train_data,val_data = train_test_split(data[data.validation == 0],test_size=0.1)
+    # print(np.unique(dis_val_data[dis_val_data.validation == 7].system.values))
+
+    print(f"dis_val length: {len(dis_val_data[dis_val_data.validation == 7])}")
+    print(f"val_data length: {len(val_data)}")
+    print(f"train_data length: {len(train_data)}")
+
+    
+    run_id = args_all.run_id
+    seed = args_all.seed
+    feat_embed_dim = args_all.feat_embed_dim
+    lr = args_all.lr
+    weight_decay = args_all.weight_decay
+    dropout = args_all.dropout
+    ex_size = args_all.ex_size
+    p_factor = args_all.p_factor
+    model_name = args_all.model_name
+    model_dir = args_all.model_dir
+    lr_ex = args_all.lr_ex
+    wd_ex = args_all.wd_ex
+    out_csv_file = args_all.out_csv_file
+
+
+
+    for i in range(len(args_all.run_id)):
+        # print(f"{i}")
+        # print(f"run_id: {args_all.run_id[i]}")
+        # print(f"run_id: {run_id[i]}")
+        # print(f"seed: {args_all.seed[i]}")
+        # print(f"feat_embed_dim: {args_all.feat_embed_dim[i]}")
+        # print(f"lr: {args_all.lr[i]}")
+        # print(f"weight_decay: {args_all.weight_decay[i]}")
+        # print(f"dropout: {args_all.dropout[i]}")
+        # print(f"ex_size: {args_all.ex_size[i]}")
+        # print(f"p_factor: {args_all.p_factor[i]}")
+        # print(f"model_name: {args_all.model_name[i]}")
+        # print(f"model_dir: {args_all.model_dir[i]}")
+        args_all.run_id = run_id[i]
+        args_all.seed = seed[i]
+        args_all.feat_embed_dim = feat_embed_dim[i]
+        args_all.lr = lr[i]
+        args_all.weight_decay = weight_decay[i]
+        args_all.dropout = dropout[i]
+        args_all.ex_size = ex_size[i]
+        args_all.p_factor = p_factor[i]
+        args_all.model_name = model_name[i]
+        args_all.model_dir = model_dir[i]
+        args_all.lr_ex = lr_ex[i]
+        args_all.wd_ex = wd_ex[i]
+        args_all.out_csv_file = out_csv_file[i]
+        
+
+        main(args_all, dis_val_data, train_data, val_data)
